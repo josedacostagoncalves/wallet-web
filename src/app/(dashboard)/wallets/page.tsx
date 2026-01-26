@@ -45,8 +45,11 @@ export default function WalletsPage() {
         .eq("user_id", user.id);
 
       const walletsList = (list ?? [])
-        .map((m) => m.wallets)
-        .filter((w): w is Wallet => w !== null)
+        .map((m) => {
+          const raw = m.wallets as Wallet | Wallet[] | null;
+          return Array.isArray(raw) ? raw[0] : raw;
+        })
+        .filter((w): w is Wallet => w != null)
         .sort((a, b) => a.name.localeCompare(b.name));
 
       setWallets(walletsList);
