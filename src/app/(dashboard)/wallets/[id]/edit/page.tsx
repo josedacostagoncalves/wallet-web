@@ -87,6 +87,7 @@ export default function EditWalletPage() {
       }
     }
     loadWallet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadShareCode intentionally excluded; we only run on mount/id change
   }, [id]);
 
   async function handleShareToggle(checked: boolean) {
@@ -227,7 +228,7 @@ export default function EditWalletPage() {
                     <>
                       {!isSavedAsShared ? (
                         <p className="text-sm text-amber-600 dark:text-amber-400">
-                          Please save the wallet with "Shared" enabled first, then generate the share code.
+                          Please save the wallet with &quot;Shared&quot; enabled first, then generate the share code.
                         </p>
                       ) : (
                         <>

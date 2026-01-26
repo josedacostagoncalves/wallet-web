@@ -115,6 +115,7 @@ export default function NewMovementPage() {
         setSubcategories([]);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- copyFrom intentionally excluded to avoid reset loop after setCopyFrom(null)
   }, [currentWalletId, type]);
 
   useEffect(() => {
