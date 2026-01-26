@@ -114,20 +114,29 @@ export async function getMovementsByAccount(
   const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
 
   type CatRow = { name: string; parent_id: string | null };
-  const cat = (c: unknown): CatRow | null => (c as CatRow | null) ?? null;
+  type TxRow = {
+    id: string;
+    date: string;
+    type: string;
+    amount: number;
+    description: string | null;
+    account_from_id: string | null;
+    account_to_id: string | null;
+    category: CatRow | null;
+  };
+  const rows = (tx ?? []) as unknown as TxRow[];
 
-  return (tx ?? []).map((t) => {
-    const c = cat(t.category);
+  return rows.map((t) => {
+    const c = t.category;
     const categoryLabel = c?.parent_id
       ? (catIdToName.get(c.parent_id) ?? "—")
       : (c?.name ?? "—");
     const subcategoryLabel = c?.parent_id ? (c?.name ?? "—") : "—";
-    const raw = t as { account_from_id?: string | null; account_to_id?: string | null };
-    const accountFromName = raw.account_from_id
-      ? (accountsMap.get(raw.account_from_id) ?? "—")
+    const accountFromName = t.account_from_id
+      ? (accountsMap.get(t.account_from_id) ?? "—")
       : "—";
-    const accountToName = raw.account_to_id
-      ? (accountsMap.get(raw.account_to_id) ?? "—")
+    const accountToName = t.account_to_id
+      ? (accountsMap.get(t.account_to_id) ?? "—")
       : "—";
     return {
       id: t.id,
