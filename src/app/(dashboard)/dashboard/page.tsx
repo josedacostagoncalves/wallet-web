@@ -18,6 +18,16 @@ export default async function DashboardPage() {
     cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
 
   type CategoryRow = { name: string; parent_id: string | null };
+  type TxRow = {
+    id: string;
+    date: string;
+    type: string;
+    amount: number;
+    description: string | null;
+    account_from_id: string | null;
+    account_to_id: string | null;
+    category: CategoryRow | null;
+  };
   let transactions: {
     id: string;
     date: string;
@@ -56,16 +66,15 @@ export default async function DashboardPage() {
     ]);
     const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
     const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
-    const cat = (c: unknown): CategoryRow | null => (c as CategoryRow | null) ?? null;
-    transactions = (tx ?? []).map((t) => {
-      const c = cat(t.category);
+    const rows = (tx ?? []) as TxRow[];
+    transactions = rows.map((t) => {
+      const c = t.category;
       const categoryLabel = c?.parent_id
         ? (catIdToName.get(c.parent_id) ?? "—")
         : (c?.name ?? "—");
       const subcategoryLabel = c?.parent_id ? (c?.name ?? "—") : "—";
-      const raw = t as { account_from_id?: string | null; account_to_id?: string | null };
-      const accountFromName = raw.account_from_id ? (accountsMap.get(raw.account_from_id) ?? "—") : "—";
-      const accountToName = raw.account_to_id ? (accountsMap.get(raw.account_to_id) ?? "—") : "—";
+      const accountFromName = t.account_from_id ? (accountsMap.get(t.account_from_id) ?? "—") : "—";
+      const accountToName = t.account_to_id ? (accountsMap.get(t.account_to_id) ?? "—") : "—";
       return {
         id: t.id,
         date: t.date,
