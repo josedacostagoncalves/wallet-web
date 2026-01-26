@@ -73,7 +73,13 @@ export default function EditWalletPage() {
         setError("Wallet not found or you don't have access");
         return;
       }
-      const wallet = data.wallets;
+      type WalletRow = { name: string; is_shared: boolean; is_active: boolean };
+      const raw = data.wallets as WalletRow | WalletRow[] | null;
+      const wallet = Array.isArray(raw) ? raw[0] : raw;
+      if (!wallet) {
+        setError("Wallet not found or you don't have access");
+        return;
+      }
       setName(wallet.name);
       setIsShared(wallet.is_shared);
       setIsActive(wallet.is_active);
