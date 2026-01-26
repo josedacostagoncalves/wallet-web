@@ -1,0 +1,92 @@
+"use client";
+
+import { createAccount } from "@/app/actions/accounts";
+import { useWallet } from "@/contexts/WalletContext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export default function NewAccountPage() {
+  const { currentWalletId } = useWallet();
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [initialBalance, setInitialBalance] = useState("0");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentWalletId) return;
+    setError(null);
+    setLoading(true);
+    const num = parseFloat(initialBalance.replace(",", ".")) || 0;
+    const res = await createAccount({
+      wallet_id: currentWalletId,
+      name: name.trim(),
+      initial_balance: num,
+    });
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    router.push("/accounts");
+    router.refresh();
+  }
+
+  if (!currentWalletId) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Add account</h1>
+        <p className="text-slate-600 dark:text-slate-400">
+          Select or create a wallet first.
+        </p>
+        <Link href="/wallets" className="underline">Wallets</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Add account</h1>
+      <form onSubmit={handleSubmit} className="max-w-md space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Name *</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={initialBalance}
+            onChange={(e) => setInitialBalance(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+          />
+        </div>
+        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
+          >
+            {loading ? "Saving…" : "Save"}
+          </button>
+          <Link
+            href="/accounts"
+            className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
+          >
+            Cancel
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
+}
