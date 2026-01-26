@@ -66,7 +66,7 @@ export default async function DashboardPage() {
     ]);
     const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
     const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
-    const rows = (tx ?? []) as TxRow[];
+    const rows = (tx ?? []) as unknown as TxRow[];
     transactions = rows.map((t) => {
       const c = t.category;
       const categoryLabel = c?.parent_id
