@@ -188,6 +188,21 @@ export default async function DashboardPage() {
       accountToName,
     }));
 
+  const calendarMovements = transactions.map(
+    ({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, status }) => ({
+      id,
+      date,
+      type,
+      amount,
+      description,
+      categoryLabel,
+      subcategoryLabel,
+      accountFromName,
+      accountToName,
+      status: status as "confirmed" | "pending",
+    })
+  );
+
   return (
     <div className="space-y-6">
       {!currentWalletId ? (
@@ -199,11 +214,11 @@ export default async function DashboardPage() {
         </>
       ) : (
         <div className="w-screen relative left-1/2 -ml-[50vw]">
-          <div className="max-w-[1600px] mx-auto px-4 flex flex-col lg:flex-row gap-8 lg:gap-10">
-            <aside className="shrink-0">
-              <DashboardCalendar movements={confirmed} />
+          <div className="max-w-[1600px] mx-auto px-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_1152px_minmax(0,1fr)] gap-8 lg:gap-10">
+            <aside className="min-w-0 lg:order-first">
+              <DashboardCalendar movements={calendarMovements} />
             </aside>
-            <div className="min-w-0 flex-1 max-w-6xl space-y-8">
+            <div className="min-w-0 space-y-8 lg:col-start-2 lg:px-4">
               <h1 className="text-2xl font-semibold">Dashboard</h1>
               <section>
                 <RecurringSection recurring={recurring} />
@@ -215,6 +230,7 @@ export default async function DashboardPage() {
                 <AllMovementsSection confirmed={confirmed} />
               </section>
             </div>
+            <div className="hidden lg:block lg:col-start-3" aria-hidden />
           </div>
         </div>
       )}

@@ -13,9 +13,26 @@ export type CalendarMovement = {
   subcategoryLabel: string;
   accountFromName: string;
   accountToName: string;
+  status: "confirmed" | "pending";
 };
 
 type Props = { movements: CalendarMovement[] };
+
+type DayIndicators = { income: boolean; expense: boolean; transfer: boolean; pending: boolean };
+
+function indicatorsForDay(movements: CalendarMovement[]): DayIndicators {
+  let income = false;
+  let expense = false;
+  let transfer = false;
+  let pending = false;
+  for (const m of movements) {
+    if (m.type === "income") income = true;
+    else if (m.type === "expense") expense = true;
+    else if (m.type === "transfer") transfer = true;
+    if (m.status === "pending") pending = true;
+  }
+  return { income, expense, transfer, pending };
+}
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -88,7 +105,7 @@ export function DashboardCalendar({ movements }: Props) {
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-[320px] shrink-0">
+    <div className="flex flex-col gap-4 w-full max-w-[360px] shrink-0">
       <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
         <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50">
           <button
@@ -119,22 +136,25 @@ export function DashboardCalendar({ movements }: Props) {
           </div>
           <div className="grid grid-cols-7 gap-0.5">
             {days.map(({ date, day, isCurrent }) => {
-              const has = (byDate.get(date) ?? []).length > 0;
+              const dayList = byDate.get(date) ?? [];
+              const ind = indicatorsForDay(dayList);
               const isSel = selected === date;
-              const bg = isSel
-                ? "ring-2 ring-slate-800 bg-slate-100"
-                : has
-                  ? "bg-green-50 hover:bg-green-100/80"
-                  : "hover:bg-slate-100";
+              const bg = isSel ? "ring-2 ring-slate-800 bg-slate-100" : "hover:bg-slate-100";
               const fg = !isCurrent ? "text-slate-400" : "text-slate-800";
               return (
                 <button
                   key={date}
                   type="button"
                   onClick={() => setSelected(date)}
-                  className={`min-h-[36px] rounded-md text-xs font-medium ${fg} ${bg}`}
+                  className={`min-h-[40px] flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium ${fg} ${bg}`}
                 >
-                  {day}
+                  <span>{day}</span>
+                  <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
+                    {ind.income && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                    {ind.expense && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+                    {ind.transfer && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+                    {ind.pending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
+                  </span>
                 </button>
               );
             })}
@@ -169,7 +189,10 @@ export function DashboardCalendar({ movements }: Props) {
                         {t.description || "—"}
                       </span>
                       <span className="flex justify-between items-center gap-2">
-                        <span className="text-slate-500 capitalize">{t.type}</span>
+                        <span className="text-slate-500 capitalize">
+                          {t.type}
+                          {t.status === "pending" ? " (pending)" : ""}
+                        </span>
                         <span
                           className={`font-mono shrink-0 ${
                             t.type === "income"
