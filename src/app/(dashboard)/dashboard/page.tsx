@@ -213,8 +213,8 @@ export default async function DashboardPage() {
           </p>
         </>
       ) : (
-        <div className="w-screen relative left-1/2 -ml-[50vw]">
-          <div className="relative max-w-6xl ml-8 mr-auto px-4 flex flex-col lg:block">
+        <div className="w-screen relative left-1/2 -ml-[50vw] ml-8">
+          <div className="relative max-w-6xl mx-auto px-4 flex flex-col lg:block">
             <aside className="order-1 lg:order-none mb-8 lg:mb-0 lg:absolute lg:right-full lg:top-0 lg:mr-4 lg:w-[360px]">
               <DashboardCalendar movements={calendarMovements} />
             </aside>
