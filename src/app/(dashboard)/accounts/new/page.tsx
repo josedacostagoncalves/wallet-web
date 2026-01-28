@@ -1,7 +1,9 @@
 "use client";
 
 import { createAccount } from "@/app/actions/accounts";
+import { AccountTypeSelect } from "@/components/AccountTypeSelect";
 import { useWallet } from "@/contexts/WalletContext";
+import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +12,7 @@ export default function NewAccountPage() {
   const { currentWalletId } = useWallet();
   const router = useRouter();
   const [name, setName] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("bank_account");
   const [initialBalance, setInitialBalance] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -23,6 +26,7 @@ export default function NewAccountPage() {
     const res = await createAccount({
       wallet_id: currentWalletId,
       name: name.trim(),
+      account_type: accountType,
       initial_balance: num,
     });
     setLoading(false);
@@ -60,6 +64,7 @@ export default function NewAccountPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
+        <AccountTypeSelect value={accountType} onChange={setAccountType} />
         <div>
           <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
           <input

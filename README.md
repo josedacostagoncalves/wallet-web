@@ -101,3 +101,7 @@ Run in the **SQL Editor** (Supabase Dashboard), in order:
 1. `supabase/migrations/001_initial.sql`
 2. `supabase/migrations/002_create_wallet_rpc.sql`
 3. `supabase/migrations/003_add_share_code_to_wallets.sql`
+4. `supabase/migrations/004_recurring_and_pending.sql` (recurring rules, transaction status, pending movements)
+5. `supabase/migrations/005_work_day_recurrence.sql` (work day recurrence: nth / nth last work day of month)
+6. `supabase/migrations/006_interval_days.sql` (every X days recurrence, `interval_days` column)
+7. `supabase/migrations/007_account_type.sql` (account type: bank_account, cash, credit_card, savings, investments)

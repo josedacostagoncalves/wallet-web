@@ -85,6 +85,12 @@ export function Header() {
             >
               Dashboard
             </Link>
+            <Link
+              href="/reports"
+              className="px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              Reports
+            </Link>
           </nav>
         </div>
         <div className="relative">
@@ -123,6 +129,13 @@ export function Header() {
                   onClick={() => setMenuOpen(false)}
                 >
                   Wallets
+                </Link>
+                <Link
+                  href="/reports"
+                  className="block px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Reports
                 </Link>
                 <Link
                   href="/activity"

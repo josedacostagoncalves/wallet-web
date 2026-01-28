@@ -2,10 +2,20 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import type { AccountType } from "@/lib/account-types";
+
+const VALID_ACCOUNT_TYPES = [
+  "bank_account",
+  "cash",
+  "credit_card",
+  "savings",
+  "investments",
+] as const;
 
 export async function createAccount(params: {
   wallet_id: string;
   name: string;
+  account_type: AccountType;
   initial_balance: number;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -13,12 +23,19 @@ export async function createAccount(params: {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+  if (
+    !params.account_type ||
+    !VALID_ACCOUNT_TYPES.includes(params.account_type as (typeof VALID_ACCOUNT_TYPES)[number])
+  ) {
+    return { error: "Account type is required" };
+  }
 
   const { data, error } = await supabase
     .from("accounts")
     .insert({
       wallet_id: params.wallet_id,
       name: params.name,
+      account_type: params.account_type,
       initial_balance: params.initial_balance,
       current_balance: params.initial_balance,
       created_by: user.id,
@@ -33,7 +50,11 @@ export async function createAccount(params: {
     entity_type: "account",
     entity_id: data?.id ?? undefined,
     wallet_id: params.wallet_id,
-    payload: { name: params.name, initial_balance: params.initial_balance },
+    payload: {
+      name: params.name,
+      account_type: params.account_type,
+      initial_balance: params.initial_balance,
+    },
   });
   return {};
 }
@@ -42,6 +63,7 @@ export async function updateAccount(
   id: string,
   params: {
     name?: string;
+    account_type?: AccountType;
     initial_balance?: number;
     is_active?: boolean;
   }
@@ -54,7 +76,7 @@ export async function updateAccount(
 
   const { data: existing } = await supabase
     .from("accounts")
-    .select("wallet_id, name, initial_balance, current_balance")
+    .select("wallet_id, name, account_type, initial_balance, current_balance")
     .eq("id", id)
     .single();
   if (!existing) return { error: "Account not found" };
@@ -66,9 +88,15 @@ export async function updateAccount(
     updates.name = params.name;
     payload.name = { old: existing.name, new: params.name };
   }
+  if (params.account_type !== undefined) {
+    if (!VALID_ACCOUNT_TYPES.includes(params.account_type as (typeof VALID_ACCOUNT_TYPES)[number])) {
+      return { error: "Invalid account type" };
+    }
+    updates.account_type = params.account_type;
+    payload.account_type = { old: existing.account_type, new: params.account_type };
+  }
   if (params.is_active !== undefined) {
     updates.is_active = params.is_active;
-    // we don't have old is_active in existing; we could fetch it
     payload.is_active = { new: params.is_active };
   }
   if (params.initial_balance !== undefined) {

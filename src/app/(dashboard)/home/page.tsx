@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
+import { ensureRecurringGenerated } from "@/app/actions/movements";
 import { AccountsSection } from "@/components/AccountsSection";
+import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 
 export default async function HomePage() {
@@ -17,6 +19,7 @@ export default async function HomePage() {
   let accounts: {
     id: string;
     name: string;
+    account_type: AccountType;
     initial_balance: number;
     current_balance: number;
     last_update: string | null;
@@ -25,9 +28,10 @@ export default async function HomePage() {
   let totalBalance = 0;
 
   if (currentWalletId) {
+    await ensureRecurringGenerated(currentWalletId);
     const { data } = await supabase
       .from("accounts")
-      .select("id, name, initial_balance, current_balance")
+      .select("id, name, account_type, initial_balance, current_balance")
       .eq("wallet_id", currentWalletId)
       .eq("is_active", true);
     
@@ -64,6 +68,7 @@ export default async function HomePage() {
     accounts = (data ?? []).map((a) => ({
       id: a.id,
       name: a.name,
+      account_type: (a.account_type ?? "bank_account") as AccountType,
       initial_balance: Number(a.initial_balance),
       current_balance: Number(a.current_balance),
       last_update: lastUpdates[a.id] ?? null,
@@ -118,6 +123,13 @@ export default async function HomePage() {
             >
               <span className="text-2xl mb-1">📊</span>
               <span className="font-medium">Dashboard</span>
+            </Link>
+            <Link
+              href="/reports"
+              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <span className="text-2xl mb-1">📈</span>
+              <span className="font-medium">Reports</span>
             </Link>
           </section>
 

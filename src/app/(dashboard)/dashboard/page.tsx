@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { ExpenseChart } from "@/components/ExpenseChart";
-import Link from "next/link";
+import { ensureRecurringGenerated } from "@/app/actions/movements";
+import { AllMovementsSection } from "@/components/AllMovementsSection";
+import { PendingSection, type PendingRow } from "@/components/PendingSection";
+import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
+import { workDayDateInMonth } from "@/lib/recurrence";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +29,10 @@ export default async function DashboardPage() {
     description: string | null;
     account_from_id: string | null;
     account_to_id: string | null;
+    status?: string | null;
     category: CategoryRow | null;
   };
-  let transactions: {
+  type TxDisplay = {
     id: string;
     date: string;
     type: string;
@@ -39,35 +43,41 @@ export default async function DashboardPage() {
     subcategoryLabel: string;
     accountFromName: string;
     accountToName: string;
-  }[] = [];
-  let chartData: { name: string; value: number }[] = [];
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+    status: "confirmed" | "pending";
+  };
+  let transactions: TxDisplay[] = [];
+  let pending: PendingRow[] = [];
+  let recurring: RecurringRow[] = [];
 
   if (currentWalletId) {
+    await ensureRecurringGenerated(currentWalletId);
     const [
       { data: accs },
       { data: cats },
       { data: tx },
+      { data: rules },
     ] = await Promise.all([
       supabase.from("accounts").select("id, name").eq("wallet_id", currentWalletId),
       supabase.from("categories").select("id, name, parent_id").eq("wallet_id", currentWalletId),
       supabase
         .from("transactions")
         .select(
-          "id, date, type, amount, description, account_from_id, account_to_id, " +
+          "id, date, type, amount, description, account_from_id, account_to_id, status, " +
             "category:categories(name, parent_id)"
         )
         .eq("wallet_id", currentWalletId)
         .order("date", { ascending: false })
         .limit(200),
+      supabase
+        .from("recurring_rules")
+        .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active")
+        .eq("wallet_id", currentWalletId)
+        .order("next_run_date", { ascending: true }),
     ]);
     const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
     const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
     const rows = (tx ?? []) as unknown as TxRow[];
-    transactions = rows.map((t) => {
+    const allTx = rows.map((t) => {
       const c = t.category;
       const categoryLabel = c?.parent_id
         ? (catIdToName.get(c.parent_id) ?? "—")
@@ -75,6 +85,7 @@ export default async function DashboardPage() {
       const subcategoryLabel = c?.parent_id ? (c?.name ?? "—") : "—";
       const accountFromName = t.account_from_id ? (accountsMap.get(t.account_from_id) ?? "—") : "—";
       const accountToName = t.account_to_id ? (accountsMap.get(t.account_to_id) ?? "—") : "—";
+      const status = (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending";
       return {
         id: t.id,
         date: t.date,
@@ -86,138 +97,111 @@ export default async function DashboardPage() {
         subcategoryLabel,
         accountFromName,
         accountToName,
+        status,
       };
     });
+    transactions = allTx;
+    pending = allTx
+      .filter((t) => t.status === "pending")
+      .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName }) => ({
+        id,
+        date,
+        type,
+        amount,
+        description,
+        categoryLabel,
+        subcategoryLabel,
+        accountFromName,
+        accountToName,
+      }));
 
-    const expenseTx = transactions.filter(
-      (t) => t.type === "expense" && t.date >= thisMonthStart
-    );
-    const byCategory: Record<string, number> = {};
-    for (const t of expenseTx) {
-      const n = t.categoryLabel !== "—" ? t.categoryLabel : "Uncategorized";
-      byCategory[n] = (byCategory[n] ?? 0) + t.amount;
-    }
-    chartData = Object.entries(byCategory).map(([name, value]) => ({
-      name,
-      value,
-    }));
+    recurring = (rules ?? []).map((r) => {
+      const cat = cats?.find((c) => c.id === r.category_id);
+      const categoryLabel = cat
+        ? (cat.parent_id ? (catIdToName.get(cat.parent_id) ?? cat.name) : cat.name)
+        : "—";
+      const subcategoryLabel = cat?.parent_id ? (cat.name ?? "—") : "—";
+      const accountFromName = r.account_from_id ? (accountsMap.get(r.account_from_id) ?? "—") : "—";
+      const accountToName = r.account_to_id ? (accountsMap.get(r.account_to_id) ?? "—") : "—";
+      let repeatLabel: string;
+      if (r.recurrence_type === "daily") repeatLabel = "Daily";
+      else if (r.recurrence_type === "weekly") repeatLabel = "Weekly";
+      else if (r.recurrence_type === "monthly") repeatLabel = "Monthly";
+      else if (r.recurrence_type === "yearly") repeatLabel = "Yearly";
+      else if (r.recurrence_type === "interval_days" && r.interval_days)
+        repeatLabel = `Every ${r.interval_days} days`;
+      else if (r.recurrence_type === "interval_months" && r.interval_months)
+        repeatLabel = `Every ${r.interval_months} months`;
+      else if (r.recurrence_type === "monthly_nth_work_day" && r.work_day_index)
+        repeatLabel = `${r.work_day_index}. work day of month`;
+      else if (r.recurrence_type === "monthly_nth_last_work_day" && r.work_day_index)
+        repeatLabel = `${r.work_day_index}. last work day of month`;
+      else repeatLabel = String(r.recurrence_type);
+      const isWorkDay =
+        r.recurrence_type === "monthly_nth_work_day" ||
+        r.recurrence_type === "monthly_nth_last_work_day";
+      let nextRunDate = String(r.next_run_date);
+      if (isWorkDay && r.work_day_index) {
+        const d = new Date(String(r.next_run_date) + "T12:00:00Z");
+        const y = d.getUTCFullYear();
+        const m = d.getUTCMonth();
+        const wdType =
+          r.recurrence_type === "monthly_nth_work_day"
+            ? "monthly_nth_work_day"
+            : "monthly_nth_last_work_day";
+        const computed = workDayDateInMonth(y, m, wdType, r.work_day_index);
+        if (computed) nextRunDate = computed;
+      }
+      return {
+        id: r.id,
+        description: (r.description ?? "").trim() || "—",
+        type: r.type,
+        amount: Number(r.amount),
+        categoryLabel,
+        subcategoryLabel,
+        accountFromName,
+        accountToName,
+        repeatLabel,
+        nextRunDate,
+        isActive: !!r.is_active,
+      };
+    });
   }
+
+  const confirmed = transactions
+    .filter((t) => t.status === "confirmed")
+    .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName }) => ({
+      id,
+      date,
+      type,
+      amount,
+      description,
+      categoryLabel,
+      subcategoryLabel,
+      accountFromName,
+      accountToName,
+    }));
 
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
       {!currentWalletId ? (
-        <p className="text-slate-600 dark:text-slate-400">
+        <p className="text-slate-600">
           Select or create a wallet to see the dashboard.
         </p>
       ) : (
         <>
           <section>
-            <h2 className="text-lg font-medium mb-3">Expenses by category (this month)</h2>
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-              <ExpenseChart data={chartData} />
-            </div>
+            <RecurringSection recurring={recurring} />
           </section>
 
           <section>
-            <h2 className="text-lg font-medium mb-3">All movements</h2>
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              {transactions.length === 0 ? (
-                <div className="p-6 text-slate-500">
-                  No movements yet.{" "}
-                  <Link href="/movements/new" className="underline">
-                    Add one
-                  </Link>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[640px]">
-                    <thead>
-                      <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50">
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          Date
-                        </th>
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          Description
-                        </th>
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          Type
-                        </th>
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          Category
-                        </th>
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          Subcategory
-                        </th>
-                        <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-400">
-                          From → To
-                        </th>
-                        <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-400">
-                          Amount
-                        </th>
-                        <th className="px-3 py-2 w-24" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                      {transactions.map((t) => (
-                        <tr
-                          key={t.id}
-                          className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
-                        >
-                          <td className="px-3 py-2">{t.date}</td>
-                          <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
-                            {t.description || "—"}
-                          </td>
-                          <td className="px-3 py-2 capitalize">{t.type}</td>
-                          <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
-                            {t.categoryLabel}
-                          </td>
-                          <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
-                            {t.subcategoryLabel}
-                          </td>
-                          <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
-                            {t.accountFromName} → {t.accountToName}
-                          </td>
-                          <td
-                            className={`px-3 py-2 text-right font-mono ${
-                              t.type === "income"
-                                ? "text-green-600 dark:text-green-400"
-                                : t.type === "expense"
-                                  ? "text-red-600 dark:text-red-400"
-                                  : ""
-                            }`}
-                          >
-                            {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                            {t.amount.toLocaleString("pt-PT", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            €
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className="inline-flex gap-2">
-                              <Link
-                                href={`/movements/new?copy=${t.id}`}
-                                className="text-slate-500 hover:underline text-xs"
-                              >
-                                Copy
-                              </Link>
-                              <Link
-                                href={`/movements/${t.id}/edit`}
-                                className="text-slate-500 hover:underline text-xs"
-                              >
-                                Edit
-                              </Link>
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+            <PendingSection pending={pending} />
+          </section>
+
+          <section>
+            <AllMovementsSection confirmed={confirmed} />
           </section>
         </>
       )}

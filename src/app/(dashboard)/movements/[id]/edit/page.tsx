@@ -7,8 +7,14 @@ import {
   getSubcategories,
   updateMovement,
   deleteMovement,
+  confirmMovement,
 } from "@/app/actions/movements";
 import { useWallet } from "@/contexts/WalletContext";
+import {
+  type RecurrenceType,
+  RECURRENCE_OPTIONS,
+  isRecurrenceOptionSeparator,
+} from "@/lib/recurrence";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -39,12 +45,21 @@ export default function EditMovementPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("monthly");
+  const [intervalMonths, setIntervalMonths] = useState("");
+  const [intervalDays, setIntervalDays] = useState("");
+  const [workDayIndex, setWorkDayIndex] = useState("");
+
+  const [status, setStatus] = useState<"confirmed" | "pending" | null>(null);
 
   useEffect(() => {
     getMovement(id).then((m) => {
       setLoading(false);
       if (!m) return;
+      setStatus(m.status);
       setType(m.type as MovementType);
       setDate(m.date);
       setAmount(String(m.amount));
@@ -82,33 +97,54 @@ export default function EditMovementPage() {
     getSubcategories(categoryId).then(setSubcategories);
   }, [categoryId]);
 
+  function validateForm(): string | null {
+    const num = parseFloat(amount.replace(",", "."));
+    if (isNaN(num) || num <= 0) return "Amount must be a positive number";
+    const catId = subcategoryId || categoryId;
+    if (!catId) return "Please select a category";
+    if (type === "expense" && subcategories.length > 0 && !subcategoryId)
+      return "Please select a subcategory";
+    if (!description.trim()) return "Description is required";
+    if (!status) return null;
+    if (status === "confirmed" && isRecurring && recurrenceType === "interval_months") {
+      const x = parseInt(intervalMonths, 10);
+      if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
+    }
+    if (status === "confirmed" && isRecurring && recurrenceType === "interval_days") {
+      const x = parseInt(intervalDays, 10);
+      if (isNaN(x) || x < 1) return "Please enter a valid number of days (1 or more)";
+    }
+    if (status === "confirmed") {
+      const isWorkDay =
+        isRecurring &&
+        (recurrenceType === "monthly_nth_work_day" ||
+          recurrenceType === "monthly_nth_last_work_day");
+      if (isWorkDay) {
+        const x = parseInt(workDayIndex, 10);
+        if (isNaN(x) || x < 1 || x > 31)
+          return "Work day index must be 1–31 (e.g. 3 for 3rd or 3rd last)";
+      }
+    }
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!currentWalletId || !type) return;
     setError(null);
+    const err = validateForm();
+    if (err) {
+      setError(err);
+      return;
+    }
     setSaving(true);
     const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) {
-      setError("Amount must be a positive number");
-      setSaving(false);
-      return;
-    }
     const catId = subcategoryId || categoryId;
-    if (!catId) {
-      setError("Please select a category");
-      setSaving(false);
-      return;
-    }
-    if (type === "expense" && subcategories.length > 0 && !subcategoryId) {
-      setError("Please select a subcategory");
-      setSaving(false);
-      return;
-    }
-    if (!description.trim()) {
-      setError("Description is required");
-      setSaving(false);
-      return;
-    }
+    const isWorkDay =
+      status === "confirmed" &&
+      isRecurring &&
+      (recurrenceType === "monthly_nth_work_day" ||
+        recurrenceType === "monthly_nth_last_work_day");
     const res = await updateMovement(id, {
       type,
       category_id: catId,
@@ -117,10 +153,64 @@ export default function EditMovementPage() {
       account_from_id: type === "income" ? null : accountFromId || null,
       account_to_id: type === "expense" ? null : accountToId || null,
       description: description.trim(),
+      is_recurring: status === "confirmed" ? isRecurring : false,
+      recurrence_type: status === "confirmed" && isRecurring ? recurrenceType : undefined,
+      interval_months:
+        status === "confirmed" &&
+        isRecurring &&
+        recurrenceType === "interval_months" &&
+        intervalMonths.trim()
+          ? parseInt(intervalMonths, 10)
+          : null,
+      interval_days:
+        status === "confirmed" &&
+        isRecurring &&
+        recurrenceType === "interval_days" &&
+        intervalDays.trim()
+          ? parseInt(intervalDays, 10)
+          : null,
+      work_day_index:
+        isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
     });
     setSaving(false);
     if (res.error) {
       setError(res.error);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function handleConfirmClick() {
+    if (!currentWalletId || !type) return;
+    setError(null);
+    const err = validateForm();
+    if (err) {
+      setError(err);
+      return;
+    }
+    setConfirming(true);
+    const num = parseFloat(amount.replace(",", "."));
+    const catId = subcategoryId || categoryId;
+    const res = await updateMovement(id, {
+      type,
+      category_id: catId,
+      date,
+      amount: num,
+      account_from_id: type === "income" ? null : accountFromId || null,
+      account_to_id: type === "expense" ? null : accountToId || null,
+      description: description.trim(),
+      is_recurring: false,
+    });
+    if (res.error) {
+      setError(res.error);
+      setConfirming(false);
+      return;
+    }
+    const confirmRes = await confirmMovement(id);
+    setConfirming(false);
+    if (confirmRes.error) {
+      setError(confirmRes.error);
       return;
     }
     router.push("/dashboard");
@@ -139,6 +229,19 @@ export default function EditMovementPage() {
     }
     router.push("/dashboard");
     router.refresh();
+  }
+
+  async function handleCancelPending() {
+    if (!confirm("Cancel this pending movement? It will be deleted.")) return;
+    setDeleting(true);
+    setError(null);
+    const res = await deleteMovement(id);
+    setDeleting(false);
+    if (res.error) setError(res.error);
+    else {
+      router.push("/dashboard");
+      router.refresh();
+    }
   }
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
@@ -160,7 +263,9 @@ export default function EditMovementPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Edit movement</h1>
+      <h1 className="text-2xl font-semibold">
+        {status === "pending" ? "Edit pending movement" : "Edit movement"}
+      </h1>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
@@ -306,8 +411,98 @@ export default function EditMovementPage() {
             </div>
           </>
         )}
+        {status !== "pending" && (
+        <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isRecurring"
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+            />
+            <label htmlFor="isRecurring" className="text-sm font-medium">
+              Make it recurring
+            </label>
+          </div>
+          {isRecurring && (
+            <div className="space-y-3 pl-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">Schedule</label>
+                <select
+                  value={recurrenceType}
+                  onChange={(e) => {
+                    const v = e.target.value as RecurrenceType;
+                    if (v) setRecurrenceType(v);
+                  }}
+                  className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                >
+                  {RECURRENCE_OPTIONS.map((o, i) =>
+                    isRecurrenceOptionSeparator(o) ? (
+                      <option key={`sep-${i}`} disabled>
+                        {o.label}
+                      </option>
+                    ) : (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+              {recurrenceType === "interval_days" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={intervalDays}
+                    onChange={(e) => setIntervalDays(e.target.value)}
+                    placeholder="e.g. 14"
+                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+              )}
+              {recurrenceType === "interval_months" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={intervalMonths}
+                    onChange={(e) => setIntervalMonths(e.target.value)}
+                    placeholder="e.g. 3"
+                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+              )}
+              {(recurrenceType === "monthly_nth_work_day" ||
+                recurrenceType === "monthly_nth_last_work_day") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {recurrenceType === "monthly_nth_last_work_day"
+                      ? "Nth last work day (e.g. 3 = 3rd last)"
+                      : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={workDayIndex}
+                    onChange={(e) => setWorkDayIndex(e.target.value)}
+                    placeholder="e.g. 3"
+                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+              )}
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.
+              </p>
+            </div>
+          )}
+        </div>
+        )}
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           <button
             type="submit"
             disabled={saving}
@@ -315,20 +510,50 @@ export default function EditMovementPage() {
           >
             {saving ? "Saving…" : "Save"}
           </button>
+          {status === "pending" && (
+            <>
+              <button
+                type="button"
+                onClick={handleConfirmClick}
+                disabled={confirming}
+                className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
+              >
+                {confirming ? "Confirming…" : "Confirm"}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPending}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+              >
+                {deleting ? "Cancelling…" : "Cancel"}
+              </button>
+            </>
+          )}
+          {status !== "pending" && (
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
+            >
+              Cancel
+            </Link>
+          )}
+          {status !== "pending" && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="ml-auto px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
           <Link
             href="/dashboard"
-            className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
+            className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            Cancel
+            ← Dashboard
           </Link>
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-          >
-            {deleting ? "Deleting…" : "Delete"}
-          </button>
         </div>
       </form>
     </div>

@@ -2,6 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import {
+  nextRunDate,
+  type RecurrenceType,
+  workDayDateInMonth,
+} from "@/lib/recurrence";
 
 async function updateBalance(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -80,6 +85,7 @@ export type MovementByAccountRow = {
   subcategoryLabel: string;
   accountFromName: string;
   accountToName: string;
+  status: "confirmed" | "pending";
 };
 
 export async function getMovementsByAccount(
@@ -91,7 +97,7 @@ export async function getMovementsByAccount(
   let q = supabase
     .from("transactions")
     .select(
-      "id, date, type, amount, description, account_from_id, account_to_id, " +
+      "id, date, type, amount, description, account_from_id, account_to_id, status, " +
         "category:categories(name, parent_id)"
     )
     .eq("wallet_id", walletId)
@@ -122,6 +128,7 @@ export async function getMovementsByAccount(
     description: string | null;
     account_from_id: string | null;
     account_to_id: string | null;
+    status?: string | null;
     category: CatRow | null;
   };
   const rows = (tx ?? []) as unknown as TxRow[];
@@ -148,6 +155,7 @@ export async function getMovementsByAccount(
       subcategoryLabel,
       accountFromName,
       accountToName,
+      status: (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
     };
   });
 }
@@ -194,6 +202,12 @@ export async function createMovement(params: {
   account_from_id?: string | null;
   account_to_id?: string | null;
   description?: string | null;
+  is_recurring?: boolean;
+  recurrence_type?: RecurrenceType;
+  interval_months?: number | null;
+  interval_days?: number | null;
+  work_day_index?: number | null;
+  status?: "confirmed" | "pending";
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -210,6 +224,12 @@ export async function createMovement(params: {
     account_from_id = null,
     account_to_id = null,
     description = null,
+    is_recurring = false,
+    recurrence_type = "monthly",
+    interval_months = null,
+    interval_days = null,
+    work_day_index = null,
+    status = "confirmed",
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -221,6 +241,50 @@ export async function createMovement(params: {
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
   if (!desc) return { error: "Description is required" };
+  if (is_recurring && recurrence_type === "interval_months" && (interval_months == null || interval_months < 1))
+    return { error: "Interval months is required for 'every X months'" };
+  if (is_recurring && recurrence_type === "interval_days" && (interval_days == null || interval_days < 1))
+    return { error: "Interval days is required for 'every X days'" };
+  const isWorkDay =
+    recurrence_type === "monthly_nth_work_day" ||
+    recurrence_type === "monthly_nth_last_work_day";
+  if (is_recurring && isWorkDay && (work_day_index == null || work_day_index < 1 || work_day_index > 31))
+    return { error: "Work day index (1–31) is required for work day recurrence" };
+
+  let ruleId: string | null = null;
+  if (is_recurring) {
+    const next = nextRunDate(
+      date,
+      recurrence_type,
+      recurrence_type === "interval_months" ? (interval_months ?? 1) : null,
+      isWorkDay ? (work_day_index ?? 1) : null,
+      recurrence_type === "interval_days" ? (interval_days ?? 1) : null
+    );
+    const { data: rule, error: ruleErr } = await supabase
+      .from("recurring_rules")
+      .insert({
+        wallet_id,
+        created_by: user.id,
+        type,
+        category_id,
+        amount,
+        account_from_id,
+        account_to_id,
+        description: desc,
+        recurrence_type,
+        interval_months: recurrence_type === "interval_months" ? interval_months : null,
+        interval_days: recurrence_type === "interval_days" ? interval_days : null,
+        work_day_index: isWorkDay ? (work_day_index ?? 1) : null,
+        anchor_date: date,
+        next_run_date: next,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    if (ruleErr) return { error: ruleErr.message };
+    if (!rule) return { error: "Failed to create recurring rule" };
+    ruleId = rule.id;
+  }
 
   const { data: t, error: insertErr } = await supabase
     .from("transactions")
@@ -234,6 +298,8 @@ export async function createMovement(params: {
       account_to_id,
       description: desc,
       created_by: user.id,
+      status,
+      recurring_rule_id: ruleId,
     })
     .select("id")
     .single();
@@ -241,17 +307,19 @@ export async function createMovement(params: {
   if (insertErr) return { error: insertErr.message };
   if (!t) return { error: "Insert failed" };
 
-  if (type === "income") {
-    const e = await updateBalance(supabase, account_to_id!, amount);
-    if (e.error) return e;
-  } else if (type === "expense") {
-    const e = await updateBalance(supabase, account_from_id!, -amount);
-    if (e.error) return e;
-  } else {
-    let e = await updateBalance(supabase, account_from_id!, -amount);
-    if (e.error) return e;
-    e = await updateBalance(supabase, account_to_id!, amount);
-    if (e.error) return e;
+  if (status === "confirmed") {
+    if (type === "income") {
+      const e = await updateBalance(supabase, account_to_id!, amount);
+      if (e.error) return e;
+    } else if (type === "expense") {
+      const e = await updateBalance(supabase, account_from_id!, -amount);
+      if (e.error) return e;
+    } else {
+      let e = await updateBalance(supabase, account_from_id!, -amount);
+      if (e.error) return e;
+      e = await updateBalance(supabase, account_to_id!, amount);
+      if (e.error) return e;
+    }
   }
 
   await logActivity(supabase, {
@@ -259,7 +327,7 @@ export async function createMovement(params: {
     entity_type: "transaction",
     entity_id: t.id,
     wallet_id,
-    payload: { amount, type, date, category_id, account_from_id, account_to_id },
+    payload: { amount, type, date, category_id, account_from_id, account_to_id, is_recurring: !!ruleId, status },
   });
 
   return {};
@@ -315,6 +383,7 @@ export async function getMovement(id: string) {
     account_from_id: data.account_from_id,
     account_to_id: data.account_to_id,
     description: data.description,
+    status: (data.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
   };
 }
 
@@ -328,6 +397,11 @@ export async function updateMovement(
     account_from_id?: string | null;
     account_to_id?: string | null;
     description?: string | null;
+    is_recurring?: boolean;
+    recurrence_type?: RecurrenceType;
+    interval_months?: number | null;
+    interval_days?: number | null;
+    work_day_index?: number | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -338,7 +412,7 @@ export async function updateMovement(
 
   const { data: old } = await supabase
     .from("transactions")
-    .select("wallet_id, type, amount, account_from_id, account_to_id")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status, recurring_rule_id")
     .eq("id", id)
     .single();
   if (!old) return { error: "Transaction not found" };
@@ -351,6 +425,11 @@ export async function updateMovement(
     account_from_id = null,
     account_to_id = null,
     description = null,
+    is_recurring = false,
+    recurrence_type = "monthly",
+    interval_months = null,
+    interval_days = null,
+    work_day_index = null,
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -362,6 +441,78 @@ export async function updateMovement(
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
   if (!desc) return { error: "Description is required" };
+
+  const isPending = old.status === "pending";
+  if (isPending) {
+    const updatePayload = {
+      type,
+      category_id,
+      date,
+      amount,
+      account_from_id,
+      account_to_id,
+      description: desc,
+    };
+    const { error: upErr } = await supabase
+      .from("transactions")
+      .update(updatePayload)
+      .eq("id", id);
+    if (upErr) return { error: upErr.message };
+    await logActivity(supabase, {
+      action: "transaction_edit",
+      entity_type: "transaction",
+      entity_id: id,
+      wallet_id: old.wallet_id,
+      payload: { was_pending: true, changes: { type, amount, account_from_id, account_to_id } },
+    });
+    return {};
+  }
+
+  if (is_recurring && recurrence_type === "interval_months" && (interval_months == null || interval_months < 1))
+    return { error: "Interval months is required for 'every X months'" };
+  if (is_recurring && recurrence_type === "interval_days" && (interval_days == null || interval_days < 1))
+    return { error: "Interval days is required for 'every X days'" };
+  const isWorkDay =
+    is_recurring &&
+    (recurrence_type === "monthly_nth_work_day" ||
+      recurrence_type === "monthly_nth_last_work_day");
+  if (isWorkDay && (work_day_index == null || work_day_index < 1 || work_day_index > 31))
+    return { error: "Work day index (1–31) is required for work day recurrence" };
+
+  let ruleId: string | null = null;
+  if (is_recurring && !old.recurring_rule_id) {
+    const next = nextRunDate(
+      date,
+      recurrence_type,
+      recurrence_type === "interval_months" ? (interval_months ?? 1) : null,
+      isWorkDay ? (work_day_index ?? 1) : null,
+      recurrence_type === "interval_days" ? (interval_days ?? 1) : null
+    );
+    const { data: rule, error: ruleErr } = await supabase
+      .from("recurring_rules")
+      .insert({
+        wallet_id: old.wallet_id,
+        created_by: user.id,
+        type,
+        category_id,
+        amount,
+        account_from_id,
+        account_to_id,
+        description: desc,
+        recurrence_type,
+        interval_months: recurrence_type === "interval_months" ? interval_months : null,
+        interval_days: recurrence_type === "interval_days" ? interval_days : null,
+        work_day_index: isWorkDay ? (work_day_index ?? 1) : null,
+        anchor_date: date,
+        next_run_date: next,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    if (ruleErr) return { error: ruleErr.message };
+    if (!rule) return { error: "Failed to create recurring rule" };
+    ruleId = rule.id;
+  }
 
   const undo = undoEffect(
     old.type,
@@ -380,17 +531,29 @@ export async function updateMovement(
     if (e.error) return e;
   }
 
+  const updatePayload: {
+    type: string;
+    category_id: string;
+    date: string;
+    amount: number;
+    account_from_id: string | null;
+    account_to_id: string | null;
+    description: string;
+    recurring_rule_id?: string | null;
+  } = {
+    type,
+    category_id,
+    date,
+    amount,
+    account_from_id,
+    account_to_id,
+    description: desc,
+  };
+  if (ruleId != null) updatePayload.recurring_rule_id = ruleId;
+
   const { error: upErr } = await supabase
     .from("transactions")
-    .update({
-      type,
-      category_id,
-      date,
-      amount,
-      account_from_id,
-      account_to_id,
-      description: desc,
-    })
+    .update(updatePayload)
     .eq("id", id);
 
   if (upErr) return { error: upErr.message };
@@ -417,20 +580,22 @@ export async function deleteMovement(id: string): Promise<{ error?: string }> {
 
   const { data: t } = await supabase
     .from("transactions")
-    .select("wallet_id, type, amount, account_from_id, account_to_id")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status")
     .eq("id", id)
     .single();
   if (!t) return { error: "Transaction not found" };
 
-  const undo = undoEffect(
-    t.type,
-    Number(t.amount),
-    t.account_from_id,
-    t.account_to_id
-  );
-  for (const { id: aid, delta } of undo) {
-    const e = await updateBalance(supabase, aid, delta);
-    if (e.error) return e;
+  if (t.status !== "pending") {
+    const undo = undoEffect(
+      t.type,
+      Number(t.amount),
+      t.account_from_id,
+      t.account_to_id
+    );
+    for (const { id: aid, delta } of undo) {
+      const e = await updateBalance(supabase, aid, delta);
+      if (e.error) return e;
+    }
   }
 
   const { error: delErr } = await supabase.from("transactions").delete().eq("id", id);
@@ -441,7 +606,113 @@ export async function deleteMovement(id: string): Promise<{ error?: string }> {
     entity_type: "transaction",
     entity_id: id,
     wallet_id: t.wallet_id,
+    payload: { amount: Number(t.amount), type: t.type, was_pending: t.status === "pending" },
+  });
+  return {};
+}
+
+export async function confirmMovement(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: t } = await supabase
+    .from("transactions")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status")
+    .eq("id", id)
+    .single();
+  if (!t) return { error: "Transaction not found" };
+  if (t.status !== "pending") return { error: "Movement is not pending" };
+
+  const apply = applyEffect(
+    t.type,
+    Number(t.amount),
+    t.account_from_id,
+    t.account_to_id
+  );
+  for (const { id: aid, delta } of apply) {
+    const e = await updateBalance(supabase, aid, delta);
+    if (e.error) return e;
+  }
+
+  const { error: upErr } = await supabase
+    .from("transactions")
+    .update({ status: "confirmed" })
+    .eq("id", id);
+  if (upErr) return { error: upErr.message };
+
+  await logActivity(supabase, {
+    action: "transaction_confirm",
+    entity_type: "transaction",
+    entity_id: id,
+    wallet_id: t.wallet_id,
     payload: { amount: Number(t.amount), type: t.type },
   });
   return {};
+}
+
+export async function ensureRecurringGenerated(walletId: string): Promise<void> {
+  const supabase = await createClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  for (;;) {
+    const { data: rules } = await supabase
+      .from("recurring_rules")
+      .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date")
+      .eq("wallet_id", walletId)
+      .eq("is_active", true)
+      .lte("next_run_date", today)
+      .limit(10);
+    if (!rules || rules.length === 0) break;
+
+    for (const r of rules) {
+      const isWorkDay =
+        r.recurrence_type === "monthly_nth_work_day" ||
+        r.recurrence_type === "monthly_nth_last_work_day";
+      const storedNext = r.next_run_date as string;
+      let runDate: string;
+      if (isWorkDay) {
+        const n = (r.work_day_index as number | null) ?? 1;
+        const wdType =
+          r.recurrence_type === "monthly_nth_work_day"
+            ? "monthly_nth_work_day"
+            : "monthly_nth_last_work_day";
+        const d = new Date(storedNext + "T12:00:00Z");
+        const y = d.getUTCFullYear();
+        const m = d.getUTCMonth();
+        const computed = workDayDateInMonth(y, m, wdType, n);
+        runDate = computed ?? storedNext;
+      } else {
+        runDate = storedNext;
+      }
+      const { error: insErr } = await supabase.from("transactions").insert({
+        wallet_id: r.wallet_id,
+        type: r.type,
+        category_id: r.category_id,
+        date: runDate,
+        amount: r.amount,
+        description: r.description ?? "",
+        account_from_id: r.account_from_id,
+        account_to_id: r.account_to_id,
+        created_by: null,
+        status: "pending",
+        recurring_rule_id: r.id,
+      });
+      if (insErr) continue;
+
+      const next = nextRunDate(
+        runDate,
+        r.recurrence_type as RecurrenceType,
+        r.recurrence_type === "interval_months" ? (r.interval_months as number) : null,
+        isWorkDay ? (r.work_day_index as number | null) ?? 1 : null,
+        r.recurrence_type === "interval_days" ? (r.interval_days as number) ?? 1 : null
+      );
+      await supabase
+        .from("recurring_rules")
+        .update({ next_run_date: next })
+        .eq("id", r.id);
+    }
+  }
 }

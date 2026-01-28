@@ -139,12 +139,12 @@ export default function WalletsPage() {
             </Link>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                <th className="text-left p-3">Name</th>
-                <th className="text-left p-3">Type</th>
-                <th className="text-left p-3">Status</th>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="text-left p-3 font-medium text-slate-600">Name</th>
+                <th className="text-left p-3 font-medium text-slate-600">Type</th>
+                <th className="text-left p-3 font-medium text-slate-600">Status</th>
                 <th className="text-left p-3"></th>
               </tr>
             </thead>
@@ -159,9 +159,9 @@ export default function WalletsPage() {
                   <>
                     <tr
                       key={w.id}
-                      className={`border-b border-slate-100 dark:border-slate-700/50 ${
+                      className={`border-b border-slate-100 ${
                         !w.is_active ? "opacity-60" : ""
-                      } ${w.is_shared ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30" : ""}`}
+                      } ${w.is_shared ? "cursor-pointer hover:bg-slate-50" : ""}`}
                       onClick={() => w.is_shared && toggleExpand(w.id)}
                     >
                       <td className="p-3 font-medium">
@@ -177,7 +177,7 @@ export default function WalletsPage() {
                       <td className="p-3">{w.is_shared ? "Shared" : "Personal"}</td>
                       <td className="p-3">
                         {w.is_active ? (
-                          <span className="text-green-600 dark:text-green-400">Active</span>
+                          <span className="text-green-600">Active</span>
                         ) : (
                           <span className="text-slate-500">Inactive</span>
                         )}
@@ -185,29 +185,29 @@ export default function WalletsPage() {
                       <td className="p-3" onClick={(e) => e.stopPropagation()}>
                         <Link
                           href={`/wallets/${w.id}/edit`}
-                          className="text-slate-600 dark:text-slate-400 hover:underline"
+                          className="text-slate-600 hover:underline"
                         >
                           Edit
                         </Link>
                       </td>
                     </tr>
                     {isExpanded && w.is_shared && (
-                      <tr key={`${w.id}-members`} className="bg-slate-50 dark:bg-slate-800/30">
+                      <tr key={`${w.id}-members`} className="bg-slate-50">
                         <td colSpan={4} className="p-4">
                           <div className="space-y-2">
-                            <h3 className="font-medium text-sm mb-2">Members</h3>
+                            <h3 className="font-medium text-xs mb-2">Members</h3>
                             {isLoadingMembers ? (
-                              <p className="text-sm text-slate-500">Loading members…</p>
+                              <p className="text-xs text-slate-500">Loading members…</p>
                             ) : error ? (
-                              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                              <p className="text-xs text-red-600">{error}</p>
                             ) : members.length === 0 ? (
-                              <p className="text-sm text-slate-500">No members found</p>
+                              <p className="text-xs text-slate-500">No members found</p>
                             ) : (
                               <div className="space-y-1">
                                 {members.map((member) => (
                                   <div
                                     key={member.user_id}
-                                    className="flex items-center justify-between text-sm py-1 px-2 rounded bg-white dark:bg-slate-900"
+                                    className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white"
                                   >
                                     <div>
                                       <span className="font-medium">

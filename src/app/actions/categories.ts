@@ -3,6 +3,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
+export async function getCategory(id: string | null) {
+  if (!id) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("id", id)
+    .single();
+  if (!data) return null;
+  return { id: data.id, name: data.name, parent_id: data.parent_id as string | null };
+}
+
 export async function createCategory(params: {
   wallet_id: string;
   name: string;

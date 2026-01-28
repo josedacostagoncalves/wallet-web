@@ -1,6 +1,8 @@
 "use client";
 
 import { updateAccount } from "@/app/actions/accounts";
+import { AccountTypeSelect } from "@/components/AccountTypeSelect";
+import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,6 +13,7 @@ export default function EditAccountPage() {
   const id = String(params.id);
   const router = useRouter();
   const [name, setName] = useState("");
+  const [accountType, setAccountType] = useState<AccountType>("bank_account");
   const [initialBalance, setInitialBalance] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -21,7 +24,7 @@ export default function EditAccountPage() {
     const supabase = createClient();
     supabase
       .from("accounts")
-      .select("name, initial_balance, is_active")
+      .select("name, account_type, initial_balance, is_active")
       .eq("id", id)
       .single()
       .then(({ data, error: e }) => {
@@ -31,6 +34,9 @@ export default function EditAccountPage() {
           return;
         }
         setName(data.name);
+        setAccountType(
+          (data.account_type as AccountType) ?? "bank_account"
+        );
         setInitialBalance(String(data.initial_balance));
         setIsActive(data.is_active);
       });
@@ -48,6 +54,7 @@ export default function EditAccountPage() {
     }
     const res = await updateAccount(id, {
       name: name.trim(),
+      account_type: accountType,
       initial_balance: num,
       is_active: isActive,
     });
@@ -84,6 +91,7 @@ export default function EditAccountPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
+        <AccountTypeSelect value={accountType} onChange={setAccountType} />
         <div>
           <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
           <input

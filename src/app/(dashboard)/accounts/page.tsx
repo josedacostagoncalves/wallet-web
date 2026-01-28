@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
+import { accountTypeLabel, accountTypeIcon, type AccountType } from "@/lib/account-types";
 import Link from "next/link";
 
 export default async function AccountsPage() {
@@ -17,6 +18,7 @@ export default async function AccountsPage() {
   let accounts: {
     id: string;
     name: string;
+    account_type: AccountType;
     initial_balance: number;
     current_balance: number;
     is_active: boolean;
@@ -25,12 +27,13 @@ export default async function AccountsPage() {
   if (currentWalletId) {
     const { data } = await supabase
       .from("accounts")
-      .select("id, name, initial_balance, current_balance, is_active")
+      .select("id, name, account_type, initial_balance, current_balance, is_active")
       .eq("wallet_id", currentWalletId)
       .order("name");
     accounts = (data ?? []).map((a) => ({
       id: a.id,
       name: a.name,
+      account_type: (a.account_type ?? "bank_account") as AccountType,
       initial_balance: Number(a.initial_balance),
       current_balance: Number(a.current_balance),
       is_active: a.is_active,
@@ -69,6 +72,7 @@ export default async function AccountsPage() {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                   <th className="text-left p-3">Name</th>
+                  <th className="text-left p-3">Type</th>
                   <th className="text-right p-3">Initial</th>
                   <th className="text-right p-3">Current</th>
                   <th className="text-left p-3">Status</th>
@@ -83,7 +87,20 @@ export default async function AccountsPage() {
                       !a.is_active ? "opacity-60" : ""
                     }`}
                   >
-                    <td className="p-3 font-medium">{a.name}</td>
+                    <td className="p-3 font-medium">
+                      <span
+                        className="inline-flex items-center gap-2"
+                        title={accountTypeLabel(a.account_type)}
+                      >
+                        <span className="text-base leading-none" aria-hidden>
+                          {accountTypeIcon(a.account_type)}
+                        </span>
+                        {a.name}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-600 dark:text-slate-400">
+                      {accountTypeLabel(a.account_type)}
+                    </td>
                     <td className="p-3 text-right font-mono">
                       {a.initial_balance.toLocaleString("pt-PT", {
                         minimumFractionDigits: 2,
