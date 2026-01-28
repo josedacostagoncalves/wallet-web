@@ -214,11 +214,11 @@ export default async function DashboardPage() {
         </>
       ) : (
         <div className="w-screen relative left-1/2 -ml-[50vw]">
-          <div className="max-w-[1600px] mx-auto px-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_1152px_minmax(0,1fr)] gap-8 lg:gap-10">
-            <aside className="min-w-0 lg:order-first">
+          <div className="relative max-w-6xl mx-auto px-4 flex flex-col lg:block">
+            <aside className="order-1 lg:order-none mb-8 lg:mb-0 lg:absolute lg:right-full lg:top-0 lg:mr-4 lg:w-[360px]">
               <DashboardCalendar movements={calendarMovements} />
             </aside>
-            <div className="min-w-0 space-y-8 lg:col-start-2 lg:px-4">
+            <div className="order-2 lg:order-none space-y-8">
               <h1 className="text-2xl font-semibold">Dashboard</h1>
               <section>
                 <RecurringSection recurring={recurring} />
@@ -230,7 +230,6 @@ export default async function DashboardPage() {
                 <AllMovementsSection confirmed={confirmed} />
               </section>
             </div>
-            <div className="hidden lg:block lg:col-start-3" aria-hidden />
           </div>
         </div>
       )}
