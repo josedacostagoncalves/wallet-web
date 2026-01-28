@@ -1,6 +1,7 @@
 "use client";
 
 import { MovementRowActions } from "@/components/MovementRowActions";
+import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -64,7 +65,7 @@ export function AllMovementsSection({ confirmed }: Props) {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {confirmed.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-50/50">
+                  <tr key={t.id} className={movementRowBgClass(t.type)}>
                     <td className="px-4 py-3 text-slate-600">{t.date}</td>
                     <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
                       {t.description || "—"}

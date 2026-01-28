@@ -1,6 +1,7 @@
 "use client";
 
 import { copyRecurringRule } from "@/app/actions/recurring";
+import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -96,7 +97,7 @@ export function RecurringSection({ recurring }: Props) {
                   {recurring.map((r) => (
                     <tr
                       key={r.id}
-                      className={`hover:bg-slate-50/50 ${!r.isActive ? "opacity-60" : ""}`}
+                      className={`${movementRowBgClass(r.type)} ${!r.isActive ? "opacity-60" : ""}`}
                     >
                       <td className="px-4 py-3 text-slate-600">{r.nextRunDate}</td>
                       <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">

@@ -7,6 +7,7 @@ import {
   accountTypeLabel,
   type AccountType,
 } from "@/lib/account-types";
+import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { Fragment, useState } from "react";
 
@@ -228,14 +229,17 @@ export function AccountsSection({
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100">
-                                {movements.map((m) => (
+                                {[...movements]
+                                  .sort((a, b) => {
+                                    const aPending = a.status === "pending" ? 1 : 0;
+                                    const bPending = b.status === "pending" ? 1 : 0;
+                                    if (bPending !== aPending) return bPending - aPending;
+                                    return new Date(b.date).getTime() - new Date(a.date).getTime();
+                                  })
+                                  .map((m) => (
                                   <tr
                                     key={m.id}
-                                    className={`hover:bg-slate-50 ${
-                                      m.status === "pending"
-                                        ? "bg-amber-50"
-                                        : ""
-                                    }`}
+                                    className={movementRowBgClass(m.type)}
                                   >
                                     <td className="px-3 py-2">{m.date}</td>
                                     <td className="px-3 py-2 text-slate-700 max-w-[180px] truncate">
