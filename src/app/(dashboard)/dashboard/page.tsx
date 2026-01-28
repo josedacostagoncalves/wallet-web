@@ -198,22 +198,23 @@ export default async function DashboardPage() {
           </p>
         </>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-          <div className="hidden lg:block w-32 shrink-0" aria-hidden />
-          <aside className="shrink-0">
-            <DashboardCalendar movements={confirmed} />
-          </aside>
-          <div className="min-w-0 flex-1 space-y-8">
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
-            <section>
-              <RecurringSection recurring={recurring} />
-            </section>
-            <section>
-              <PendingSection pending={pending} />
-            </section>
-            <section>
-              <AllMovementsSection confirmed={confirmed} />
-            </section>
+        <div className="w-screen relative left-1/2 -ml-[50vw]">
+          <div className="max-w-[1600px] mx-auto px-4 flex flex-col lg:flex-row gap-8 lg:gap-10">
+            <aside className="shrink-0">
+              <DashboardCalendar movements={confirmed} />
+            </aside>
+            <div className="min-w-0 flex-1 max-w-6xl space-y-8">
+              <h1 className="text-2xl font-semibold">Dashboard</h1>
+              <section>
+                <RecurringSection recurring={recurring} />
+              </section>
+              <section>
+                <PendingSection pending={pending} />
+              </section>
+              <section>
+                <AllMovementsSection confirmed={confirmed} />
+              </section>
+            </div>
           </div>
         </div>
       )}

@@ -88,53 +88,51 @@ export function DashboardCalendar({ movements }: Props) {
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
 
   return (
-    <div className="flex flex-col gap-3 w-full max-w-[260px] shrink-0">
-      <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-        <div className="flex items-center justify-between px-2 py-1.5 border-b border-slate-200 bg-slate-50">
+    <div className="flex flex-col gap-4 w-full max-w-[320px] shrink-0">
+      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50">
           <button
             type="button"
             onClick={prev}
-            className="p-1 rounded hover:bg-slate-200 text-slate-600"
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
             aria-label="Previous month"
           >
             ◀
           </button>
-          <span className="text-xs font-semibold text-slate-800">
+          <span className="text-sm font-semibold text-slate-800">
             {MONTHS[view.month]} {view.year}
           </span>
           <button
             type="button"
             onClick={next}
-            className="p-1 rounded hover:bg-slate-200 text-slate-600"
+            className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
             aria-label="Next month"
           >
             ▶
           </button>
         </div>
-        <div className="p-1.5">
-          <div className="grid grid-cols-7 gap-px text-center text-[10px] font-medium text-slate-500 mb-0.5">
+        <div className="p-2">
+          <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 mb-1">
             {DOW.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-px">
+          <div className="grid grid-cols-7 gap-0.5">
             {days.map(({ date, day, isCurrent }) => {
               const has = (byDate.get(date) ?? []).length > 0;
               const isSel = selected === date;
               const bg = isSel
-                ? "ring-2 ring-slate-700 bg-slate-100"
+                ? "ring-2 ring-slate-800 bg-slate-100"
                 : has
-                  ? "bg-green-50 hover:bg-green-100"
+                  ? "bg-green-50 hover:bg-green-100/80"
                   : "hover:bg-slate-100";
-              const fg = !isCurrent
-                ? "text-slate-400"
-                : "text-green-800";
+              const fg = !isCurrent ? "text-slate-400" : "text-slate-800";
               return (
                 <button
                   key={date}
                   type="button"
                   onClick={() => setSelected(date)}
-                  className={`min-h-[28px] rounded text-[11px] font-medium ${fg} ${bg}`}
+                  className={`min-h-[36px] rounded-md text-xs font-medium ${fg} ${bg}`}
                 >
                   {day}
                 </button>
@@ -145,9 +143,9 @@ export function DashboardCalendar({ movements }: Props) {
       </div>
 
       {selected && (
-        <div className="rounded-lg border border-slate-200 overflow-hidden bg-white shadow-sm">
-          <div className="px-2 py-1.5 border-b border-slate-200 bg-slate-50">
-            <h3 className="text-xs font-semibold text-slate-800">
+        <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
+          <div className="px-3 py-2 border-b border-slate-200 bg-slate-50">
+            <h3 className="text-sm font-semibold text-slate-800">
               {selDate?.toLocaleDateString("pt-PT", {
                 weekday: "short",
                 day: "numeric",
@@ -156,16 +154,16 @@ export function DashboardCalendar({ movements }: Props) {
               })}
             </h3>
           </div>
-          <div className="p-2 max-h-[220px] overflow-y-auto">
+          <div className="p-3 max-h-[280px] overflow-y-auto">
             {dayMovements.length === 0 ? (
-              <p className="text-[11px] text-slate-500">No movements on this day.</p>
+              <p className="text-xs text-slate-500">No movements on this day.</p>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {dayMovements.map((t) => (
-                  <li key={t.id} className="text-[11px]">
+                  <li key={t.id} className="text-xs">
                     <Link
                       href={`/movements/${t.id}/edit`}
-                      className="flex flex-col gap-0.5 rounded p-1.5 border border-slate-100 hover:bg-slate-50 hover:border-slate-200"
+                      className="flex flex-col gap-0.5 rounded-lg p-2 border border-slate-100 hover:bg-slate-50 hover:border-slate-200"
                     >
                       <span className="font-medium text-slate-800 truncate">
                         {t.description || "—"}
