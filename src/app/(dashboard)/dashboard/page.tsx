@@ -190,18 +190,21 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-
       {!currentWalletId ? (
-        <p className="text-slate-600">
-          Select or create a wallet to see the dashboard.
-        </p>
+        <>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-slate-600">
+            Select or create a wallet to see the dashboard.
+          </p>
+        </>
       ) : (
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+          <div className="hidden lg:block w-32 shrink-0" aria-hidden />
           <aside className="shrink-0">
             <DashboardCalendar movements={confirmed} />
           </aside>
           <div className="min-w-0 flex-1 space-y-8">
+            <h1 className="text-2xl font-semibold">Dashboard</h1>
             <section>
               <RecurringSection recurring={recurring} />
             </section>
