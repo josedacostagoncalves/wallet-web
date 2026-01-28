@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/movements";
 import { AllMovementsSection } from "@/components/AllMovementsSection";
+import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
 import { workDayDateInMonth } from "@/lib/recurrence";
@@ -188,7 +189,7 @@ export default async function DashboardPage() {
     }));
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
       {!currentWalletId ? (
@@ -196,19 +197,22 @@ export default async function DashboardPage() {
           Select or create a wallet to see the dashboard.
         </p>
       ) : (
-        <>
-          <section>
-            <RecurringSection recurring={recurring} />
-          </section>
-
-          <section>
-            <PendingSection pending={pending} />
-          </section>
-
-          <section>
-            <AllMovementsSection confirmed={confirmed} />
-          </section>
-        </>
+        <div className="flex flex-col lg:flex-row gap-8 lg:gap-10">
+          <aside className="shrink-0">
+            <DashboardCalendar movements={confirmed} />
+          </aside>
+          <div className="min-w-0 flex-1 space-y-8">
+            <section>
+              <RecurringSection recurring={recurring} />
+            </section>
+            <section>
+              <PendingSection pending={pending} />
+            </section>
+            <section>
+              <AllMovementsSection confirmed={confirmed} />
+            </section>
+          </div>
+        </div>
       )}
     </div>
   );
