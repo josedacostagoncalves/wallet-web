@@ -207,6 +207,9 @@ export async function createMovement(params: {
   interval_months?: number | null;
   interval_days?: number | null;
   work_day_index?: number | null;
+  end_date?: string | null;
+  weekday?: number | null;
+  day_of_month?: number | null;
   status?: "confirmed" | "pending";
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -229,6 +232,9 @@ export async function createMovement(params: {
     interval_months = null,
     interval_days = null,
     work_day_index = null,
+    end_date = null,
+    weekday = null,
+    day_of_month = null,
     status = "confirmed",
   } = params;
 
@@ -278,6 +284,9 @@ export async function createMovement(params: {
         anchor_date: date,
         next_run_date: next,
         is_active: true,
+        end_date: end_date || null,
+        weekday: weekday ?? null,
+        day_of_month: day_of_month ?? null,
       })
       .select("id")
       .single();
@@ -660,7 +669,7 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
   for (;;) {
     const { data: rules } = await supabase
       .from("recurring_rules")
-      .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date")
+      .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, end_date, weekday, day_of_month")
       .eq("wallet_id", walletId)
       .eq("is_active", true)
       .lte("next_run_date", today)
@@ -687,6 +696,14 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
       } else {
         runDate = storedNext;
       }
+      const endDate = r.end_date as string | null;
+      if (endDate && runDate > endDate) {
+        await supabase
+          .from("recurring_rules")
+          .update({ is_active: false })
+          .eq("id", r.id);
+        continue;
+      }
       const { error: insErr } = await supabase.from("transactions").insert({
         wallet_id: r.wallet_id,
         type: r.type,
@@ -702,17 +719,30 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
       });
       if (insErr) continue;
 
+      const dayOfMonth =
+        r.recurrence_type === "monthly" && r.day_of_month != null
+          ? Number(r.day_of_month)
+          : null;
       const next = nextRunDate(
         runDate,
         r.recurrence_type as RecurrenceType,
         r.recurrence_type === "interval_months" ? (r.interval_months as number) : null,
         isWorkDay ? (r.work_day_index as number | null) ?? 1 : null,
-        r.recurrence_type === "interval_days" ? (r.interval_days as number) ?? 1 : null
+        r.recurrence_type === "interval_days" ? (r.interval_days as number) ?? 1 : null,
+        null,
+        dayOfMonth
       );
-      await supabase
-        .from("recurring_rules")
-        .update({ next_run_date: next })
-        .eq("id", r.id);
+      if (endDate && next > endDate) {
+        await supabase
+          .from("recurring_rules")
+          .update({ next_run_date: next, is_active: false })
+          .eq("id", r.id);
+      } else {
+        await supabase
+          .from("recurring_rules")
+          .update({ next_run_date: next })
+          .eq("id", r.id);
+      }
     }
   }
 }

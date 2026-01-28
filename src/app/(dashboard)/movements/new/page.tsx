@@ -61,6 +61,7 @@ export default function NewMovementPage() {
     { id: string; date: string; description: string | null; amount: number }[]
   >([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
+  const [copyingSimilarId, setCopyingSimilarId] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("monthly");
   const [intervalMonths, setIntervalMonths] = useState("");
@@ -171,6 +172,25 @@ export default function NewMovementPage() {
   function pickType(t: MovementType) {
     setType(t);
     setStep("form");
+    setError(null);
+  }
+
+  async function handleCopyFromSimilar(id: string) {
+    setCopyingSimilarId(id);
+    const m = await getMovement(id);
+    setCopyingSimilarId(null);
+    if (!m) return;
+    const parentId = m.parent_id ?? null;
+    const catId = parentId || m.category_id;
+    const subId = parentId ? m.category_id : "";
+    skipNextSubcategoryReset.current = true;
+    setAmount(String(m.amount));
+    setDescription(m.description ?? "");
+    setAccountFromId(m.account_from_id ?? "");
+    setAccountToId(m.account_to_id ?? "");
+    setCategoryId(catId);
+    setSubcategoryId(subId);
+    getSubcategories(catId).then(setSubcategories);
     setError(null);
   }
 
@@ -404,7 +424,6 @@ export default function NewMovementPage() {
                 setAccountFromId("");
                 setAccountToId("");
                 setSubcategoryId("");
-                setDate(new Date().toISOString().slice(0, 10));
                 setError(null);
               }
               setCategoryId(v);
@@ -692,12 +711,14 @@ export default function NewMovementPage() {
                         {r.amount.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                       </td>
                       <td className="py-2">
-                        <Link
-                          href={`/movements/new?copy=${r.id}`}
-                          className="text-slate-500 hover:underline"
+                        <button
+                          type="button"
+                          onClick={() => handleCopyFromSimilar(r.id)}
+                          disabled={!!copyingSimilarId}
+                          className="text-slate-500 hover:underline disabled:opacity-50"
                         >
-                          Copy
-                        </Link>
+                          {copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                        </button>
                       </td>
                     </tr>
                   ))}

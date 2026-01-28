@@ -1,6 +1,10 @@
 "use client";
 
 import { MovementRowActions } from "@/components/MovementRowActions";
+import {
+  formatCategorySubcategory,
+  formatFromTo,
+} from "@/lib/movement-labels";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -62,7 +66,7 @@ export function PendingSection({ pending }: Props) {
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Description</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Type</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">
-                    Category → Subcategory
+                    Category :: Subcategory
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">From → To</th>
                   <th className="px-4 py-3 text-right font-medium text-slate-600">Amount</th>
@@ -78,10 +82,10 @@ export function PendingSection({ pending }: Props) {
                     </td>
                     <td className="px-4 py-3 capitalize">{p.type}</td>
                     <td className="px-4 py-3 text-slate-600">
-                      {p.categoryLabel} → {p.subcategoryLabel}
+                      {formatCategorySubcategory(p.categoryLabel, p.subcategoryLabel)}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {p.accountFromName} → {p.accountToName}
+                      {formatFromTo(p.accountFromName, p.accountToName)}
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-mono ${

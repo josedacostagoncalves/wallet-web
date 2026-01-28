@@ -1,6 +1,10 @@
 "use client";
 
-import { copyRecurringRule } from "@/app/actions/recurring";
+import { copyRecurringRule, deleteRecurringRule } from "@/app/actions/recurring";
+import {
+  formatCategorySubcategory,
+  formatFromTo,
+} from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -18,6 +22,8 @@ export type RecurringRow = {
   repeatLabel: string;
   nextRunDate: string;
   isActive: boolean;
+  endDate: string | null;
+  isStopped: boolean;
 };
 
 type Props = { recurring: RecurringRow[] };
@@ -26,11 +32,21 @@ export function RecurringSection({ recurring }: Props) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleCopy(ruleId: string) {
     setCopyingId(ruleId);
     const res = await copyRecurringRule(ruleId);
     setCopyingId(null);
+    if (res.error) return;
+    router.refresh();
+  }
+
+  async function handleDelete(ruleId: string) {
+    if (!confirm("Delete this recurring rule? No new runs will be created. Existing movements are kept.")) return;
+    setDeletingId(ruleId);
+    const res = await deleteRecurringRule(ruleId);
+    setDeletingId(null);
     if (res.error) return;
     router.refresh();
   }
@@ -79,7 +95,7 @@ export function RecurringSection({ recurring }: Props) {
                       Type
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Category → Subcategory
+                      Category :: Subcategory
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
                       From → To
@@ -97,18 +113,29 @@ export function RecurringSection({ recurring }: Props) {
                   {recurring.map((r) => (
                     <tr
                       key={r.id}
-                      className={`${movementRowBgClass(r.type)} ${!r.isActive ? "opacity-60" : ""}`}
+                      className={`${movementRowBgClass(r.type)} ${!r.isActive || r.isStopped ? "opacity-60" : ""}`}
                     >
-                      <td className="px-4 py-3 text-slate-600">{r.nextRunDate}</td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {r.isStopped ? (
+                          <span
+                            className="text-amber-700 dark:text-amber-400"
+                            title={`End date ${r.endDate ?? ""} passed. Next run would be ${r.nextRunDate}.`}
+                          >
+                            Stopped (end date passed)
+                          </span>
+                        ) : (
+                          r.nextRunDate
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
                         {r.description}
                       </td>
                       <td className="px-4 py-3 capitalize">{r.type}</td>
                       <td className="px-4 py-3 text-slate-600">
-                        {r.categoryLabel} → {r.subcategoryLabel}
+                        {formatCategorySubcategory(r.categoryLabel, r.subcategoryLabel)}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {r.accountFromName} → {r.accountToName}
+                        {formatFromTo(r.accountFromName, r.accountToName)}
                       </td>
                       <td
                         className={`px-4 py-3 text-right font-mono ${
@@ -128,7 +155,7 @@ export function RecurringSection({ recurring }: Props) {
                       </td>
                       <td className="px-4 py-3 text-slate-600">{r.repeatLabel}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex gap-2">
+                        <span className="inline-flex flex-wrap gap-2">
                           {r.isActive && (
                             <button
                               type="button"
@@ -145,6 +172,14 @@ export function RecurringSection({ recurring }: Props) {
                           >
                             Edit
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(r.id)}
+                            disabled={!!deletingId}
+                            className="text-red-600 hover:underline disabled:opacity-50"
+                          >
+                            {deletingId === r.id ? "Deleting…" : "Delete"}
+                          </button>
                         </span>
                       </td>
                     </tr>

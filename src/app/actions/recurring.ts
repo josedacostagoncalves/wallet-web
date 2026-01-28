@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createMovement } from "@/app/actions/movements";
 import {
   type RecurrenceType,
+  nextOccurrenceOfWeekday,
+  nextMonthOnDay,
   workDayDateInMonth,
 } from "@/lib/recurrence";
 
@@ -23,6 +25,9 @@ export type RecurringRuleRow = {
   anchor_date: string;
   next_run_date: string;
   is_active: boolean;
+  end_date: string | null;
+  weekday: number | null;
+  day_of_month: number | null;
 };
 
 export async function getRecurringRule(
@@ -32,7 +37,7 @@ export async function getRecurringRule(
   const { data, error } = await supabase
     .from("recurring_rules")
     .select(
-      "id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, is_active"
+      "id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, is_active, end_date, weekday, day_of_month"
     )
     .eq("id", id)
     .single();
@@ -53,6 +58,9 @@ export async function getRecurringRule(
     anchor_date: String(data.anchor_date),
     next_run_date: String(data.next_run_date),
     is_active: !!data.is_active,
+    end_date: data.end_date != null ? String(data.end_date) : null,
+    weekday: data.weekday != null ? Number(data.weekday) : null,
+    day_of_month: data.day_of_month != null ? Number(data.day_of_month) : null,
   };
 }
 
@@ -70,6 +78,10 @@ export async function updateRecurringRule(
     interval_days?: number | null;
     work_day_index?: number | null;
     is_active?: boolean;
+    end_date?: string | null;
+    weekday?: number | null;
+    day_of_month?: number | null;
+    next_run_date?: string | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -80,7 +92,7 @@ export async function updateRecurringRule(
 
   const { data: rule } = await supabase
     .from("recurring_rules")
-    .select("id, wallet_id, next_run_date")
+    .select("id, wallet_id, next_run_date, recurrence_type")
     .eq("id", id)
     .single();
   if (!rule) return { error: "Recurring rule not found" };
@@ -97,6 +109,10 @@ export async function updateRecurringRule(
     interval_days = null,
     work_day_index = null,
     is_active,
+    end_date,
+    weekday,
+    day_of_month,
+    next_run_date: nextRunDateParam,
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -142,6 +158,21 @@ export async function updateRecurringRule(
     updated_at: new Date().toISOString(),
   };
   if (typeof is_active === "boolean") updatePayload.is_active = is_active;
+  if (end_date !== undefined) updatePayload.end_date = end_date || null;
+  if (weekday !== undefined) updatePayload.weekday = weekday ?? null;
+  if (day_of_month !== undefined) updatePayload.day_of_month = day_of_month ?? null;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const prevNext = String(rule.next_run_date ?? today);
+
+  if (recurrence_type === "weekly" && weekday != null && weekday >= 0 && weekday <= 6) {
+    const next = nextOccurrenceOfWeekday(prevNext, weekday);
+    updatePayload.next_run_date = next;
+  } else if (recurrence_type === "monthly" && day_of_month != null && day_of_month >= 1 && day_of_month <= 31) {
+    updatePayload.next_run_date = nextMonthOnDay(prevNext, day_of_month);
+  } else if (typeof nextRunDateParam === "string" && nextRunDateParam.trim()) {
+    updatePayload.next_run_date = nextRunDateParam.trim().slice(0, 10);
+  }
 
   if (isWorkDay) {
     const n = work_day_index ?? 1;
@@ -149,7 +180,6 @@ export async function updateRecurringRule(
       recurrence_type === "monthly_nth_work_day"
         ? "monthly_nth_work_day"
         : "monthly_nth_last_work_day";
-    const today = new Date().toISOString().slice(0, 10);
     const prev = String(rule.next_run_date ?? today);
     const d = new Date(prev + "T12:00:00Z");
     let y = d.getUTCFullYear();
@@ -175,6 +205,19 @@ export async function updateRecurringRule(
   return {};
 }
 
+/** Delete a recurring rule. Related transactions keep their data; recurring_rule_id is set to NULL. */
+export async function deleteRecurringRule(id: string): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
+  if (error) return { error: error.message };
+  return {};
+}
+
 /** Copy a recurring rule: create one new movement (pending) + new recurring rule. Changes apply only to the new rule. */
 export async function copyRecurringRule(id: string): Promise<{ error?: string }> {
   const rule = await getRecurringRule(id);
@@ -196,6 +239,9 @@ export async function copyRecurringRule(id: string): Promise<{ error?: string }>
     interval_days:
       rule.recurrence_type === "interval_days" ? rule.interval_days : null,
     work_day_index: rule.work_day_index,
+    end_date: rule.end_date,
+    weekday: rule.weekday,
+    day_of_month: rule.day_of_month,
     status: "pending",
   });
 }

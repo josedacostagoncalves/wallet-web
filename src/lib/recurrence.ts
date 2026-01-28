@@ -55,16 +55,58 @@ export function workDayDateInMonth(
 }
 
 /**
+ * Next date >= from with given weekday (0 = Sunday .. 6 = Saturday).
+ * If from is already that weekday, returns from.
+ */
+export function nextOccurrenceOfWeekday(from: string, weekday: number): string {
+  const d = new Date(from + "T12:00:00Z");
+  const cur = d.getUTCDay();
+  let delta = weekday - cur;
+  if (delta < 0) delta += 7;
+  if (delta === 0) return from;
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Next month on dayOfMonth (1–31), clamped to last day of month.
+ * "from" is the current run date (YYYY-MM-DD).
+ */
+export function nextMonthOnDay(from: string, dayOfMonth: number): string {
+  const d = new Date(from + "T12:00:00Z");
+  const y = d.getUTCFullYear();
+  const m = d.getUTCMonth();
+  const next = new Date(Date.UTC(y, m + 1, 1));
+  const lastDay = new Date(Date.UTC(y, m + 2, 0)).getUTCDate();
+  next.setUTCDate(Math.min(dayOfMonth, lastDay));
+  return next.toISOString().slice(0, 10);
+}
+
+/** Weekday labels for UI (0 = Sunday .. 6 = Saturday). */
+export const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+
+/**
  * Compute next run date from current run date (e.g. anchor or last run).
  * intervalMonths: used for interval_months; intervalDays for interval_days.
  * workDayIndex: 1-based, used for monthly_nth_work_day / monthly_nth_last_work_day.
+ * dayOfMonth: 1–31 for monthly (overrides day-from-date when set).
  */
 export function nextRunDate(
   from: string,
   recurrenceType: RecurrenceType,
   intervalMonths: number | null,
   workDayIndex: number | null = null,
-  intervalDays: number | null = null
+  intervalDays: number | null = null,
+  weekday: number | null = null,
+  dayOfMonth: number | null = null
 ): string {
   const d = new Date(from + "T12:00:00Z");
   const y = d.getUTCFullYear();
@@ -80,9 +122,12 @@ export function nextRunDate(
     return d.toISOString().slice(0, 10);
   }
   if (recurrenceType === "monthly") {
+    const useDay = dayOfMonth != null && dayOfMonth >= 1 && dayOfMonth <= 31
+      ? dayOfMonth
+      : day;
     const next = new Date(Date.UTC(y, m + 1, 1));
     const lastDay = new Date(Date.UTC(y, m + 2, 0)).getUTCDate();
-    next.setUTCDate(Math.min(day, lastDay));
+    next.setUTCDate(Math.min(useDay, lastDay));
     return next.toISOString().slice(0, 10);
   }
   if (recurrenceType === "yearly") {

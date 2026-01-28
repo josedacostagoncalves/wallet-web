@@ -9,12 +9,14 @@ import {
 import {
   getRecurringRule,
   updateRecurringRule,
+  deleteRecurringRule,
   type RecurringRuleRow,
 } from "@/app/actions/recurring";
 import {
   type RecurrenceType,
   RECURRENCE_OPTIONS,
   isRecurrenceOptionSeparator,
+  WEEKDAY_LABELS,
 } from "@/lib/recurrence";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -43,11 +45,15 @@ export default function EditRecurringPage() {
   const [intervalDays, setIntervalDays] = useState("");
   const [workDayIndex, setWorkDayIndex] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [endDate, setEndDate] = useState("");
+  const [weekday, setWeekday] = useState<number | null>(null);
+  const [dayOfMonth, setDayOfMonth] = useState("");
   const [currentCategoryName, setCurrentCategoryName] = useState("");
   const [currentSubcategoryName, setCurrentSubcategoryName] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -78,6 +84,23 @@ export default function EditRecurringPage() {
           : ""
       );
       setIsActive(r.is_active);
+      setEndDate(r.end_date ?? "");
+      if (r.recurrence_type === "weekly") {
+        setWeekday(
+          r.weekday ?? new Date(r.next_run_date + "T12:00:00Z").getUTCDay()
+        );
+      } else {
+        setWeekday(null);
+      }
+      if (r.recurrence_type === "monthly") {
+        setDayOfMonth(
+          r.day_of_month != null
+            ? String(r.day_of_month)
+            : String(new Date(r.next_run_date + "T12:00:00Z").getUTCDate())
+        );
+      } else {
+        setDayOfMonth("");
+      }
 
       const cat = await getCategory(r.category_id);
       if (cat) {
@@ -171,6 +194,14 @@ export default function EditRecurringPage() {
         return;
       }
     }
+    if (recurrenceType === "monthly" && dayOfMonth.trim()) {
+      const x = parseInt(dayOfMonth, 10);
+      if (isNaN(x) || x < 1 || x > 31) {
+        setError("Day of month must be 1–31");
+        setSaving(false);
+        return;
+      }
+    }
 
     const res = await updateRecurringRule(id, {
       type: rule.type,
@@ -193,8 +224,29 @@ export default function EditRecurringPage() {
           ? parseInt(workDayIndex, 10)
           : null,
       is_active: isActive,
+      end_date: endDate.trim() || null,
+      weekday:
+        recurrenceType === "weekly" && weekday != null ? weekday : null,
+      day_of_month:
+        recurrenceType === "monthly" && dayOfMonth.trim()
+          ? parseInt(dayOfMonth, 10)
+          : null,
     });
     setSaving(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  async function handleDelete() {
+    if (!rule || !confirm("Delete this recurring rule? No new runs will be created. Existing movements are kept.")) return;
+    setDeleting(true);
+    setError(null);
+    const res = await deleteRecurringRule(id);
+    setDeleting(false);
     if (res.error) {
       setError(res.error);
       return;
@@ -399,7 +451,32 @@ export default function EditRecurringPage() {
                 value={recurrenceType}
                 onChange={(e) => {
                   const v = e.target.value as RecurrenceType;
-                  if (v) setRecurrenceType(v);
+                  if (!v) return;
+                  setRecurrenceType(v);
+                  if (v === "weekly") {
+                    setDayOfMonth("");
+                    setWeekday(
+                      rule
+                        ? new Date(
+                            rule.next_run_date + "T12:00:00Z"
+                          ).getUTCDay()
+                        : 1
+                    );
+                  } else if (v === "monthly") {
+                    setWeekday(null);
+                    setDayOfMonth(
+                      rule
+                        ? String(
+                            new Date(
+                              rule.next_run_date + "T12:00:00Z"
+                            ).getUTCDate()
+                          )
+                        : "1"
+                    );
+                  } else {
+                    setWeekday(null);
+                    setDayOfMonth("");
+                  }
                 }}
                 className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
@@ -465,8 +542,80 @@ export default function EditRecurringPage() {
                 />
               </div>
             )}
+            {recurrenceType === "weekly" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Day of week
+                </label>
+                <select
+                  value={weekday ?? ""}
+                  onChange={(e) =>
+                    setWeekday(
+                      e.target.value === ""
+                        ? null
+                        : parseInt(e.target.value, 10)
+                    )
+                  }
+                  className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                >
+                  {WEEKDAY_LABELS.map((label, i) => (
+                    <option key={i} value={i}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {recurrenceType === "monthly" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Day of month (1–31)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={dayOfMonth}
+                  onChange={(e) => setDayOfMonth(e.target.value)}
+                  placeholder="e.g. 15"
+                  className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                End date (optional)
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Leave empty to run indefinitely. If set, recurring stops after
+                this date.
+              </p>
+            </div>
           </div>
         </div>
+        {rule &&
+          endDate.trim() &&
+          rule.next_run_date > endDate.trim() && (
+            <div
+              role="alert"
+              className="p-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20"
+            >
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                This recurring is stopped (end date passed).
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Next run {rule.next_run_date} is after end date {endDate}. No
+                new runs will be created. Turn it active again or update the end
+                date to continue.
+              </p>
+            </div>
+        )}
         <div className="flex flex-col gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-2">
             <input
@@ -501,6 +650,14 @@ export default function EditRecurringPage() {
           >
             Cancel
           </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className="px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
         </div>
       </form>
     </div>

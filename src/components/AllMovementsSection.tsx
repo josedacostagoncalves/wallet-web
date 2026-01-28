@@ -1,6 +1,10 @@
 "use client";
 
 import { MovementRowActions } from "@/components/MovementRowActions";
+import {
+  formatCategorySubcategory,
+  formatFromTo,
+} from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { useState } from "react";
@@ -56,7 +60,7 @@ export function AllMovementsSection({ confirmed }: Props) {
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Description</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Type</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">
-                    Category → Subcategory
+                    Category :: Subcategory
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">From → To</th>
                   <th className="px-4 py-3 text-right font-medium text-slate-600">Amount</th>
@@ -72,10 +76,10 @@ export function AllMovementsSection({ confirmed }: Props) {
                     </td>
                     <td className="px-4 py-3 capitalize">{t.type}</td>
                     <td className="px-4 py-3 text-slate-600">
-                      {t.categoryLabel} → {t.subcategoryLabel}
+                      {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
-                      {t.accountFromName} → {t.accountToName}
+                      {formatFromTo(t.accountFromName, t.accountToName)}
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-mono ${

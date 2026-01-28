@@ -70,7 +70,7 @@ export default async function DashboardPage() {
         .limit(200),
       supabase
         .from("recurring_rules")
-        .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active")
+        .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active, end_date")
         .eq("wallet_id", currentWalletId)
         .order("next_run_date", { ascending: true }),
     ]);
@@ -152,6 +152,9 @@ export default async function DashboardPage() {
         const computed = workDayDateInMonth(y, m, wdType, r.work_day_index);
         if (computed) nextRunDate = computed;
       }
+      const endDate = r.end_date != null ? String(r.end_date) : null;
+      const isStopped =
+        !!endDate && String(r.next_run_date) > endDate;
       return {
         id: r.id,
         description: (r.description ?? "").trim() || "—",
@@ -164,6 +167,8 @@ export default async function DashboardPage() {
         repeatLabel,
         nextRunDate,
         isActive: !!r.is_active,
+        endDate,
+        isStopped,
       };
     });
   }

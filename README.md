@@ -105,3 +105,4 @@ Run in the **SQL Editor** (Supabase Dashboard), in order:
 5. `supabase/migrations/005_work_day_recurrence.sql` (work day recurrence: nth / nth last work day of month)
 6. `supabase/migrations/006_interval_days.sql` (every X days recurrence, `interval_days` column)
 7. `supabase/migrations/007_account_type.sql` (account type: bank_account, cash, credit_card, savings, investments)
+8. `supabase/migrations/008_recurring_end_date_weekday_day.sql` (recurring: optional end_date, weekday for weekly, day_of_month for monthly)

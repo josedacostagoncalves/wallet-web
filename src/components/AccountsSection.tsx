@@ -7,6 +7,10 @@ import {
   accountTypeLabel,
   type AccountType,
 } from "@/lib/account-types";
+import {
+  formatCategorySubcategory,
+  formatFromTo,
+} from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
 import { Fragment, useState } from "react";
@@ -217,7 +221,7 @@ export function AccountsSection({
                                     Type
                                   </th>
                                   <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    Category → Subcategory
+                                    Category :: Subcategory
                                   </th>
                                   <th className="px-3 py-2 text-left font-medium text-slate-600">
                                     From → To
@@ -247,10 +251,10 @@ export function AccountsSection({
                                     </td>
                                     <td className="px-3 py-2 capitalize">{m.type}</td>
                                     <td className="px-3 py-2 text-slate-600">
-                                      {m.categoryLabel} → {m.subcategoryLabel}
+                                      {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
                                     </td>
                                     <td className="px-3 py-2 text-slate-600">
-                                      {m.accountFromName} → {m.accountToName}
+                                      {formatFromTo(m.accountFromName, m.accountToName)}
                                     </td>
                                     <td
                                       className={`px-3 py-2 text-right font-mono ${
