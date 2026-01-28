@@ -105,9 +105,9 @@ export function DashboardCalendar({ movements }: Props) {
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-[360px] shrink-0">
-      <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50">
+    <div className="flex flex-col gap-4 w-[360px] shrink-0">
+      <div className="flex flex-col rounded-xl border border-slate-200 overflow-hidden bg-white w-[360px] h-[360px]">
+        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50">
           <button
             type="button"
             onClick={prev}
@@ -128,13 +128,13 @@ export function DashboardCalendar({ movements }: Props) {
             ▶
           </button>
         </div>
-        <div className="p-2">
-          <div className="grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 mb-1">
+        <div className="flex-1 min-h-0 flex flex-col p-2">
+          <div className="shrink-0 grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 mb-1">
             {DOW.map((d) => (
               <div key={d}>{d}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-0.5">
+          <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
             {days.map(({ date, day, isCurrent }) => {
               const dayList = byDate.get(date) ?? [];
               const ind = indicatorsForDay(dayList);
@@ -146,7 +146,7 @@ export function DashboardCalendar({ movements }: Props) {
                   key={date}
                   type="button"
                   onClick={() => setSelected(date)}
-                  className={`min-h-[40px] flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium ${fg} ${bg}`}
+                  className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium ${fg} ${bg}`}
                 >
                   <span>{day}</span>
                   <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
