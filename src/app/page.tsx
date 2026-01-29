@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-2xl font-semibold">Wallet JJ</h1>
+      <h1 className="text-2xl font-semibold">J-Wallet</h1>
       <div className="flex gap-4">
         <Link
           href="/login"

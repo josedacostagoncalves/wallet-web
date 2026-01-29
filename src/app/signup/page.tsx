@@ -8,6 +8,8 @@ import { useState } from "react";
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,7 +20,16 @@ export default function SignupPage() {
     setError(null);
     setLoading(true);
     const supabase = createClient();
-    const { error: err } = await supabase.auth.signUp({ email, password });
+    const { error: err } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName.trim() || null,
+          last_name: lastName.trim() || null,
+        },
+      },
+    });
     setLoading(false);
     if (err) {
       setError(err.message);
@@ -52,6 +63,36 @@ export default function SignupPage() {
       <div className="w-full max-w-sm space-y-6">
         <h1 className="text-xl font-semibold text-center">Sign up</h1>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="firstName" className="block text-sm font-medium mb-1">
+                First name
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                autoComplete="given-name"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName" className="block text-sm font-medium mb-1">
+                Last name
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                autoComplete="family-name"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
           <div>
             <label htmlFor="email" className="block text-sm font-medium mb-1">
               Email
@@ -62,6 +103,7 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="email"
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-white"
             />
           </div>

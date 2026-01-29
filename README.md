@@ -1,4 +1,4 @@
-# Wallet JJ
+# J-Wallet
 
 Personal finance and shared wallets: income, expenses, transfers, accounts, categories, and activity log.
 
@@ -106,3 +106,4 @@ Run in the **SQL Editor** (Supabase Dashboard), in order:
 6. `supabase/migrations/006_interval_days.sql` (every X days recurrence, `interval_days` column)
 7. `supabase/migrations/007_account_type.sql` (account type: bank_account, cash, credit_card, savings, investments)
 8. `supabase/migrations/008_recurring_end_date_weekday_day.sql` (recurring: optional end_date, weekday for weekly, day_of_month for monthly)
+9. `supabase/migrations/009_profiles.sql` (user profiles: first_name, last_name; trigger on signup)
