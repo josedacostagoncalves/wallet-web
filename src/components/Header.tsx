@@ -1,6 +1,7 @@
 "use client";
 
 import { logActivityAction } from "@/app/actions/auth";
+import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
 import { JWalletIcon } from "@/components/JWalletIcon";
@@ -10,6 +11,7 @@ import { useState } from "react";
 
 export function Header() {
   const { currentWalletId, wallets, setCurrentWallet, firstName } = useWallet();
+  const { showToast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const router = useRouter();
@@ -21,34 +23,44 @@ export function Header() {
     await logActivityAction({ action: "logout" });
     const supabase = createClient();
     await supabase.auth.signOut();
+    showToast("Logged out successfully.");
     router.push("/");
     router.refresh();
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <JWalletIcon className="w-8 h-8" />
-          <span className="font-semibold text-slate-800 dark:text-white truncate">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[rgb(25,25,25)]">
+      <div className="relative max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+        {/* Icon + Hello at same left offset as Dashboard calendar (xl): calendar left = content left - 376px */}
+        <div className="hidden xl:flex absolute left-4 top-0 bottom-0 w-[376px] items-center gap-4 -translate-x-[376px]">
+          <JWalletIcon className="w-8 h-8 shrink-0" />
+          <span className="font-bold text-white truncate">
             {greeting}
           </span>
+        </div>
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="xl:hidden flex items-center gap-4 min-w-0 shrink-0">
+            <JWalletIcon className="w-8 h-8 shrink-0" />
+            <span className="font-bold text-white truncate">
+              {greeting}
+            </span>
+          </div>
           <nav className="hidden sm:flex items-center gap-2 shrink-0">
             <Link
               href="/home"
-              className="px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
             >
               Home
             </Link>
             <Link
               href="/dashboard"
-              className="px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
             >
               Dashboard
             </Link>
             <Link
               href="/reports"
-              className="px-3 py-1.5 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
             >
               Reports
             </Link>
@@ -59,7 +71,7 @@ export function Header() {
             <div className="relative">
               <button
                 onClick={() => setWalletOpen((o) => !o)}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-sm hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
+                className="px-3 py-1.5 rounded-lg border border-white/30 text-sm font-bold text-white hover:bg-white/10 whitespace-nowrap"
               >
                 {currentWallet?.name ?? "Select wallet"} ▾
               </button>
@@ -100,7 +112,7 @@ export function Header() {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="p-2 rounded-lg font-bold text-white hover:bg-white/10"
               aria-label="Menu"
             >
               ⋮

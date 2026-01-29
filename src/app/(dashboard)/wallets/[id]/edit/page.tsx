@@ -1,6 +1,7 @@
 "use client";
 
 import { updateWallet, getWalletShareCode } from "@/app/actions/wallets";
+import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function EditWalletPage() {
   const params = useParams();
   const id = String(params.id);
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [isShared, setIsShared] = useState(false);
@@ -150,6 +152,7 @@ export default function EditWalletPage() {
     if (res.error) {
       setSaving(false);
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
     // Mark as saved and reload share code if sharing was enabled (after wallet is saved)
@@ -160,6 +163,7 @@ export default function EditWalletPage() {
       setIsSavedAsShared(false);
     }
     setSaving(false);
+    showToast("Wallet updated.");
     router.push("/wallets");
     router.refresh();
   }

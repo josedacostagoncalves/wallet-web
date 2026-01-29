@@ -1,6 +1,10 @@
 "use client";
 
-import { copyRecurringRule, deleteRecurringRule } from "@/app/actions/recurring";
+import { deleteRecurringRule } from "@/app/actions/recurring";
+import { CopyIcon, DeleteIcon, EditIcon, MovementTypeIcon } from "@/components/ActionIcons";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { useToast } from "@/contexts/ToastContext";
 import {
   formatCategorySubcategory,
   formatFromTo,
@@ -30,24 +34,22 @@ type Props = { recurring: RecurringRow[] };
 
 export function RecurringSection({ recurring }: Props) {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { openEditRecurring, openCopyRecurring } = useMovementModals();
   const [expanded, setExpanded] = useState(false);
-  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
 
-  async function handleCopy(ruleId: string) {
-    setCopyingId(ruleId);
-    const res = await copyRecurringRule(ruleId);
-    setCopyingId(null);
-    if (res.error) return;
-    router.refresh();
-  }
-
-  async function handleDelete(ruleId: string) {
-    if (!confirm("Delete this recurring rule? No new runs will be created. Existing movements are kept.")) return;
+  async function handleDeleteConfirm(ruleId: string) {
     setDeletingId(ruleId);
     const res = await deleteRecurringRule(ruleId);
     setDeletingId(null);
-    if (res.error) return;
+    setDeleteDialogId(null);
+    if (res.error) {
+      showToast(res.error, "error");
+      return;
+    }
+    showToast("Recurring rule deleted.");
     router.refresh();
   }
 
@@ -85,14 +87,12 @@ export function RecurringSection({ recurring }: Props) {
               <table className="w-full text-xs min-w-[640px]">
                 <thead className="bg-slate-100">
                   <tr>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">Type</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
                       Next run
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
                       Description
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Type
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
                       Category :: Subcategory
@@ -115,6 +115,9 @@ export function RecurringSection({ recurring }: Props) {
                       key={r.id}
                       className={`${movementRowBgClass(r.type)} ${!r.isActive || r.isStopped ? "opacity-60" : ""}`}
                     >
+                      <td className="px-4 py-3">
+                        <MovementTypeIcon type={r.type as "income" | "expense" | "transfer"} />
+                      </td>
                       <td className="px-4 py-3 text-slate-600">
                         {r.isStopped ? (
                           <span
@@ -130,7 +133,6 @@ export function RecurringSection({ recurring }: Props) {
                       <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
                         {r.description}
                       </td>
-                      <td className="px-4 py-3 capitalize">{r.type}</td>
                       <td className="px-4 py-3 text-slate-600">
                         {formatCategorySubcategory(r.categoryLabel, r.subcategoryLabel)}
                       </td>
@@ -155,30 +157,36 @@ export function RecurringSection({ recurring }: Props) {
                       </td>
                       <td className="px-4 py-3 text-slate-600">{r.repeatLabel}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex flex-wrap gap-2">
+                        <span className="inline-flex flex-wrap items-center gap-1">
                           {r.isActive && (
                             <button
                               type="button"
-                              onClick={() => handleCopy(r.id)}
-                              disabled={!!copyingId}
-                              className="text-slate-500 hover:underline disabled:opacity-50"
+                              onClick={() => openCopyRecurring(r.id)}
+                              className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                              title="Copy"
+                              aria-label="Copy"
                             >
-                              {copyingId === r.id ? "Copying…" : "Copy"}
+                              <CopyIcon aria-hidden />
                             </button>
                           )}
-                          <Link
-                            href={`/recurring/${r.id}/edit`}
-                            className="text-slate-500 hover:underline"
-                          >
-                            Edit
-                          </Link>
                           <button
                             type="button"
-                            onClick={() => handleDelete(r.id)}
-                            disabled={!!deletingId}
-                            className="text-red-600 hover:underline disabled:opacity-50"
+                            onClick={() => openEditRecurring(r.id)}
+                            className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                            title="Edit"
+                            aria-label="Edit"
                           >
-                            {deletingId === r.id ? "Deleting…" : "Delete"}
+                            <EditIcon aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteDialogId(r.id)}
+                            disabled={!!deletingId}
+                            className="p-1.5 rounded text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 transition-colors"
+                            title="Delete"
+                            aria-label="Delete"
+                          >
+                            <DeleteIcon aria-hidden />
                           </button>
                         </span>
                       </td>
@@ -189,6 +197,19 @@ export function RecurringSection({ recurring }: Props) {
             </div>
           )}
         </>
+      )}
+      {deleteDialogId && (
+        <ConfirmDialog
+          open={!!deleteDialogId}
+          onClose={() => setDeleteDialogId(null)}
+          onConfirm={() => handleDeleteConfirm(deleteDialogId)}
+          title="Delete recurring rule"
+          message="Delete this recurring rule? No new runs will be created. Existing movements are kept."
+          confirmLabel="Delete"
+          cancelLabel="Keep"
+          variant="cancel"
+          loading={!!deletingId}
+        />
       )}
     </div>
   );

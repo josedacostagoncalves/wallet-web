@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { MovementTypeIcon } from "@/components/ActionIcons";
+import { useMovementModals } from "@/contexts/MovementModalsContext";
 import { useMemo, useState } from "react";
 
 export type CalendarMovement = {
@@ -16,11 +17,29 @@ export type CalendarMovement = {
   status: "confirmed" | "pending";
 };
 
-type Props = { movements: CalendarMovement[] };
+export type CalendarRecurringNextRun = {
+  id: string;
+  date: string;
+  type: string;
+  amount: number;
+  description: string;
+  categoryLabel: string;
+  subcategoryLabel: string;
+  accountFromName: string;
+  accountToName: string;
+};
+
+type Props = {
+  movements: CalendarMovement[];
+  recurringNextRuns?: CalendarRecurringNextRun[];
+};
 
 type DayIndicators = { income: boolean; expense: boolean; transfer: boolean; pending: boolean };
 
-function indicatorsForDay(movements: CalendarMovement[]): DayIndicators {
+function indicatorsForDay(
+  movements: CalendarMovement[],
+  recurringCount: number
+): DayIndicators {
   let income = false;
   let expense = false;
   let transfer = false;
@@ -31,6 +50,7 @@ function indicatorsForDay(movements: CalendarMovement[]): DayIndicators {
     else if (m.type === "transfer") transfer = true;
     if (m.status === "pending") pending = true;
   }
+  if (recurringCount > 0) pending = true;
   return { income, expense, transfer, pending };
 }
 
@@ -61,7 +81,20 @@ function movementsByDate(movements: CalendarMovement[]): Map<string, CalendarMov
   return m;
 }
 
-export function DashboardCalendar({ movements }: Props) {
+function recurringByDate(
+  runs: CalendarRecurringNextRun[]
+): Map<string, CalendarRecurringNextRun[]> {
+  const m = new Map<string, CalendarRecurringNextRun[]>();
+  for (const r of runs) {
+    const d = r.date.slice(0, 10);
+    if (!m.has(d)) m.set(d, []);
+    m.get(d)!.push(r);
+  }
+  return m;
+}
+
+export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) {
+  const { openEditMovement, openEditRecurring } = useMovementModals();
   const [view, setView] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
@@ -69,6 +102,10 @@ export function DashboardCalendar({ movements }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
 
   const byDate = useMemo(() => movementsByDate(movements), [movements]);
+  const recurringByDay = useMemo(
+    () => recurringByDate(recurringNextRuns),
+    [recurringNextRuns]
+  );
 
   const { days } = useMemo(() => {
     const y = view.year;
@@ -102,7 +139,9 @@ export function DashboardCalendar({ movements }: Props) {
   };
 
   const dayMovements = selected ? (byDate.get(selected) ?? []) : [];
+  const dayRecurring = selected ? (recurringByDay.get(selected) ?? []) : [];
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
+  const hasDayContent = dayMovements.length > 0 || dayRecurring.length > 0;
 
   return (
     <div className="flex flex-col gap-4 w-[360px] shrink-0">
@@ -137,7 +176,8 @@ export function DashboardCalendar({ movements }: Props) {
           <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
             {days.map(({ date, day, isCurrent }) => {
               const dayList = byDate.get(date) ?? [];
-              const ind = indicatorsForDay(dayList);
+              const dayRecurring = recurringByDay.get(date) ?? [];
+              const ind = indicatorsForDay(dayList, dayRecurring.length);
               const isSel = selected === date;
               const bg = isSel ? "ring-2 ring-slate-800 bg-slate-100" : "hover:bg-slate-100";
               const fg = !isCurrent ? "text-slate-400" : "text-slate-800";
@@ -145,7 +185,7 @@ export function DashboardCalendar({ movements }: Props) {
                 <button
                   key={date}
                   type="button"
-                  onClick={() => setSelected(date)}
+                  onClick={() => setSelected(isSel ? null : date)}
                   className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium ${fg} ${bg}`}
                 >
                   <span>{day}</span>
@@ -175,42 +215,84 @@ export function DashboardCalendar({ movements }: Props) {
             </h3>
           </div>
           <div className="p-3 max-h-[280px] overflow-y-auto">
-            {dayMovements.length === 0 ? (
-              <p className="text-xs text-slate-500">No movements on this day.</p>
+            {!hasDayContent ? (
+              <p className="text-xs text-slate-500">No movements or recurring next runs on this day.</p>
             ) : (
               <ul className="space-y-2">
                 {dayMovements.map((t) => (
-                  <li key={t.id} className="text-xs">
-                    <Link
-                      href={`/movements/${t.id}/edit`}
-                      className="flex flex-col gap-0.5 rounded-lg p-2 border border-slate-100 hover:bg-slate-50 hover:border-slate-200"
+                  <li key={`m-${t.id}`} className="text-xs">
+                    <button
+                      type="button"
+                      onClick={() => openEditMovement(t.id)}
+                      className={`w-full text-left flex items-start gap-2 rounded-lg p-2 border ${
+                        t.status === "pending"
+                          ? "border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-300"
+                          : "border-slate-100 hover:bg-slate-50 hover:border-slate-200"
+                      }`}
                     >
-                      <span className="font-medium text-slate-800 truncate">
-                        {t.description || "—"}
-                      </span>
-                      <span className="flex justify-between items-center gap-2">
-                        <span className="text-slate-500 capitalize">
-                          {t.type}
-                          {t.status === "pending" ? " (pending)" : ""}
+                      <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="font-medium text-slate-800 truncate">
+                          {t.description || "—"}
                         </span>
-                        <span
-                          className={`font-mono shrink-0 ${
-                            t.type === "income"
-                              ? "text-green-600"
-                              : t.type === "expense"
-                                ? "text-red-600"
-                                : "text-slate-600"
-                          }`}
-                        >
-                          {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                          {t.amount.toLocaleString("pt-PT", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}{" "}
-                          €
+                        <span className="flex justify-between items-center gap-2">
+                          <span className="text-slate-500">
+                            {t.status === "pending" ? "Pending" : null}
+                          </span>
+                          <span
+                            className={`font-mono shrink-0 ${
+                              t.type === "income"
+                                ? "text-green-600"
+                                : t.type === "expense"
+                                  ? "text-red-600"
+                                  : "text-slate-600"
+                            }`}
+                          >
+                            {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
+                            {t.amount.toLocaleString("pt-PT", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            €
+                          </span>
                         </span>
-                      </span>
-                    </Link>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+                {dayRecurring.map((r) => (
+                  <li key={`r-${r.id}`} className="text-xs">
+                    <button
+                      type="button"
+                      onClick={() => openEditRecurring(r.id)}
+                      className="w-full text-left flex items-start gap-2 rounded-lg p-2 border border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-300"
+                    >
+                      <MovementTypeIcon type={r.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="font-medium text-slate-800 truncate">
+                          {r.description || "—"}
+                        </span>
+                        <span className="flex justify-between items-center gap-2">
+                          <span className="text-slate-500">Next run</span>
+                          <span
+                            className={`font-mono shrink-0 ${
+                              r.type === "income"
+                                ? "text-green-600"
+                                : r.type === "expense"
+                                  ? "text-red-600"
+                                  : "text-slate-600"
+                            }`}
+                          >
+                            {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
+                            {r.amount.toLocaleString("pt-PT", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            €
+                          </span>
+                        </span>
+                      </div>
+                    </button>
                   </li>
                 ))}
               </ul>

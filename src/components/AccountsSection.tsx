@@ -1,6 +1,7 @@
 "use client";
 
 import { getMovementsByAccount, type MovementByAccountRow } from "@/app/actions/movements";
+import { MovementTypeIcon } from "@/components/ActionIcons";
 import { MovementRowActions } from "@/components/MovementRowActions";
 import {
   accountTypeIcon,
@@ -13,7 +14,7 @@ import {
 } from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 type Account = {
   id: string;
@@ -24,11 +25,16 @@ type Account = {
   last_update: string | null;
 };
 
+const MASK = "••••••";
+
 type Props = {
   accounts: Account[];
   totalInitialBalance: number;
   totalBalance: number;
   currentWalletId: string | null;
+  hideBalances?: boolean;
+  orderEditing?: boolean;
+  onReorder?: (accountIds: string[]) => void;
 };
 
 type MovementsState = {
@@ -37,14 +43,52 @@ type MovementsState = {
   loading: boolean;
 };
 
+function fmt(amount: number, hide: boolean) {
+  if (hide) return MASK;
+  return amount.toLocaleString("pt-PT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function DragHandleIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-slate-400"
+      aria-hidden
+    >
+      <line x1="8" y1="6" x2="8" y2="18" />
+      <line x1="12" y1="6" x2="12" y2="18" />
+      <line x1="16" y1="6" x2="16" y2="18" />
+    </svg>
+  );
+}
+
 export function AccountsSection({
   accounts,
   totalInitialBalance,
   totalBalance,
   currentWalletId,
+  hideBalances = false,
+  orderEditing = false,
+  onReorder,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movementsByAccount, setMovementsByAccount] = useState<Record<string, MovementsState>>({});
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (orderEditing) setExpandedId(null);
+  }, [orderEditing]);
 
   async function loadMovements(accountId: string, limit: number) {
     if (!currentWalletId) return;
@@ -89,6 +133,52 @@ export function AccountsSection({
     }
     loadMovements(accountId, 0);
   }
+
+  const handleDragStart = useCallback(
+    (e: React.DragEvent, accountId: string) => {
+      if (!orderEditing || !onReorder) return;
+      e.dataTransfer.setData("text/plain", accountId);
+      e.dataTransfer.effectAllowed = "move";
+    },
+    [orderEditing, onReorder]
+  );
+
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, accountId: string) => {
+      if (!orderEditing) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOverId(accountId);
+    },
+    [orderEditing]
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverId(null);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent, dropTargetId: string) => {
+      if (!orderEditing || !onReorder) return;
+      e.preventDefault();
+      setDragOverId(null);
+      const draggedId = e.dataTransfer.getData("text/plain");
+      if (!draggedId || draggedId === dropTargetId) return;
+      const ids = accounts.map((a) => a.id);
+      const from = ids.indexOf(draggedId);
+      const to = ids.indexOf(dropTargetId);
+      if (from === -1 || to === -1) return;
+      const next = [...ids];
+      next.splice(from, 1);
+      next.splice(next.indexOf(dropTargetId), 0, draggedId);
+      onReorder(next);
+    },
+    [orderEditing, onReorder, accounts]
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragOverId(null);
+  }, []);
 
   if (accounts.length === 0) {
     return (
@@ -135,31 +225,54 @@ export function AccountsSection({
             <Fragment key={a.id}>
               <tr
                 key={a.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => toggleExpand(a.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggleExpand(a.id);
-                  }
-                }}
-                className="hover:bg-slate-50/50 cursor-pointer"
+                role={orderEditing ? undefined : "button"}
+                tabIndex={orderEditing ? undefined : 0}
+                onClick={orderEditing ? undefined : () => toggleExpand(a.id)}
+                onKeyDown={
+                  orderEditing
+                    ? undefined
+                    : (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleExpand(a.id);
+                        }
+                      }
+                }
+                className={
+                  orderEditing
+                    ? `hover:bg-slate-50/50 ${dragOverId === a.id ? "bg-slate-100 ring-1 ring-slate-300 ring-inset" : ""}`
+                    : "hover:bg-slate-50/50 cursor-pointer"
+                }
+                onDragOver={orderEditing ? (e) => handleDragOver(e, a.id) : undefined}
+                onDragLeave={orderEditing ? handleDragLeave : undefined}
+                onDrop={orderEditing ? (e) => handleDrop(e, a.id) : undefined}
+                onDragEnd={orderEditing ? handleDragEnd : undefined}
               >
-                <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    onClick={() => toggleExpand(a.id)}
-                    className="p-0.5 rounded hover:bg-slate-200 text-slate-500"
-                    aria-expanded={isExpanded}
-                    aria-label={isExpanded ? "Collapse" : "Expand"}
-                  >
-                    <span
-                      className={`inline-block transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                <td className="px-4 py-3" onClick={orderEditing ? undefined : (e) => e.stopPropagation()}>
+                  {orderEditing ? (
+                    <div
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, a.id)}
+                      className="p-1 rounded hover:bg-slate-200 text-slate-500 cursor-grab active:cursor-grabbing inline-flex touch-none"
+                      aria-label="Drag to reorder"
                     >
-                      ▶
-                    </span>
-                  </button>
+                      <DragHandleIcon />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpand(a.id)}
+                      className="p-0.5 rounded hover:bg-slate-200 text-slate-500"
+                      aria-expanded={isExpanded}
+                      aria-label={isExpanded ? "Collapse" : "Expand"}
+                    >
+                      <span
+                        className={`inline-block transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      >
+                        ▶
+                      </span>
+                    </button>
+                  )}
                 </td>
                 <td className="px-4 py-3 font-medium">
                   <span
@@ -173,18 +286,10 @@ export function AccountsSection({
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
-                  {a.initial_balance.toLocaleString("pt-PT", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  €
+                  {fmt(a.initial_balance, hideBalances)} €
                 </td>
                 <td className="px-4 py-3 text-right font-mono">
-                  {a.current_balance.toLocaleString("pt-PT", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}{" "}
-                  €
+                  {fmt(a.current_balance, hideBalances)} €
                 </td>
                 <td className="px-4 py-3 text-right text-slate-600">
                   {a.last_update
@@ -211,14 +316,12 @@ export function AccountsSection({
                             <table className="w-full text-xs min-w-[640px]">
                               <thead className="bg-slate-100">
                                 <tr>
+                                  <th className="px-3 py-2 text-left font-medium text-slate-600 w-10">Type</th>
                                   <th className="px-3 py-2 text-left font-medium text-slate-600">
                                     Date
                                   </th>
                                   <th className="px-3 py-2 text-left font-medium text-slate-600">
                                     Description
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    Type
                                   </th>
                                   <th className="px-3 py-2 text-left font-medium text-slate-600">
                                     Category :: Subcategory
@@ -243,13 +346,19 @@ export function AccountsSection({
                                   .map((m) => (
                                   <tr
                                     key={m.id}
-                                    className={movementRowBgClass(m.type)}
+                                    className={
+                                      m.status === "pending"
+                                        ? "bg-yellow-50 hover:bg-yellow-100/80"
+                                        : movementRowBgClass(m.type)
+                                    }
                                   >
+                                    <td className="px-3 py-2">
+                                      <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                                    </td>
                                     <td className="px-3 py-2">{m.date}</td>
                                     <td className="px-3 py-2 text-slate-700 max-w-[180px] truncate">
                                       {m.description || "—"}
                                     </td>
-                                    <td className="px-3 py-2 capitalize">{m.type}</td>
                                     <td className="px-3 py-2 text-slate-600">
                                       {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
                                     </td>
@@ -265,11 +374,12 @@ export function AccountsSection({
                                             : ""
                                       }`}
                                     >
-                                      {m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}
-                                      {m.amount.toLocaleString("pt-PT", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}{" "}
+                                      {hideBalances
+                                        ? MASK
+                                        : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${m.amount.toLocaleString("pt-PT", {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2,
+                                          })}`}{" "}
                                       €
                                     </td>
                                     <td className="px-3 py-2">
@@ -312,18 +422,10 @@ export function AccountsSection({
           <td className="px-4 py-3 w-8" />
           <td className="px-4 py-3">Total</td>
           <td className="px-4 py-3 text-right font-mono">
-            {totalInitialBalance.toLocaleString("pt-PT", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}{" "}
-            €
+            {fmt(totalInitialBalance, hideBalances)} €
           </td>
           <td className="px-4 py-3 text-right font-mono">
-            {totalBalance.toLocaleString("pt-PT", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}{" "}
-            €
+            {fmt(totalBalance, hideBalances)} €
           </td>
           <td className="px-4 py-3" />
         </tr>

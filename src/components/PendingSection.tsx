@@ -1,5 +1,6 @@
 "use client";
 
+import { MovementTypeIcon } from "@/components/ActionIcons";
 import { MovementRowActions } from "@/components/MovementRowActions";
 import {
   formatCategorySubcategory,
@@ -62,9 +63,9 @@ export function PendingSection({ pending }: Props) {
             <table className="w-full text-xs min-w-[640px]">
               <thead className="bg-slate-100">
                 <tr>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">Type</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">Description</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Type</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">
                     Category :: Subcategory
                   </th>
@@ -76,11 +77,13 @@ export function PendingSection({ pending }: Props) {
               <tbody className="divide-y divide-slate-200">
                 {pending.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 bg-amber-50">
+                    <td className="px-4 py-3">
+                      <MovementTypeIcon type={p.type as "income" | "expense" | "transfer"} />
+                    </td>
                     <td className="px-4 py-3 text-slate-600">{p.date}</td>
                     <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
                       {p.description || "—"}
                     </td>
-                    <td className="px-4 py-3 capitalize">{p.type}</td>
                     <td className="px-4 py-3 text-slate-600">
                       {formatCategorySubcategory(p.categoryLabel, p.subcategoryLabel)}
                     </td>

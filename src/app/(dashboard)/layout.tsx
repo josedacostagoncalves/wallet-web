@@ -2,8 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { getOrEnsureProfile } from "@/app/actions/profiles";
+import { MovementModalsProvider } from "@/contexts/MovementModalsContext";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { Header } from "@/components/Header";
+import { MovementModals } from "@/components/MovementModals";
 
 export default async function DashboardLayout({
   children,
@@ -32,8 +34,11 @@ export default async function DashboardLayout({
 
   return (
     <WalletProvider currentWalletId={currentWalletId} wallets={list} user={user} firstName={firstName}>
-      <Header />
-      <main className="max-w-6xl mx-auto w-full px-4 py-6">{children}</main>
+      <MovementModalsProvider>
+        <Header />
+        <main className="max-w-6xl mx-auto w-full px-4 py-6">{children}</main>
+        <MovementModals />
+      </MovementModalsProvider>
     </WalletProvider>
   );
 }

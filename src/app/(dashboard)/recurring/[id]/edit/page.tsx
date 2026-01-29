@@ -12,6 +12,7 @@ import {
   deleteRecurringRule,
   type RecurringRuleRow,
 } from "@/app/actions/recurring";
+import { useToast } from "@/contexts/ToastContext";
 import {
   type RecurrenceType,
   RECURRENCE_OPTIONS,
@@ -27,6 +28,7 @@ type MovementType = "income" | "expense" | "transfer";
 export default function EditRecurringPage() {
   const params = useParams();
   const id = String(params.id);
+  const { showToast } = useToast();
   const router = useRouter();
 
   const [rule, setRule] = useState<RecurringRuleRow | null>(null);
@@ -235,8 +237,10 @@ export default function EditRecurringPage() {
     setSaving(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Recurring rule updated.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -249,8 +253,10 @@ export default function EditRecurringPage() {
     setDeleting(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Recurring rule deleted.");
     router.push("/dashboard");
     router.refresh();
   }

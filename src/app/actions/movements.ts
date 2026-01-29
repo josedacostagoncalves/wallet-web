@@ -160,11 +160,33 @@ export async function getMovementsByAccount(
   });
 }
 
+export async function getRecentMovementsByType(
+  walletId: string,
+  movementType: "income" | "expense" | "transfer",
+  limit = 20
+): Promise<RecentSimilarRow[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("transactions")
+    .select("id, date, description, amount")
+    .eq("wallet_id", walletId)
+    .eq("type", movementType)
+    .order("date", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((t) => ({
+    id: t.id,
+    date: t.date,
+    description: t.description,
+    amount: Number(t.amount),
+  }));
+}
+
 export async function getRecentMovementsByCategory(
   walletId: string,
   movementType: "income" | "expense" | "transfer",
   categoryId: string,
-  subcategoryId?: string | null
+  subcategoryId?: string | null,
+  limit = 20
 ): Promise<RecentSimilarRow[]> {
   const supabase = await createClient();
   let categoryIds: string[];
@@ -184,7 +206,7 @@ export async function getRecentMovementsByCategory(
     .eq("type", movementType)
     .in("category_id", categoryIds)
     .order("date", { ascending: false })
-    .limit(5);
+    .limit(limit);
   return (data ?? []).map((t) => ({
     id: t.id,
     date: t.date,

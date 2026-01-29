@@ -2,6 +2,7 @@
 
 import { createAccount } from "@/app/actions/accounts";
 import { AccountTypeSelect } from "@/components/AccountTypeSelect";
+import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
@@ -10,6 +11,7 @@ import { useState } from "react";
 
 export default function NewAccountPage() {
   const { currentWalletId } = useWallet();
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("bank_account");
@@ -32,8 +34,10 @@ export default function NewAccountPage() {
     setLoading(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Account added.");
     router.push("/accounts");
     router.refresh();
   }

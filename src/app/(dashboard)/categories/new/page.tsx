@@ -1,6 +1,7 @@
 "use client";
 
 import { createCategory } from "@/app/actions/categories";
+import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function NewCategoryPage() {
   const { currentWalletId } = useWallet();
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [type, setType] = useState<"income" | "expense" | "transfer">("expense");
@@ -48,8 +50,10 @@ export default function NewCategoryPage() {
     setLoading(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast(parentId ? "Subcategory added." : "Category added.");
     router.push("/categories");
     router.refresh();
   }

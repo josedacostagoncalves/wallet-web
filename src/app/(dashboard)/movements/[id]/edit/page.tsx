@@ -9,6 +9,8 @@ import {
   deleteMovement,
   confirmMovement,
 } from "@/app/actions/movements";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
   type RecurrenceType,
@@ -25,6 +27,7 @@ export default function EditMovementPage() {
   const params = useParams();
   const id = String(params.id);
   const { currentWalletId } = useWallet();
+  const { showToast } = useToast();
   const router = useRouter();
 
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
@@ -54,6 +57,8 @@ export default function EditMovementPage() {
   const [workDayIndex, setWorkDayIndex] = useState("");
 
   const [status, setStatus] = useState<"confirmed" | "pending" | null>(null);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   useEffect(() => {
     getMovement(id).then((m) => {
@@ -175,8 +180,10 @@ export default function EditMovementPage() {
     setSaving(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Movement updated.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -187,6 +194,8 @@ export default function EditMovementPage() {
     const err = validateForm();
     if (err) {
       setError(err);
+      setConfirmDialogOpen(false);
+      showToast(err, "error");
       return;
     }
     setConfirming(true);
@@ -205,14 +214,20 @@ export default function EditMovementPage() {
     if (res.error) {
       setError(res.error);
       setConfirming(false);
+      setConfirmDialogOpen(false);
+      showToast(res.error, "error");
       return;
     }
     const confirmRes = await confirmMovement(id);
     setConfirming(false);
     if (confirmRes.error) {
       setError(confirmRes.error);
+      setConfirmDialogOpen(false);
+      showToast(confirmRes.error, "error");
       return;
     }
+    setConfirmDialogOpen(false);
+    showToast("Movement confirmed.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -225,20 +240,26 @@ export default function EditMovementPage() {
     setDeleting(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Movement deleted.");
     router.push("/dashboard");
     router.refresh();
   }
 
   async function handleCancelPending() {
-    if (!confirm("Cancel this pending movement? It will be deleted.")) return;
     setDeleting(true);
     setError(null);
     const res = await deleteMovement(id);
     setDeleting(false);
-    if (res.error) setError(res.error);
-    else {
+    if (res.error) {
+      setError(res.error);
+      setCancelDialogOpen(false);
+      showToast(res.error, "error");
+    } else {
+      setCancelDialogOpen(false);
+      showToast("Pending movement cancelled.");
       router.push("/dashboard");
       router.refresh();
     }
@@ -514,7 +535,7 @@ export default function EditMovementPage() {
             <>
               <button
                 type="button"
-                onClick={handleConfirmClick}
+                onClick={() => setConfirmDialogOpen(true)}
                 disabled={confirming}
                 className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
               >
@@ -522,12 +543,34 @@ export default function EditMovementPage() {
               </button>
               <button
                 type="button"
-                onClick={handleCancelPending}
+                onClick={() => setCancelDialogOpen(true)}
                 disabled={deleting}
                 className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
               >
                 {deleting ? "Cancelling…" : "Cancel"}
               </button>
+              <ConfirmDialog
+                open={confirmDialogOpen}
+                onClose={() => setConfirmDialogOpen(false)}
+                onConfirm={handleConfirmClick}
+                title="Confirm movement"
+                message="Confirm this pending movement? It will be applied and balances updated."
+                confirmLabel="Confirm"
+                cancelLabel="Go back"
+                variant="confirm"
+                loading={confirming}
+              />
+              <ConfirmDialog
+                open={cancelDialogOpen}
+                onClose={() => setCancelDialogOpen(false)}
+                onConfirm={handleCancelPending}
+                title="Cancel pending movement"
+                message="Cancel this pending movement? It will be deleted."
+                confirmLabel="Yes, cancel"
+                cancelLabel="Keep"
+                variant="cancel"
+                loading={deleting}
+              />
             </>
           )}
           {status !== "pending" && (

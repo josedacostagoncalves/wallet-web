@@ -1,6 +1,7 @@
 "use client";
 
 import { updateCategory } from "@/app/actions/categories";
+import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function EditCategoryPage() {
   const params = useParams();
   const id = String(params.id);
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -42,8 +44,10 @@ export default function EditCategoryPage() {
     setSaving(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Category updated.");
     router.push("/categories");
     router.refresh();
   }

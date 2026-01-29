@@ -1,6 +1,7 @@
 "use client";
 
 import { logActivityAction } from "@/app/actions/auth";
+import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +13,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/home";
 
@@ -24,9 +26,11 @@ export function LoginForm() {
     setLoading(false);
     if (err) {
       setError(err.message);
+      showToast(err.message, "error");
       return;
     }
     await logActivityAction({ action: "login", payload: {} });
+    showToast("Logged in successfully.");
     router.push(redirect);
     router.refresh();
   }

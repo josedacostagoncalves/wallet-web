@@ -4,6 +4,9 @@ import { ensureRecurringGenerated } from "@/app/actions/movements";
 import { AllMovementsSection } from "@/components/AllMovementsSection";
 import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
+import { NewExpenseTrigger } from "@/components/NewExpenseTrigger";
+import { NewIncomeTrigger } from "@/components/NewIncomeTrigger";
+import { NewTransferTrigger } from "@/components/NewTransferTrigger";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
 import { workDayDateInMonth } from "@/lib/recurrence";
 
@@ -203,6 +206,20 @@ export default async function DashboardPage() {
     })
   );
 
+  const recurringNextRuns = recurring
+    .filter((r) => r.isActive && !r.isStopped)
+    .map((r) => ({
+      id: r.id,
+      date: r.nextRunDate,
+      type: r.type,
+      amount: r.amount,
+      description: r.description,
+      categoryLabel: r.categoryLabel,
+      subcategoryLabel: r.subcategoryLabel,
+      accountFromName: r.accountFromName,
+      accountToName: r.accountToName,
+    }));
+
   return (
     <div className="space-y-6">
       {!currentWalletId ? (
@@ -214,8 +231,30 @@ export default async function DashboardPage() {
         </>
       ) : (
         <div className="relative">
-          <aside className="mb-8 flex justify-center xl:mb-0 xl:absolute xl:right-full xl:top-0 xl:mr-4 xl:block xl:w-[360px]">
-            <DashboardCalendar movements={calendarMovements} />
+          <aside className="mb-8 flex flex-col items-center gap-4 xl:mb-0 xl:absolute xl:right-full xl:top-0 xl:mr-4 xl:items-stretch xl:w-[360px]">
+            <div className="flex flex-wrap justify-center gap-2 xl:justify-stretch">
+              <NewIncomeTrigger
+                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-green-200 bg-green-50/50 px-3 py-2 text-sm font-medium text-green-800 hover:border-green-400 hover:bg-green-100/50 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200 dark:hover:border-green-600 dark:hover:bg-green-900/30"
+              >
+                <span aria-hidden>↓</span>
+                <span>New Income</span>
+              </NewIncomeTrigger>
+              <NewExpenseTrigger
+                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-red-200 bg-red-50/50 px-3 py-2 text-sm font-medium text-red-800 hover:border-red-400 hover:bg-red-100/50 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200 dark:hover:border-red-600 dark:hover:bg-red-900/30"
+              >
+                <span aria-hidden>↑</span>
+                <span>New Expense</span>
+              </NewExpenseTrigger>
+              <NewTransferTrigger
+                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-blue-200 bg-blue-50/50 px-3 py-2 text-sm font-medium text-blue-800 hover:border-blue-400 hover:bg-blue-100/50 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:border-blue-600 dark:hover:bg-blue-900/30"
+              >
+                <span aria-hidden>⇄</span>
+                <span>New Transfer</span>
+              </NewTransferTrigger>
+            </div>
+            <div className="flex justify-center xl:block">
+              <DashboardCalendar movements={calendarMovements} recurringNextRuns={recurringNextRuns} />
+            </div>
           </aside>
           <div className="space-y-8">
             <h1 className="text-2xl font-semibold">Dashboard</h1>

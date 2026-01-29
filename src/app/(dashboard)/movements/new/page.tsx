@@ -8,6 +8,8 @@ import {
   createMovement,
   getRecentMovementsByCategory,
 } from "@/app/actions/movements";
+import { CopyIcon } from "@/components/ActionIcons";
+import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
   type RecurrenceType,
@@ -22,6 +24,7 @@ type MovementType = "income" | "expense" | "transfer";
 
 export default function NewMovementPage() {
   const { currentWalletId } = useWallet();
+  const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const copyId = searchParams.get("copy");
@@ -277,9 +280,11 @@ export default function NewMovementPage() {
     setLoading(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
-    router.push("/home");
+    showToast("Movement added.");
+    router.push("/dashboard");
     router.refresh();
   }
 
@@ -325,10 +330,10 @@ export default function NewMovementPage() {
             Choose type
           </Link>
           <Link
-            href="/home"
+            href="/dashboard"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            Back to Home
+            Back to Dashboard
           </Link>
         </div>
       </div>
@@ -365,7 +370,7 @@ export default function NewMovementPage() {
             <span className="font-medium">Transfer</span>
           </button>
         </div>
-        <Link href="/home" className="text-slate-500 hover:underline">← Back to Home</Link>
+        <Link href="/dashboard" className="text-slate-500 hover:underline">← Back to Dashboard</Link>
       </div>
     );
   }
@@ -657,7 +662,7 @@ export default function NewMovementPage() {
             {loading ? "Saving…" : "Save"}
           </button>
           <Link
-            href="/home"
+            href="/dashboard"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             Cancel
@@ -715,9 +720,11 @@ export default function NewMovementPage() {
                           type="button"
                           onClick={() => handleCopyFromSimilar(r.id)}
                           disabled={!!copyingSimilarId}
-                          className="text-slate-500 hover:underline disabled:opacity-50"
+                          className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
+                          title={copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                          aria-label={copyingSimilarId === r.id ? "Copying…" : "Copy"}
                         >
-                          {copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                          <CopyIcon aria-hidden />
                         </button>
                       </td>
                     </tr>

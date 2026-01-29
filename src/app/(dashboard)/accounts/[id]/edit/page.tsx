@@ -2,6 +2,7 @@
 
 import { updateAccount } from "@/app/actions/accounts";
 import { AccountTypeSelect } from "@/components/AccountTypeSelect";
+import { useToast } from "@/contexts/ToastContext";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -11,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function EditAccountPage() {
   const params = useParams();
   const id = String(params.id);
+  const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("bank_account");
@@ -61,8 +63,10 @@ export default function EditAccountPage() {
     setSaving(false);
     if (res.error) {
       setError(res.error);
+      showToast(res.error, "error");
       return;
     }
+    showToast("Account updated.");
     router.push("/accounts");
     router.refresh();
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { useState } from "react";
 
 export default function NewWalletPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [name, setName] = useState("");
   const [isShared, setIsShared] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +26,7 @@ export default function NewWalletPage() {
     if (!user) {
       setError("Not authenticated");
       setLoading(false);
+      showToast("Not authenticated", "error");
       return;
     }
 
@@ -35,11 +38,13 @@ export default function NewWalletPage() {
     if (rpcErr) {
       setError(rpcErr.message);
       setLoading(false);
+      showToast(rpcErr.message, "error");
       return;
     }
     if (!walletId) {
       setError("Create failed");
       setLoading(false);
+      showToast("Create failed", "error");
       return;
     }
 
@@ -53,6 +58,7 @@ export default function NewWalletPage() {
     });
 
     setLoading(false);
+    showToast("Wallet created.");
     router.push("/wallets");
     router.refresh();
   }
