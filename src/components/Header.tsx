@@ -114,6 +114,13 @@ export function Header() {
                 />
                 <div className="absolute right-0 top-full mt-1 py-1 w-48 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg z-50">
                   <Link
+                    href="/profile"
+                    className="block px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Profile settings
+                  </Link>
+                  <Link
                     href="/accounts"
                     className="block px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}

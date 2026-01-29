@@ -107,3 +107,4 @@ Run in the **SQL Editor** (Supabase Dashboard), in order:
 7. `supabase/migrations/007_account_type.sql` (account type: bank_account, cash, credit_card, savings, investments)
 8. `supabase/migrations/008_recurring_end_date_weekday_day.sql` (recurring: optional end_date, weekday for weekly, day_of_month for monthly)
 9. `supabase/migrations/009_profiles.sql` (user profiles: first_name, last_name; trigger on signup)
+10. `supabase/migrations/010_profile_avatar_storage.sql` (profiles.avatar_url; avatars bucket + storage policies)

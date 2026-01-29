@@ -2,7 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-export type Profile = { first_name: string | null; last_name: string | null };
+export type Profile = {
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+};
 
 /**
  * Fetch profile for user. If missing, create from metadata (or empty) and return.
@@ -14,7 +18,7 @@ export async function getOrEnsureProfile(
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("profiles")
-    .select("first_name, last_name")
+    .select("first_name, last_name, avatar_url")
     .eq("id", userId)
     .single();
 
@@ -22,6 +26,7 @@ export async function getOrEnsureProfile(
     return {
       first_name: existing.first_name ?? null,
       last_name: existing.last_name ?? null,
+      avatar_url: existing.avatar_url ?? null,
     };
   }
 
@@ -29,5 +34,57 @@ export async function getOrEnsureProfile(
   const last_name = (metadata?.last_name ?? "")?.trim() || null;
   await supabase.from("profiles").insert({ id: userId, first_name, last_name });
 
-  return { first_name, last_name };
+  return { first_name, last_name, avatar_url: null };
+}
+
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_SIZE_MB = 2;
+
+/**
+ * Update profile (first_name, last_name) and optionally upload a new avatar.
+ * Returns { error } on failure.
+ */
+export async function updateProfile(formData: FormData): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const first_name = (formData.get("first_name") as string)?.trim() || null;
+  const last_name = (formData.get("last_name") as string)?.trim() || null;
+  const photo = formData.get("photo") as File | null;
+
+  let avatar_url: string | null = null;
+
+  if (photo && photo.size > 0) {
+    if (!ALLOWED_TYPES.includes(photo.type)) {
+      return { error: "Invalid image type. Use JPEG, PNG, WebP or GIF." };
+    }
+    if (photo.size > MAX_SIZE_MB * 1024 * 1024) {
+      return { error: `Image must be under ${MAX_SIZE_MB} MB.` };
+    }
+    const ext = photo.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `${user.id}/avatar.${ext}`;
+    const { error: uploadErr } = await supabase.storage
+      .from("avatars")
+      .upload(path, photo, { upsert: true });
+    if (uploadErr) return { error: uploadErr.message };
+    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+    avatar_url = urlData.publicUrl;
+  }
+
+  const updates: { first_name: string | null; last_name: string | null; avatar_url?: string | null } = {
+    first_name,
+    last_name,
+  };
+  if (avatar_url !== null) updates.avatar_url = avatar_url;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+
+  return {};
 }
