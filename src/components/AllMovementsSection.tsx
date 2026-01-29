@@ -128,8 +128,8 @@ export function AllMovementsSection({ confirmed }: Props) {
   const subcategories = useMemo(() => {
     if (!filter.category) {
       const all = new Set<string>();
-      for (const s of categoryToSubs.values()) {
-        for (const x of s) all.add(x);
+      for (const s of Array.from(categoryToSubs.values())) {
+        for (const x of Array.from(s)) all.add(x);
       }
       return Array.from(all).sort();
     }
