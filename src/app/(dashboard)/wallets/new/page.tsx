@@ -1,5 +1,6 @@
 "use client";
 
+import { setWalletCookie } from "@/app/actions/wallet-cookie";
 import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
@@ -57,9 +58,12 @@ export default function NewWalletPage() {
       payload: { name: name.trim(), is_shared: isShared },
     });
 
+    // Automatically select the newly created wallet
+    await setWalletCookie(walletId);
+
     setLoading(false);
     showToast("Wallet created.");
-    router.push("/wallets");
+    router.push("/home");
     router.refresh();
   }
 

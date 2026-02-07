@@ -1,104 +1,332 @@
 "use client";
 
+import {
+  getWalletDetails,
+  getWalletUsage,
+  softDeleteWallet,
+  undoDeleteWallet,
+  type WalletDetails,
+} from "@/app/actions/wallets";
+import { EditIcon, DeleteIcon } from "@/components/ActionIcons";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
-import { getWalletMembers } from "@/app/actions/wallets";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface Wallet {
   id: string;
   name: string;
   is_shared: boolean;
   is_active: boolean;
+  deleted_at: string | null;
+  delete_after: string | null;
 }
 
-interface WalletMember {
-  user_id: string;
-  role: string;
-  email?: string;
+/* ─── Small SVG icons ─── */
+
+function InfoIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 16v-4" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
 }
 
-export default function WalletsPage() {
-  const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [expandedWallets, setExpandedWallets] = useState<Set<string>>(new Set());
-  const [walletMembers, setWalletMembers] = useState<Record<string, WalletMember[]>>({});
-  const [membersError, setMembersError] = useState<Record<string, string>>({});
-  const [loadingMembers, setLoadingMembers] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+function UserIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-slate-400"
+    >
+      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+/* ─── Details Popup ─── */
+
+function WalletDetailsPopup({
+  details,
+  walletName,
+  onClose,
+}: {
+  details: WalletDetails;
+  walletName: string;
+  onClose: () => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function loadWallets() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
 
-      // Get wallets where user is a member
-      const { data: list } = await supabase
-        .from("wallet_members")
-        .select("wallet_id, wallets(id, name, is_shared, is_active)")
-        .eq("user_id", user.id);
+  const ownerName = details.owner
+    ? [details.owner.first_name, details.owner.last_name].filter(Boolean).join(" ") || "—"
+    : "—";
 
-      const walletsList = (list ?? [])
-        .map((m) => {
-          const raw = m.wallets as Wallet | Wallet[] | null;
-          return Array.isArray(raw) ? raw[0] : raw;
-        })
-        .filter((w): w is Wallet => w != null)
-        .sort((a, b) => a.name.localeCompare(b.name));
+  return createPortal(
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40"
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
+    >
+      <div className="relative w-full max-w-md rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          aria-label="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
 
-      setWallets(walletsList);
-      setLoading(false);
-    }
+        <h2 className="text-lg font-semibold">{walletName}</h2>
+
+        {/* Summary info */}
+        <div className="grid grid-cols-2 gap-3 text-xs">
+          <div className="space-y-0.5">
+            <div className="text-slate-500">Owner</div>
+            <div className="flex items-center gap-2 font-medium">
+              {details.owner?.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={details.owner.avatar_url}
+                  alt=""
+                  className="h-5 w-5 rounded-full object-cover"
+                />
+              ) : (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                  <UserIcon />
+                </span>
+              )}
+              {ownerName}
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-slate-500">Created</div>
+            <div className="font-medium">
+              {new Date(details.created_at).toLocaleDateString("pt-PT")}
+            </div>
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-slate-500">Accounts</div>
+            <div className="font-medium">{details.accountCount}</div>
+          </div>
+          <div className="space-y-0.5">
+            <div className="text-slate-500">Movements</div>
+            <div className="font-medium">{details.movementCount}</div>
+          </div>
+        </div>
+
+        {/* Members (shared wallets) */}
+        {details.is_shared && details.members.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-medium text-slate-500">Members</h3>
+            <div className="space-y-2">
+              {details.members.map((m) => {
+                const name =
+                  [m.first_name, m.last_name].filter(Boolean).join(" ") || "—";
+                return (
+                  <div
+                    key={m.user_id}
+                    className="flex items-center gap-3 rounded-lg border border-slate-100 dark:border-slate-700 p-2"
+                  >
+                    {m.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.avatar_url}
+                        alt=""
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                        <UserIcon />
+                      </span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">
+                        {name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 capitalize">
+                        {m.role}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+/* ─── Main Page ─── */
+
+export default function WalletsPage() {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Details popup state
+  const [detailsPopup, setDetailsPopup] = useState<{
+    walletName: string;
+    details: WalletDetails;
+  } | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState<string | null>(null);
+
+  // Delete dialog state
+  const [deleteTarget, setDeleteTarget] = useState<Wallet | null>(null);
+  const [deleteMsg, setDeleteMsg] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
     loadWallets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadWalletMembers(walletId: string) {
-    if (loadingMembers.has(walletId)) return;
-    if (walletMembers[walletId] && !membersError[walletId]) return;
+  async function loadWallets() {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    setLoadingMembers((prev) => new Set(prev).add(walletId));
-    setMembersError((prev) => ({ ...prev, [walletId]: "" }));
-
-    try {
-      const result = await getWalletMembers(walletId);
-
-      if (result.error) {
-        setMembersError((prev) => ({ ...prev, [walletId]: result.error! }));
-        setWalletMembers((prev) => ({ ...prev, [walletId]: [] }));
-        return;
-      }
-
-      setWalletMembers((prev) => ({ ...prev, [walletId]: result.members ?? [] }));
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load members";
-      setMembersError((prev) => ({ ...prev, [walletId]: msg }));
-      setWalletMembers((prev) => ({ ...prev, [walletId]: [] }));
-    } finally {
-      setLoadingMembers((prev) => {
-        const next = new Set(prev);
-        next.delete(walletId);
-        return next;
-      });
+    if (!user) {
+      setLoading(false);
+      return;
     }
+
+    const { data: list } = await supabase
+      .from("wallet_members")
+      .select(
+        "wallet_id, wallets(id, name, is_shared, is_active, deleted_at, delete_after)"
+      )
+      .eq("user_id", user.id);
+
+    const walletsList = (list ?? [])
+      .map((m) => {
+        const raw = m.wallets as Wallet | Wallet[] | null;
+        return Array.isArray(raw) ? raw[0] : raw;
+      })
+      .filter((w): w is Wallet => w != null)
+      .sort((a, b) => {
+        if (!a.deleted_at && b.deleted_at) return -1;
+        if (a.deleted_at && !b.deleted_at) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+    setWallets(walletsList);
+    setLoading(false);
   }
 
-  function toggleExpand(walletId: string) {
-    setExpandedWallets((prev) => {
-      const next = new Set(prev);
-      if (next.has(walletId)) {
-        next.delete(walletId);
-      } else {
-        next.add(walletId);
-        loadWalletMembers(walletId);
-      }
-      return next;
-    });
+  async function handleInfoClick(w: Wallet) {
+    if (loadingDetails) return;
+    setLoadingDetails(w.id);
+    const res = await getWalletDetails(w.id);
+    setLoadingDetails(null);
+    if (res.error || !res.details) {
+      showToast(res.error ?? "Failed to load details", "error");
+      return;
+    }
+    setDetailsPopup({ walletName: w.name, details: res.details });
+  }
+
+  async function handleDeleteClick(w: Wallet) {
+    const usage = await getWalletUsage(w.id);
+    if (usage.error) {
+      showToast(usage.error, "error");
+      return;
+    }
+    if (!usage.hasData) {
+      setDeleteMsg(
+        `Delete wallet "${w.name}"? This wallet has no accounts or movements and will be permanently deleted.`
+      );
+    } else {
+      const parts: string[] = [];
+      if (usage.accountCount > 0)
+        parts.push(
+          `${usage.accountCount} account${usage.accountCount > 1 ? "s" : ""}`
+        );
+      if (usage.movementCount > 0)
+        parts.push(
+          `${usage.movementCount} movement${usage.movementCount > 1 ? "s" : ""}`
+        );
+      setDeleteMsg(
+        `Delete wallet "${w.name}"? It contains ${parts.join(" and ")}. All data will be kept for 30 days — you can undo this action during that period.`
+      );
+    }
+    setDeleteTarget(w);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await softDeleteWallet(deleteTarget.id);
+    setDeleting(false);
+    setDeleteTarget(null);
+    if (res.error) {
+      showToast(res.error, "error");
+      return;
+    }
+    if (res.hardDeleted) {
+      showToast("Wallet permanently deleted.");
+    } else {
+      showToast("Wallet deleted. You can undo within 30 days.");
+    }
+    await loadWallets();
+    router.refresh();
+  }
+
+  async function handleUndo(w: Wallet) {
+    const res = await undoDeleteWallet(w.id);
+    if (res.error) {
+      showToast(res.error, "error");
+      return;
+    }
+    showToast(`Wallet "${w.name}" restored.`);
+    await loadWallets();
+    router.refresh();
   }
 
   if (loading) {
@@ -142,96 +370,126 @@ export default function WalletsPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-left p-3 font-medium text-slate-600">Name</th>
-                <th className="text-left p-3 font-medium text-slate-600">Type</th>
-                <th className="text-left p-3 font-medium text-slate-600">Status</th>
-                <th className="text-left p-3"></th>
+                <th className="text-left p-3 font-medium text-slate-600">
+                  Name
+                </th>
+                <th className="text-left p-3 font-medium text-slate-600">
+                  Type
+                </th>
+                <th className="text-left p-3 font-medium text-slate-600">
+                  Status
+                </th>
+                <th className="text-left p-3 font-medium text-slate-600 w-28">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody>
-              {wallets.map((w) => {
-                const isExpanded = expandedWallets.has(w.id);
-                const members = walletMembers[w.id] ?? [];
-                const isLoadingMembers = loadingMembers.has(w.id);
-                const error = membersError[w.id];
-                
-                return (
-                  <>
-                    <tr
-                      key={w.id}
-                      className={`border-b border-slate-100 ${
-                        !w.is_active ? "opacity-60" : ""
-                      } ${w.is_shared ? "cursor-pointer hover:bg-slate-50" : ""}`}
-                      onClick={() => w.is_shared && toggleExpand(w.id)}
-                    >
-                      <td className="p-3 font-medium">
-                        <div className="flex items-center gap-2">
-                          {w.is_shared && (
-                            <span className={`inline-block transition-transform ${isExpanded ? "rotate-90" : ""}`}>
-                              ▶
+            {wallets.map((w) => {
+              const isSoftDeleted = !!w.deleted_at;
+
+              return (
+                <tbody key={w.id}>
+                  <tr
+                    className={`border-b border-slate-100 ${
+                      isSoftDeleted
+                        ? "opacity-50 bg-red-50 dark:bg-red-950/20"
+                        : !w.is_active
+                          ? "opacity-60"
+                          : ""
+                    }`}
+                  >
+                    <td className="p-3 font-medium">{w.name}</td>
+                    <td className="p-3">
+                      {w.is_shared ? "Shared" : "Personal"}
+                    </td>
+                    <td className="p-3">
+                      {isSoftDeleted ? (
+                        <span className="text-red-600 dark:text-red-400">
+                          Deleted
+                          {w.delete_after && (
+                            <span className="text-[10px] ml-1 text-slate-500">
+                              (until{" "}
+                              {new Date(w.delete_after).toLocaleDateString(
+                                "pt-PT"
+                              )}
+                              )
                             </span>
                           )}
-                          {w.name}
-                        </div>
-                      </td>
-                      <td className="p-3">{w.is_shared ? "Shared" : "Personal"}</td>
-                      <td className="p-3">
-                        {w.is_active ? (
-                          <span className="text-green-600">Active</span>
-                        ) : (
-                          <span className="text-slate-500">Inactive</span>
-                        )}
-                      </td>
-                      <td className="p-3" onClick={(e) => e.stopPropagation()}>
-                        <Link
-                          href={`/wallets/${w.id}/edit`}
-                          className="text-slate-600 hover:underline"
+                        </span>
+                      ) : w.is_active ? (
+                        <span className="text-green-600">Active</span>
+                      ) : (
+                        <span className="text-slate-500">Inactive</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {isSoftDeleted ? (
+                        <button
+                          onClick={() => handleUndo(w)}
+                          className="text-xs text-blue-600 hover:underline font-medium"
                         >
-                          Edit
-                        </Link>
-                      </td>
-                    </tr>
-                    {isExpanded && w.is_shared && (
-                      <tr key={`${w.id}-members`} className="bg-slate-50">
-                        <td colSpan={4} className="p-4">
-                          <div className="space-y-2">
-                            <h3 className="font-medium text-xs mb-2">Members</h3>
-                            {isLoadingMembers ? (
-                              <p className="text-xs text-slate-500">Loading members…</p>
-                            ) : error ? (
-                              <p className="text-xs text-red-600">{error}</p>
-                            ) : members.length === 0 ? (
-                              <p className="text-xs text-slate-500">No members found</p>
+                          Undo delete
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleInfoClick(w)}
+                            className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            title="Details"
+                            disabled={loadingDetails === w.id}
+                          >
+                            {loadingDetails === w.id ? (
+                              <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
                             ) : (
-                              <div className="space-y-1">
-                                {members.map((member) => (
-                                  <div
-                                    key={member.user_id}
-                                    className="flex items-center justify-between text-xs py-1 px-2 rounded bg-white"
-                                  >
-                                    <div>
-                                      <span className="font-medium">
-                                        {member.email || member.user_id}
-                                      </span>
-                                      <span className="ml-2 text-slate-500 text-xs">
-                                        ({member.role})
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                              <InfoIcon className="w-4 h-4" />
                             )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                );
-              })}
-            </tbody>
+                          </button>
+                          <Link
+                            href={`/wallets/${w.id}/edit`}
+                            className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            title="Edit"
+                          >
+                            <EditIcon className="w-4 h-4" />
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteClick(w)}
+                            className="text-slate-500 hover:text-red-600 dark:hover:text-red-400"
+                            title="Delete"
+                          >
+                            <DeleteIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              );
+            })}
           </table>
         )}
       </div>
+
+      {/* Details popup */}
+      {detailsPopup && (
+        <WalletDetailsPopup
+          walletName={detailsPopup.walletName}
+          details={detailsPopup.details}
+          onClose={() => setDetailsPopup(null)}
+        />
+      )}
+
+      {/* Delete confirmation dialog */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete wallet"
+        message={deleteMsg}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="cancel"
+        loading={deleting}
+      />
     </div>
   );
 }

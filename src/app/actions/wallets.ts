@@ -236,3 +236,213 @@ export async function getWalletMembers(walletId: string): Promise<{ members?: Ar
     })),
   };
 }
+
+/**
+ * Check whether a wallet has any accounts or movements.
+ */
+export async function getWalletUsage(
+  walletId: string
+): Promise<{ hasData: boolean; accountCount: number; movementCount: number; error?: string }> {
+  const supabase = await createClient();
+  const { count: acctCount, error: e1 } = await supabase
+    .from("accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet_id", walletId);
+  if (e1) return { hasData: false, accountCount: 0, movementCount: 0, error: e1.message };
+
+  const { count: txCount, error: e2 } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet_id", walletId);
+  if (e2) return { hasData: false, accountCount: 0, movementCount: 0, error: e2.message };
+
+  const ac = acctCount ?? 0;
+  const tc = txCount ?? 0;
+  return { hasData: ac > 0 || tc > 0, accountCount: ac, movementCount: tc };
+}
+
+/**
+ * Soft-delete a wallet.
+ * - If the wallet has no data (accounts/movements), hard-delete immediately.
+ * - If it has data, mark deleted_at + delete_after (30 days), keeping data for undo.
+ */
+export async function softDeleteWallet(
+  walletId: string
+): Promise<{ hardDeleted?: boolean; softDeleted?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Verify ownership
+  const { data: member } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .single();
+  if (!member) return { error: "Not a member of this wallet" };
+  if (member.role !== "owner") return { error: "Only the wallet owner can delete it" };
+
+  const usage = await getWalletUsage(walletId);
+  if (usage.error) return { error: usage.error };
+
+  if (!usage.hasData) {
+    // No data — hard delete immediately
+    const { error: delErr } = await supabase
+      .from("wallets")
+      .delete()
+      .eq("id", walletId);
+    if (delErr) return { error: delErr.message };
+
+    await logActivity(supabase, {
+      action: "wallet_delete",
+      entity_type: "wallet",
+      entity_id: walletId,
+      wallet_id: walletId,
+      payload: { mode: "hard" },
+    });
+    return { hardDeleted: true };
+  }
+
+  // Has data — soft delete (30-day grace period)
+  const now = new Date();
+  const deleteAfter = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const { error: updErr } = await supabase
+    .from("wallets")
+    .update({
+      deleted_at: now.toISOString(),
+      delete_after: deleteAfter.toISOString(),
+      is_active: false,
+    })
+    .eq("id", walletId);
+  if (updErr) return { error: updErr.message };
+
+  await logActivity(supabase, {
+    action: "wallet_delete",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: { mode: "soft", delete_after: deleteAfter.toISOString() },
+  });
+  return { softDeleted: true };
+}
+
+/**
+ * Undo a soft-delete (restore the wallet).
+ */
+export async function undoDeleteWallet(
+  walletId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error: updErr } = await supabase
+    .from("wallets")
+    .update({ deleted_at: null, delete_after: null, is_active: true })
+    .eq("id", walletId);
+  if (updErr) return { error: updErr.message };
+
+  await logActivity(supabase, {
+    action: "wallet_restore",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: {},
+  });
+  return {};
+}
+
+export type WalletDetailMember = {
+  user_id: string;
+  role: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+};
+
+export type WalletDetails = {
+  owner: WalletDetailMember | null;
+  created_at: string;
+  accountCount: number;
+  movementCount: number;
+  members: WalletDetailMember[];
+  is_shared: boolean;
+};
+
+/**
+ * Fetch wallet details: owner, creation date, counts, and members with profile info.
+ */
+export async function getWalletDetails(
+  walletId: string
+): Promise<{ details?: WalletDetails; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Fetch wallet info
+  const { data: wallet, error: wErr } = await supabase
+    .from("wallets")
+    .select("created_at, created_by, is_shared")
+    .eq("id", walletId)
+    .single();
+  if (wErr || !wallet) return { error: wErr?.message ?? "Wallet not found" };
+
+  // Fetch members
+  const { data: memberRows } = await supabase
+    .from("wallet_members")
+    .select("user_id, role")
+    .eq("wallet_id", walletId);
+  const rawMembers = memberRows ?? [];
+
+  // Fetch profiles for all members
+  const userIds = rawMembers.map((m) => m.user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, avatar_url")
+    .in("id", userIds.length > 0 ? userIds : ["__none__"]);
+  const profileMap = new Map(
+    (profiles ?? []).map((p) => [p.id, p])
+  );
+
+  const members: WalletDetailMember[] = rawMembers.map((m) => {
+    const prof = profileMap.get(m.user_id);
+    return {
+      user_id: m.user_id,
+      role: m.role,
+      first_name: prof?.first_name ?? null,
+      last_name: prof?.last_name ?? null,
+      avatar_url: prof?.avatar_url ?? null,
+    };
+  });
+
+  const owner = members.find((m) => m.role === "owner") ?? null;
+
+  // Count accounts and movements
+  const { count: acctCount } = await supabase
+    .from("accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet_id", walletId);
+  const { count: txCount } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet_id", walletId);
+
+  return {
+    details: {
+      owner,
+      created_at: wallet.created_at,
+      accountCount: acctCount ?? 0,
+      movementCount: txCount ?? 0,
+      members,
+      is_shared: wallet.is_shared,
+    },
+  };
+}

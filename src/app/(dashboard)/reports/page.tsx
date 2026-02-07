@@ -11,7 +11,8 @@ export default async function ReportsPage() {
   const { data: wallets } = await supabase
     .from("wallets")
     .select("id")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .is("deleted_at", null);
   const walletIds = (wallets ?? []).map((w) => w.id);
   const currentWalletId =
     cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;

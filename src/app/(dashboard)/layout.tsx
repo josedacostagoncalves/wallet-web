@@ -27,6 +27,7 @@ export default async function DashboardLayout({
     .from("wallets")
     .select("*")
     .eq("is_active", true)
+    .is("deleted_at", null)
     .order("name");
   const list = wallets ?? [];
 
