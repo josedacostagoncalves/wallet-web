@@ -3,43 +3,96 @@
 import { updateProfile } from "@/app/actions/profiles";
 import { useToast } from "@/contexts/ToastContext";
 import { UserIcon } from "@/components/UserIcon";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  country: string | null;
+  email: string;
 };
 
-export function ProfileSettingsForm({ first_name, last_name, avatar_url }: Props) {
+/* ---- Pencil icon for the Edit Profile button ---- */
+function PencilIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+export function ProfileSettingsForm({
+  first_name,
+  last_name,
+  avatar_url,
+  birth_date,
+  country,
+  email,
+}: Props) {
   const router = useRouter();
   const { showToast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  /* ---------- State for the card (reflects latest saved values) ---------- */
+  const [savedFirstName, setSavedFirstName] = useState(first_name);
+  const [savedLastName, setSavedLastName] = useState(last_name);
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState(avatar_url);
+  const [savedBirthDate, setSavedBirthDate] = useState(birth_date);
+  const [savedCountry, setSavedCountry] = useState(country);
+
+  /* ---------- Modal state ---------- */
+  const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    const res = await updateProfile(formData);
-    setLoading(false);
-    if (res.error) {
-      setError(res.error);
-      showToast(res.error, "error");
-      return;
-    }
+  /* Form field state (initialised when modal opens) */
+  const [editFirst, setEditFirst] = useState("");
+  const [editLast, setEditLast] = useState("");
+  const [editBirthDate, setEditBirthDate] = useState("");
+  const [editCountry, setEditCountry] = useState("");
+
+  const openModal = useCallback(() => {
+    setEditFirst(savedFirstName ?? "");
+    setEditLast(savedLastName ?? "");
+    setEditBirthDate(savedBirthDate ?? "");
+    setEditCountry(savedCountry ?? "");
     setPhotoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    showToast("Profile saved successfully.", "success");
-    router.push("/home");
-    router.refresh();
-  }
+    setError(null);
+    setModalOpen(true);
+  }, [savedFirstName, savedLastName, savedBirthDate, savedCountry]);
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    setPhotoPreview(null);
+    setError(null);
+  }, []);
+
+  /* Close on Escape */
+  useEffect(() => {
+    if (!modalOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") closeModal();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [modalOpen, closeModal]);
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -47,98 +100,233 @@ export function ProfileSettingsForm({ first_name, last_name, avatar_url }: Props
       setPhotoPreview(null);
       return;
     }
-    const u = URL.createObjectURL(f);
-    setPhotoPreview(u);
+    setPhotoPreview(URL.createObjectURL(f));
   }
 
-  const displayUrl = photoPreview ?? avatar_url;
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const formData = new FormData(e.currentTarget);
+    const res = await updateProfile(formData);
+    setLoading(false);
+    if (res.error) {
+      setError(res.error);
+      showToast(res.error, "error");
+      return;
+    }
+    /* Update card with newly saved values */
+    setSavedFirstName(editFirst || null);
+    setSavedLastName(editLast || null);
+    setSavedBirthDate(editBirthDate || null);
+    setSavedCountry(editCountry || null);
+    if (photoPreview) setSavedAvatarUrl(photoPreview);
+    showToast("Profile saved successfully.", "success");
+    closeModal();
+    router.refresh();
+  }
+
+  const displayUrl = savedAvatarUrl;
+  const fullName = [savedFirstName, savedLastName].filter(Boolean).join(" ") || "—";
 
   return (
-    <div className="max-w-md space-y-6">
-      <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-6">
-        <div className="flex flex-col items-start gap-4">
-          <label className="block text-sm font-medium">Photo</label>
-          <div className="flex items-center gap-4">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
-              {displayUrl ? (
-                <img
-                  src={displayUrl}
-                  alt="Avatar"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <UserIcon className="w-14 h-14" />
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                name="photo"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                onChange={handlePhotoChange}
-                className="hidden"
+    <>
+      {/* ---- Profile card ---- */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Profile</h2>
+        <div className="flex items-center gap-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 max-w-md">
+          {/* Avatar */}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
+            {displayUrl ? (
+              <img
+                src={displayUrl}
+                alt="Avatar"
+                className="h-full w-full object-cover"
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
-              >
-                {avatar_url || photoPreview ? "Change photo" : "Add photo"}
-              </button>
-              <span className="text-xs text-slate-500">
-                JPEG, PNG, WebP or GIF. Max 2 MB.
-              </span>
-            </div>
+            ) : (
+              <UserIcon className="w-10 h-10" />
+            )}
           </div>
-        </div>
 
-        <div>
-          <label htmlFor="first_name" className="block text-sm font-medium mb-1">
-            First name
-          </label>
-          <input
-            id="first_name"
-            name="first_name"
-            type="text"
-            defaultValue={first_name ?? ""}
-            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-          />
-        </div>
+          {/* Name + email */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+              {fullName}
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+              {email}
+            </p>
+          </div>
 
-        <div>
-          <label htmlFor="last_name" className="block text-sm font-medium mb-1">
-            Last name
-          </label>
-          <input
-            id="last_name"
-            name="last_name"
-            type="text"
-            defaultValue={last_name ?? ""}
-            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-          />
-        </div>
-
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
-
-        <div className="flex gap-3">
+          {/* Edit button */}
           <button
-            type="submit"
-            disabled={loading}
-            className="rounded-lg bg-slate-800 px-4 py-2 text-white hover:bg-slate-700 disabled:opacity-50"
+            type="button"
+            onClick={openModal}
+            className="flex items-center gap-1.5 shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
-            {loading ? "Saving…" : "Save"}
+            <PencilIcon />
+            Edit profile
           </button>
-          <Link
-            href="/home"
-            className="rounded-lg border border-slate-300 px-4 py-2 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800"
-          >
-            Cancel
-          </Link>
         </div>
-      </form>
-    </div>
+      </div>
+
+      {/* ---- Edit Profile Modal ---- */}
+      {modalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={closeModal}
+              aria-hidden
+            />
+
+            {/* Modal panel */}
+            <div className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-700">
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                  Edit profile
+                </h2>
+              </div>
+
+              <form onSubmit={handleSubmit} encType="multipart/form-data" className="px-6 py-5 space-y-5">
+                {/* Photo */}
+                <div className="flex items-center gap-4">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
+                    {(photoPreview ?? savedAvatarUrl) ? (
+                      <img
+                        src={photoPreview ?? savedAvatarUrl ?? ""}
+                        alt="Avatar"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <UserIcon className="w-12 h-12" />
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      name="photo"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      onChange={handlePhotoChange}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      {savedAvatarUrl || photoPreview ? "Change photo" : "Add photo"}
+                    </button>
+                    <span className="text-xs text-slate-500">
+                      JPEG, PNG, WebP or GIF. Max 2 MB.
+                    </span>
+                  </div>
+                </div>
+
+                {/* First name */}
+                <div>
+                  <label htmlFor="modal_first_name" className="block text-sm font-medium mb-1">
+                    First name
+                  </label>
+                  <input
+                    id="modal_first_name"
+                    name="first_name"
+                    type="text"
+                    value={editFirst}
+                    onChange={(e) => setEditFirst(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+
+                {/* Last name */}
+                <div>
+                  <label htmlFor="modal_last_name" className="block text-sm font-medium mb-1">
+                    Last name
+                  </label>
+                  <input
+                    id="modal_last_name"
+                    name="last_name"
+                    type="text"
+                    value={editLast}
+                    onChange={(e) => setEditLast(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+
+                {/* Email (read-only) */}
+                <div>
+                  <label htmlFor="modal_email" className="block text-sm font-medium mb-1">
+                    Email
+                  </label>
+                  <input
+                    id="modal_email"
+                    type="email"
+                    value={email}
+                    readOnly
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50 text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Birth date */}
+                <div>
+                  <label htmlFor="modal_birth_date" className="block text-sm font-medium mb-1">
+                    Birth date
+                  </label>
+                  <input
+                    id="modal_birth_date"
+                    name="birth_date"
+                    type="date"
+                    value={editBirthDate}
+                    onChange={(e) => setEditBirthDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+
+                {/* Country */}
+                <div>
+                  <label htmlFor="modal_country" className="block text-sm font-medium mb-1">
+                    Country
+                  </label>
+                  <input
+                    id="modal_country"
+                    name="country"
+                    type="text"
+                    value={editCountry}
+                    onChange={(e) => setEditCountry(e.target.value)}
+                    placeholder="e.g. Portugal"
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="rounded-lg bg-slate-800 dark:bg-slate-200 dark:text-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
+                  >
+                    {loading ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

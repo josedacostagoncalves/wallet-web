@@ -17,6 +17,7 @@ export async function createAccount(params: {
   name: string;
   account_type: AccountType;
   initial_balance: number;
+  plafond?: number | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -30,17 +31,22 @@ export async function createAccount(params: {
     return { error: "Account type is required" };
   }
 
+  const insertData: Record<string, unknown> = {
+    wallet_id: params.wallet_id,
+    name: params.name,
+    account_type: params.account_type,
+    initial_balance: params.initial_balance,
+    current_balance: params.initial_balance,
+    created_by: user.id,
+    is_active: true,
+  };
+  if (params.account_type === "credit_card" && params.plafond != null) {
+    insertData.plafond = params.plafond;
+  }
+
   const { data, error } = await supabase
     .from("accounts")
-    .insert({
-      wallet_id: params.wallet_id,
-      name: params.name,
-      account_type: params.account_type,
-      initial_balance: params.initial_balance,
-      current_balance: params.initial_balance,
-      created_by: user.id,
-      is_active: true,
-    })
+    .insert(insertData)
     .select("id")
     .single();
 
@@ -54,6 +60,7 @@ export async function createAccount(params: {
       name: params.name,
       account_type: params.account_type,
       initial_balance: params.initial_balance,
+      plafond: params.plafond ?? null,
     },
   });
   return {};
@@ -66,6 +73,7 @@ export async function updateAccount(
     account_type?: AccountType;
     initial_balance?: number;
     is_active?: boolean;
+    plafond?: number | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -76,7 +84,7 @@ export async function updateAccount(
 
   const { data: existing } = await supabase
     .from("accounts")
-    .select("wallet_id, name, account_type, initial_balance, current_balance")
+    .select("wallet_id, name, account_type, initial_balance, current_balance, plafond")
     .eq("id", id)
     .single();
   if (!existing) return { error: "Account not found" };
@@ -106,6 +114,16 @@ export async function updateAccount(
     updates.initial_balance = newInit;
     updates.current_balance = Number(existing.current_balance) + delta;
     payload.initial_balance = { old: oldInit, new: newInit };
+  }
+  if (params.plafond !== undefined) {
+    const effectiveType = params.account_type ?? existing.account_type;
+    if (effectiveType === "credit_card") {
+      updates.plafond = params.plafond;
+      payload.plafond = { old: existing.plafond, new: params.plafond };
+    } else {
+      // Clear plafond if switching away from credit_card
+      updates.plafond = null;
+    }
   }
 
   if (Object.keys(updates).length === 0) return {};

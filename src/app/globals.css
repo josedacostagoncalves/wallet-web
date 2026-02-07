@@ -10,6 +10,11 @@
   --font-app: "CircularStd", system-ui, -apple-system, sans-serif;
 }
 
+.dark {
+  --background: #0f172a;
+  --foreground: #e2e8f0;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);

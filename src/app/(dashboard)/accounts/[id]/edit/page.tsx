@@ -17,6 +17,7 @@ export default function EditAccountPage() {
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("bank_account");
   const [initialBalance, setInitialBalance] = useState("");
+  const [plafond, setPlafond] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,7 +27,7 @@ export default function EditAccountPage() {
     const supabase = createClient();
     supabase
       .from("accounts")
-      .select("name, account_type, initial_balance, is_active")
+      .select("name, account_type, initial_balance, is_active, plafond")
       .eq("id", id)
       .single()
       .then(({ data, error: e }) => {
@@ -40,6 +41,7 @@ export default function EditAccountPage() {
           (data.account_type as AccountType) ?? "bank_account"
         );
         setInitialBalance(String(data.initial_balance));
+        setPlafond(data.plafond != null ? String(data.plafond) : "");
         setIsActive(data.is_active);
       });
   }, [id]);
@@ -54,11 +56,16 @@ export default function EditAccountPage() {
       setSaving(false);
       return;
     }
+    const plafondNum =
+      accountType === "credit_card" && plafond.trim()
+        ? parseFloat(plafond.replace(",", ".")) || null
+        : null;
     const res = await updateAccount(id, {
       name: name.trim(),
       account_type: accountType,
       initial_balance: num,
       is_active: isActive,
+      plafond: plafondNum,
     });
     setSaving(false);
     if (res.error) {
@@ -96,6 +103,22 @@ export default function EditAccountPage() {
           />
         </div>
         <AccountTypeSelect value={accountType} onChange={setAccountType} />
+        {accountType === "credit_card" && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Plafond / Credit limit (€)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={plafond}
+              onChange={(e) => setPlafond(e.target.value)}
+              placeholder="e.g. 2000"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              The maximum amount allowed on this credit card.
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
           <input

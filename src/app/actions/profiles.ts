@@ -2,10 +2,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 
+export type ThemeMode = "light" | "dark" | "system";
+
 export type Profile = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  birth_date: string | null;
+  country: string | null;
+  theme: ThemeMode;
 };
 
 /**
@@ -18,7 +23,7 @@ export async function getOrEnsureProfile(
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("profiles")
-    .select("first_name, last_name, avatar_url")
+    .select("first_name, last_name, avatar_url, birth_date, country, theme")
     .eq("id", userId)
     .single();
 
@@ -27,6 +32,9 @@ export async function getOrEnsureProfile(
       first_name: existing.first_name ?? null,
       last_name: existing.last_name ?? null,
       avatar_url: existing.avatar_url ?? null,
+      birth_date: existing.birth_date ?? null,
+      country: existing.country ?? null,
+      theme: (existing.theme as ThemeMode) ?? "system",
     };
   }
 
@@ -34,7 +42,7 @@ export async function getOrEnsureProfile(
   const last_name = (metadata?.last_name ?? "")?.trim() || null;
   await supabase.from("profiles").insert({ id: userId, first_name, last_name });
 
-  return { first_name, last_name, avatar_url: null };
+  return { first_name, last_name, avatar_url: null, birth_date: null, country: null, theme: "system" };
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -53,6 +61,8 @@ export async function updateProfile(formData: FormData): Promise<{ error?: strin
 
   const first_name = (formData.get("first_name") as string)?.trim() || null;
   const last_name = (formData.get("last_name") as string)?.trim() || null;
+  const birth_date = (formData.get("birth_date") as string)?.trim() || null;
+  const country = (formData.get("country") as string)?.trim() || null;
   const photo = formData.get("photo") as File | null;
 
   let avatar_url: string | null = null;
@@ -74,9 +84,11 @@ export async function updateProfile(formData: FormData): Promise<{ error?: strin
     avatar_url = urlData.publicUrl;
   }
 
-  const updates: { first_name: string | null; last_name: string | null; avatar_url?: string | null } = {
+  const updates: Record<string, string | null> = {
     first_name,
     last_name,
+    birth_date: birth_date || null,
+    country: country || null,
   };
   if (avatar_url !== null) updates.avatar_url = avatar_url;
 
@@ -86,5 +98,23 @@ export async function updateProfile(formData: FormData): Promise<{ error?: strin
     .eq("id", user.id);
   if (error) return { error: error.message };
 
+  return {};
+}
+
+/**
+ * Save the user's theme preference (light / dark / system).
+ */
+export async function saveTheme(theme: ThemeMode): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ theme })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
   return {};
 }

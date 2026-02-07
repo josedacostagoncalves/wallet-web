@@ -23,6 +23,7 @@ type Account = {
   initial_balance: number;
   current_balance: number;
   last_update: string | null;
+  plafond: number | null;
 };
 
 const MASK = "••••••";
@@ -35,6 +36,8 @@ type Props = {
   hideBalances?: boolean;
   orderEditing?: boolean;
   onReorder?: (accountIds: string[]) => void;
+  showInitialBalance?: boolean;
+  showPlafond?: boolean;
 };
 
 type MovementsState = {
@@ -81,6 +84,8 @@ export function AccountsSection({
   hideBalances = false,
   orderEditing = false,
   onReorder,
+  showInitialBalance = true,
+  showPlafond = true,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movementsByAccount, setMovementsByAccount] = useState<Record<string, MovementsState>>({});
@@ -202,9 +207,11 @@ export function AccountsSection({
           <th className="px-4 py-3 text-left font-medium text-slate-700">
             Account
           </th>
-          <th className="px-4 py-3 text-right font-medium text-slate-700">
-            Initial balance
-          </th>
+          {showInitialBalance && (
+            <th className="px-4 py-3 text-right font-medium text-slate-700">
+              Initial balance
+            </th>
+          )}
           <th className="px-4 py-3 text-right font-medium text-slate-700">
             Current balance
           </th>
@@ -285,11 +292,22 @@ export function AccountsSection({
                     {a.name}
                   </span>
                 </td>
+                {showInitialBalance && (
+                  <td className="px-4 py-3 text-right font-mono">
+                    {fmt(a.initial_balance, hideBalances)} €
+                  </td>
+                )}
                 <td className="px-4 py-3 text-right font-mono">
-                  {fmt(a.initial_balance, hideBalances)} €
-                </td>
-                <td className="px-4 py-3 text-right font-mono">
-                  {fmt(a.current_balance, hideBalances)} €
+                  <span className={a.current_balance < 0 ? "text-red-600" : ""}>
+                    {fmt(a.current_balance, hideBalances)} €
+                  </span>
+                  {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
+                    <span className="block text-xs text-slate-500 font-sans mt-0.5">
+                      {hideBalances
+                        ? MASK
+                        : `${fmt(a.plafond + a.current_balance, false)} € available of ${fmt(a.plafond, false)} €`}
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-right text-slate-600">
                   {a.last_update
@@ -299,7 +317,7 @@ export function AccountsSection({
               </tr>
               {isExpanded && (
                 <tr key={`${a.id}-movements`} className="bg-slate-50/80">
-                  <td colSpan={5} className="px-4 py-3">
+                  <td colSpan={showInitialBalance ? 5 : 4} className="px-4 py-3">
                     <div className="pl-6 space-y-2">
                       <h3 className="text-xs font-medium text-slate-700 mb-2">
                         Movements
@@ -421,9 +439,11 @@ export function AccountsSection({
         <tr className="bg-slate-50 font-medium">
           <td className="px-4 py-3 w-8" />
           <td className="px-4 py-3">Total</td>
-          <td className="px-4 py-3 text-right font-mono">
-            {fmt(totalInitialBalance, hideBalances)} €
-          </td>
+          {showInitialBalance && (
+            <td className="px-4 py-3 text-right font-mono">
+              {fmt(totalInitialBalance, hideBalances)} €
+            </td>
+          )}
           <td className="px-4 py-3 text-right font-mono">
             {fmt(totalBalance, hideBalances)} €
           </td>

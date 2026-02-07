@@ -1,9 +1,16 @@
 "use client";
 
-import { getAccountOrder, saveAccountOrder } from "@/app/actions/preferences";
+import {
+  getAccountOrder,
+  getBalanceDisplayOptions,
+  saveAccountOrder,
+  saveBalanceDisplayOptions,
+  type BalanceDisplayOptions,
+} from "@/app/actions/preferences";
 import { AccountsSection } from "@/components/AccountsSection";
 import type { AccountType } from "@/lib/account-types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const STORAGE_KEY_HIDE = "j-wallet-hide-balances";
 
@@ -14,6 +21,7 @@ type Account = {
   initial_balance: number;
   current_balance: number;
   last_update: string | null;
+  plafond: number | null;
 };
 
 type Props = {
@@ -94,6 +102,31 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
+function OptionsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+const DEFAULT_DISPLAY: BalanceDisplayOptions = {
+  showInitialBalance: true,
+  showPlafond: true,
+};
+
 export function CurrentBalancesSection({
   accounts,
   totalInitialBalance,
@@ -107,6 +140,13 @@ export function CurrentBalancesSection({
   const [savedOrder, setSavedOrder] = useState<string[]>([]);
   const [savingOrder, setSavingOrder] = useState(false);
 
+  /* ---------- Display options ---------- */
+  const [displayOpts, setDisplayOpts] = useState<BalanceDisplayOptions>(DEFAULT_DISPLAY);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsBtnRef = useRef<HTMLButtonElement>(null);
+  const optionsPopRef = useRef<HTMLDivElement>(null);
+  const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_HIDE);
@@ -117,9 +157,11 @@ export function CurrentBalancesSection({
     setMounted(true);
   }, []);
 
+  // Load preferences from DB
   useEffect(() => {
     if (!currentWalletId) {
       setSavedOrder([]);
+      setDisplayOpts(DEFAULT_DISPLAY);
       return;
     }
     let cancelled = false;
@@ -128,6 +170,9 @@ export function CurrentBalancesSection({
         setSavedOrder(order);
         if (!orderEditing) setEditOrder(null);
       }
+    });
+    getBalanceDisplayOptions(currentWalletId).then((opts) => {
+      if (!cancelled) setDisplayOpts(opts);
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load on wallet change
@@ -179,6 +224,50 @@ export function CurrentBalancesSection({
     setEditOrder(accountIds);
   }, []);
 
+  /* ---------- Options popover ---------- */
+  const toggleOptions = useCallback(() => {
+    setOptionsOpen((prev) => {
+      if (!prev && optionsBtnRef.current) {
+        const r = optionsBtnRef.current.getBoundingClientRect();
+        setPopPos({ top: r.bottom + 6, left: r.right });
+      }
+      return !prev;
+    });
+  }, []);
+
+  const toggleDisplayOpt = useCallback(
+    (key: keyof BalanceDisplayOptions) => {
+      setDisplayOpts((prev) => {
+        const next = { ...prev, [key]: !prev[key] };
+        if (currentWalletId) saveBalanceDisplayOptions(currentWalletId, next);
+        return next;
+      });
+    },
+    [currentWalletId]
+  );
+
+  // Close on outside click
+  useEffect(() => {
+    if (!optionsOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (
+        optionsBtnRef.current?.contains(e.target as Node) ||
+        optionsPopRef.current?.contains(e.target as Node)
+      )
+        return;
+      setOptionsOpen(false);
+    }
+    function handleScroll() {
+      setOptionsOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    window.addEventListener("scroll", handleScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [optionsOpen]);
+
   const activeOrder = orderEditing && editOrder ? editOrder : savedOrder;
   const orderedAccounts = sortByOrder(accounts, activeOrder);
 
@@ -226,6 +315,20 @@ export function CurrentBalancesSection({
                 <DragHandleIcon />
               </button>
             )}
+            <button
+              ref={optionsBtnRef}
+              type="button"
+              onClick={toggleOptions}
+              className={`p-2 rounded-lg border transition-colors ${
+                optionsOpen
+                  ? "border-slate-400 bg-slate-100 text-slate-800"
+                  : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
+              }`}
+              aria-label="Display options"
+              title="Display options"
+            >
+              <OptionsIcon />
+            </button>
           </div>
         )}
       </div>
@@ -238,8 +341,49 @@ export function CurrentBalancesSection({
           hideBalances={mounted ? hideBalances : false}
           orderEditing={orderEditing}
           onReorder={handleReorder}
+          showInitialBalance={displayOpts.showInitialBalance}
+          showPlafond={displayOpts.showPlafond}
         />
       </div>
+
+      {/* Options popover (portaled) */}
+      {optionsOpen &&
+        popPos &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={optionsPopRef}
+            className="fixed z-[9999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-4 w-64"
+            style={{ top: popPos.top, left: popPos.left, transform: "translateX(-100%)" }}
+          >
+            <h3 className="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">
+              Display options
+            </h3>
+            <label className="flex items-center gap-3 cursor-pointer py-1.5">
+              <input
+                type="checkbox"
+                checked={displayOpts.showInitialBalance}
+                onChange={() => toggleDisplayOpt("showInitialBalance")}
+                className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-200">
+                Show initial balance
+              </span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer py-1.5">
+              <input
+                type="checkbox"
+                checked={displayOpts.showPlafond}
+                onChange={() => toggleDisplayOpt("showPlafond")}
+                className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-200">
+                Show plafond info
+              </span>
+            </label>
+          </div>,
+          document.body
+        )}
     </section>
   );
 }

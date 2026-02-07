@@ -34,7 +34,7 @@ export default async function HomePage() {
     await ensureRecurringGenerated(currentWalletId);
     const { data } = await supabase
       .from("accounts")
-      .select("id, name, account_type, initial_balance, current_balance")
+      .select("id, name, account_type, initial_balance, current_balance, plafond")
       .eq("wallet_id", currentWalletId)
       .eq("is_active", true);
     
@@ -75,6 +75,7 @@ export default async function HomePage() {
       initial_balance: Number(a.initial_balance),
       current_balance: Number(a.current_balance),
       last_update: lastUpdates[a.id] ?? null,
+      plafond: a.plafond != null ? Number(a.plafond) : null,
     }));
     totalInitialBalance = accounts.reduce((s, a) => s + a.initial_balance, 0);
     totalBalance = accounts.reduce((s, a) => s + a.current_balance, 0);

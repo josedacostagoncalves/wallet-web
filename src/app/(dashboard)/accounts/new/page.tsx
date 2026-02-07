@@ -16,6 +16,7 @@ export default function NewAccountPage() {
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("bank_account");
   const [initialBalance, setInitialBalance] = useState("0");
+  const [plafond, setPlafond] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +26,16 @@ export default function NewAccountPage() {
     setError(null);
     setLoading(true);
     const num = parseFloat(initialBalance.replace(",", ".")) || 0;
+    const plafondNum =
+      accountType === "credit_card" && plafond.trim()
+        ? parseFloat(plafond.replace(",", ".")) || null
+        : null;
     const res = await createAccount({
       wallet_id: currentWalletId,
       name: name.trim(),
       account_type: accountType,
       initial_balance: num,
+      plafond: plafondNum,
     });
     setLoading(false);
     if (res.error) {
@@ -69,6 +75,22 @@ export default function NewAccountPage() {
           />
         </div>
         <AccountTypeSelect value={accountType} onChange={setAccountType} />
+        {accountType === "credit_card" && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Plafond / Credit limit (€)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={plafond}
+              onChange={(e) => setPlafond(e.target.value)}
+              placeholder="e.g. 2000"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              The maximum amount allowed on this credit card.
+            </p>
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
           <input
