@@ -2,9 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/movements";
 import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
-import { NewExpenseTrigger } from "@/components/NewExpenseTrigger";
-import { NewIncomeTrigger } from "@/components/NewIncomeTrigger";
-import { NewTransferTrigger } from "@/components/NewTransferTrigger";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 
@@ -126,41 +123,6 @@ export default async function HomePage() {
         </div>
       ) : (
         <>
-          <section className="flex flex-wrap gap-4">
-            <NewIncomeTrigger
-              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20 hover:border-green-400 dark:hover:border-green-600 hover:bg-green-100/50 dark:hover:bg-green-900/30"
-            >
-              <span className="text-2xl mb-1">↓</span>
-              <span className="font-medium">New Income</span>
-            </NewIncomeTrigger>
-            <NewExpenseTrigger
-              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-900/20 hover:border-red-400 dark:hover:border-red-600 hover:bg-red-100/50 dark:hover:bg-red-900/30"
-            >
-              <span className="text-2xl mb-1">↑</span>
-              <span className="font-medium">New Expense</span>
-            </NewExpenseTrigger>
-            <NewTransferTrigger
-              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-900/20 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-100/50 dark:hover:bg-blue-900/30"
-            >
-              <span className="text-2xl mb-1">⇄</span>
-              <span className="font-medium">New Transfer</span>
-            </NewTransferTrigger>
-            <Link
-              href="/dashboard"
-              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-            >
-              <span className="text-2xl mb-1">📊</span>
-              <span className="font-medium">Dashboard</span>
-            </Link>
-            <Link
-              href="/reports"
-              className="inline-flex flex-col items-center justify-center w-40 h-28 rounded-xl border-2 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-            >
-              <span className="text-2xl mb-1">📈</span>
-              <span className="font-medium">Reports</span>
-            </Link>
-          </section>
-
           <CurrentBalancesSection
             accounts={accounts}
             totalInitialBalance={totalInitialBalance}

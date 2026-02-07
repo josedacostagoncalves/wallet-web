@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import type { AccountType } from "@/lib/account-types";
+import { accountTypeLabel } from "@/lib/account-types";
 
 const VALID_ACCOUNT_TYPES = [
   "bank_account",
@@ -139,4 +140,54 @@ export async function updateAccount(
     payload: { changes: payload },
   });
   return {};
+}
+
+export type AccountDetails = {
+  ownerName: string;
+  ownerAvatar: string | null;
+  createdAt: string;
+  initialBalance: number;
+  isActive: boolean;
+  updatedAt: string;
+  accountType: string;
+  plafond: number | null;
+};
+
+/**
+ * Fetch account details: owner, created_at, initial balance, plafond, status, last update.
+ */
+export async function getAccountDetails(
+  accountId: string
+): Promise<{ details?: AccountDetails; error?: string }> {
+  const supabase = await createClient();
+
+  const { data: acct, error: aErr } = await supabase
+    .from("accounts")
+    .select("created_by, created_at, updated_at, initial_balance, is_active, account_type, plafond")
+    .eq("id", accountId)
+    .single();
+  if (aErr || !acct) return { error: aErr?.message ?? "Account not found" };
+
+  // Fetch owner profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("first_name, last_name, avatar_url")
+    .eq("id", acct.created_by)
+    .single();
+
+  const ownerName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "—";
+
+  return {
+    details: {
+      ownerName,
+      ownerAvatar: profile?.avatar_url ?? null,
+      createdAt: acct.created_at,
+      initialBalance: Number(acct.initial_balance),
+      isActive: acct.is_active,
+      updatedAt: acct.updated_at,
+      accountType: accountTypeLabel((acct.account_type ?? "bank_account") as AccountType),
+      plafond: acct.plafond != null ? Number(acct.plafond) : null,
+    },
+  };
 }

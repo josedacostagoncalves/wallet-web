@@ -367,7 +367,7 @@ export default function WalletsPage() {
             </Link>
           </div>
         ) : (
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="text-left p-3 font-medium text-slate-600">

@@ -49,12 +49,21 @@ export function PendingSection({ pending }: Props) {
         aria-label={expanded ? "Collapse pending" : "Expand pending"}
       >
         <span className="text-lg font-medium text-slate-800">Pending</span>
-        <span
-          className={`inline-block text-slate-500 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-slate-500 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
           aria-hidden
         >
-          ▶
-        </span>
+          <path d="m9 18 6-6-6-6" />
+        </svg>
       </button>
       {expanded && (
         <div className="overflow-x-auto border-t border-slate-200">

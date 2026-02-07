@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/movements";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
+import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -80,6 +81,11 @@ export function IncomeFormModal({
   >([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [copyingSimilarId, setCopyingSimilarId] = useState<string | null>(null);
+  const [catModal, setCatModal] = useState<
+    | { kind: "add-category"; type: "income" | "expense" | "transfer" }
+    | { kind: "add-subcategory"; type: "income" | "expense" | "transfer"; parentId: string; parentName: string }
+    | null
+  >(null);
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountToId: string; holdBalance: boolean } | null>(null);
   const isEdit = mode === "edit" && !!movementId;
@@ -541,35 +547,62 @@ export function IncomeFormModal({
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Category *</label>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  required
-                  className={inputClass}
-                >
-                  <option value="">Select…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {subcategories.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Subcategory</label>
+                <div className="flex items-center gap-1.5">
                   <select
-                    value={subcategoryId}
-                    onChange={(e) => setSubcategoryId(e.target.value)}
-                    className={inputClass}
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    required
+                    className={inputClass + " flex-1"}
                   >
-                    <option value="">None</option>
-                    {subcategories.map((c) => (
+                    <option value="">Select…</option>
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
+                  {!categoryId && (
+                    <button
+                      type="button"
+                      onClick={() => setCatModal({ kind: "add-category", type: "income" })}
+                      className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                      title="Add category"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+              {(subcategories.length > 0 || categoryId) && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Subcategory</label>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={subcategoryId}
+                      onChange={(e) => setSubcategoryId(e.target.value)}
+                      className={inputClass + " flex-1"}
+                    >
+                      <option value="">None</option>
+                      {subcategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {categoryId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const parent = categories.find((c) => c.id === categoryId);
+                          if (parent) setCatModal({ kind: "add-subcategory", type: "income", parentId: parent.id, parentName: parent.name });
+                        }}
+                        className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        title="Add subcategory"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               <div>
@@ -894,6 +927,30 @@ export function IncomeFormModal({
         variant="cancel"
         loading={loading}
       />
+      {catModal && (
+        <CategoryModal
+          mode={catModal}
+          open={true}
+          onClose={() => setCatModal(null)}
+          onSaved={(newId) => {
+            if (!currentWalletId) return;
+            if (catModal.kind === "add-category") {
+              getCategories(currentWalletId, "income").then((cats) => {
+                setCategories(cats);
+                if (newId) setCategoryId(newId);
+              });
+            } else if (catModal.kind === "add-subcategory") {
+              getSubcategories(categoryId).then((subs) => {
+                setSubcategories(subs);
+                if (newId) {
+                  skipNextSubcategoryReset.current = true;
+                  setSubcategoryId(newId);
+                }
+              });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
