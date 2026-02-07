@@ -4,6 +4,7 @@ import { updateAccount } from "@/app/actions/accounts";
 import { AccountTypeSelect } from "@/components/AccountTypeSelect";
 import { useToast } from "@/contexts/ToastContext";
 import type { AccountType } from "@/lib/account-types";
+import { BalanceHint } from "@/components/BalanceHint";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -19,6 +20,8 @@ export default function EditAccountPage() {
   const [initialBalance, setInitialBalance] = useState("");
   const [plafond, setPlafond] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [currentBalance, setCurrentBalance] = useState<number | null>(null);
+  const [originalInitialBalance, setOriginalInitialBalance] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export default function EditAccountPage() {
     const supabase = createClient();
     supabase
       .from("accounts")
-      .select("name, account_type, initial_balance, is_active, plafond")
+      .select("name, account_type, initial_balance, current_balance, is_active, plafond")
       .eq("id", id)
       .single()
       .then(({ data, error: e }) => {
@@ -41,6 +44,8 @@ export default function EditAccountPage() {
           (data.account_type as AccountType) ?? "bank_account"
         );
         setInitialBalance(String(data.initial_balance));
+        setOriginalInitialBalance(Number(data.initial_balance));
+        setCurrentBalance(Number(data.current_balance));
         setPlafond(data.plafond != null ? String(data.plafond) : "");
         setIsActive(data.is_active);
       });
@@ -131,6 +136,15 @@ export default function EditAccountPage() {
           <p className="text-xs text-slate-500 mt-1">
             Changing this will adjust the current balance by the same difference.
           </p>
+          {(() => {
+            if (currentBalance == null) return null;
+            const newInit = parseFloat(initialBalance.replace(",", "."));
+            if (isNaN(newInit)) return null;
+            const diff = newInit - originalInitialBalance;
+            const afterBalance = currentBalance + diff;
+            if (diff === 0) return null;
+            return <BalanceHint currentBalance={currentBalance} afterBalance={afterBalance} />;
+          })()}
         </div>
         <div className="flex items-center gap-2">
           <input

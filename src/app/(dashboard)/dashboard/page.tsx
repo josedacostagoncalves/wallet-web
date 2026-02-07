@@ -34,6 +34,7 @@ export default async function DashboardPage() {
     account_from_id: string | null;
     account_to_id: string | null;
     status?: string | null;
+    hold_balance?: boolean;
     category: CategoryRow | null;
   };
   type TxDisplay = {
@@ -66,7 +67,7 @@ export default async function DashboardPage() {
       supabase
         .from("transactions")
         .select(
-          "id, date, type, amount, description, account_from_id, account_to_id, status, " +
+          "id, date, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
             "category:categories(name, parent_id)"
         )
         .eq("wallet_id", currentWalletId)
@@ -102,12 +103,13 @@ export default async function DashboardPage() {
         accountFromName,
         accountToName,
         status,
+        holdBalance: !!t.hold_balance,
       };
     });
     transactions = allTx;
     pending = allTx
       .filter((t) => t.status === "pending")
-      .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName }) => ({
+      .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, holdBalance }) => ({
         id,
         date,
         type,
@@ -117,6 +119,7 @@ export default async function DashboardPage() {
         subcategoryLabel,
         accountFromName,
         accountToName,
+        holdBalance,
       }));
 
     recurring = (rules ?? []).map((r) => {

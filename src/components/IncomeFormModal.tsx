@@ -13,6 +13,7 @@ import {
   deleteMovement,
 } from "@/app/actions/movements";
 import { getCategory } from "@/app/actions/categories";
+import { BalanceHint } from "@/components/BalanceHint";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -52,7 +53,7 @@ export function IncomeFormModal({
   const { currentWalletId } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
@@ -63,6 +64,7 @@ export function IncomeFormModal({
   const [amount, setAmount] = useState("");
   const [accountToId, setAccountToId] = useState("");
   const [saveAsPending, setSaveAsPending] = useState(false);
+  const [holdBalance, setHoldBalance] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("monthly");
   const [intervalMonths, setIntervalMonths] = useState("");
@@ -79,6 +81,7 @@ export function IncomeFormModal({
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [copyingSimilarId, setCopyingSimilarId] = useState<string | null>(null);
   const skipNextSubcategoryReset = useRef(false);
+  const editOriginal = useRef<{ amount: number; accountToId: string; holdBalance: boolean } | null>(null);
   const isEdit = mode === "edit" && !!movementId;
   const isCopy = mode === "copy";
 
@@ -96,6 +99,11 @@ export function IncomeFormModal({
         setLoadingData(false);
         if (!m) return;
         setStatus(m.status);
+        editOriginal.current = {
+          amount: m.amount,
+          accountToId: m.account_to_id ?? "",
+          holdBalance: m.hold_balance,
+        };
         const parentId = m.parent_id ?? null;
         const catId = parentId || m.category_id;
         const subId = parentId ? m.category_id : "";
@@ -243,12 +251,14 @@ export function IncomeFormModal({
     setAmount("");
     setAccountToId("");
     setSaveAsPending(false);
+    setHoldBalance(true);
     setIsRecurring(false);
     setRecurrenceType("monthly");
     setIntervalMonths("");
     setIntervalDays("");
     setWorkDayIndex("");
     setError(null);
+    editOriginal.current = null;
   }, []);
 
   useEffect(() => {
@@ -368,6 +378,7 @@ export function IncomeFormModal({
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
       status: saveAsPending ? "pending" : "confirmed",
+      hold_balance: saveAsPending ? holdBalance : false,
     });
     setLoading(false);
     if (res.error) {
@@ -588,6 +599,45 @@ export function IncomeFormModal({
                     </option>
                   ))}
                 </select>
+                {(() => {
+                  const num = parseFloat(amount.replace(",", "."));
+                  if (isNaN(num) || num <= 0) return null;
+                  const orig = editOriginal.current;
+                  const accountChanged =
+                    isEdit && orig && !orig.holdBalance && orig.accountToId && orig.accountToId !== accountToId;
+                  return (
+                    <>
+                      {/* Original account reversal when account changed */}
+                      {accountChanged && (() => {
+                        const oldAcc = accounts.find((a) => a.id === orig.accountToId);
+                        if (!oldAcc) return null;
+                        return (
+                          <BalanceHint
+                            label={oldAcc.name}
+                            currentBalance={oldAcc.current_balance}
+                            afterBalance={oldAcc.current_balance - orig.amount}
+                          />
+                        );
+                      })()}
+                      {/* Selected account */}
+                      {(() => {
+                        const acc = accounts.find((a) => a.id === accountToId);
+                        if (!acc) return null;
+                        const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountToId === accountToId;
+                        const afterBalance = sameAccount
+                          ? acc.current_balance + (num - orig.amount)
+                          : acc.current_balance + num;
+                        return (
+                          <BalanceHint
+                            label={accountChanged ? acc.name : undefined}
+                            currentBalance={acc.current_balance}
+                            afterBalance={afterBalance}
+                          />
+                        );
+                      })()}
+                    </>
+                  );
+                })()}
               </div>
               {(!isEdit || status !== "pending") && (
               <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
@@ -597,14 +647,24 @@ export function IncomeFormModal({
                       <input
                         type="checkbox"
                         checked={saveAsPending}
-                        onChange={(e) => setSaveAsPending(e.target.checked)}
+                        onChange={(e) => {
+                          setSaveAsPending(e.target.checked);
+                          if (!e.target.checked) setHoldBalance(true);
+                        }}
                       />
                       <span className="text-sm font-medium">Save as pending</span>
                     </label>
                     {saveAsPending && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 pl-6 -mt-1">
-                        Balances will not change until you confirm.
-                      </p>
+                      <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                        <input
+                          type="checkbox"
+                          checked={holdBalance}
+                          onChange={(e) => setHoldBalance(e.target.checked)}
+                        />
+                        <span className="text-xs text-slate-600 dark:text-slate-400">
+                          Do not update balances until confirm
+                        </span>
+                      </label>
                     )}
                   </>
                 )}

@@ -12,6 +12,7 @@ import {
   deleteRecurringRule,
   type RecurringRuleRow,
 } from "@/app/actions/recurring";
+import { BalanceHint } from "@/components/BalanceHint";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -35,7 +36,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const [rule, setRule] = useState<RecurringRuleRow | null>(null);
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
   const [categoryId, setCategoryId] = useState("");
@@ -492,6 +493,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     </option>
                   ))}
                 </select>
+                {(() => {
+                  const acc = accounts.find((a) => a.id === accountToId);
+                  const num = parseFloat(amount.replace(",", "."));
+                  if (acc && !isNaN(num) && num > 0)
+                    return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance + num} />;
+                  return null;
+                })()}
               </div>
             )}
             {type === "expense" && (
@@ -512,6 +520,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     </option>
                   ))}
                 </select>
+                {(() => {
+                  const acc = accounts.find((a) => a.id === accountFromId);
+                  const num = parseFloat(amount.replace(",", "."));
+                  if (acc && !isNaN(num) && num > 0)
+                    return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance - num} />;
+                  return null;
+                })()}
               </div>
             )}
             {type === "transfer" && (
@@ -533,6 +548,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       </option>
                     ))}
                   </select>
+                  {(() => {
+                    const acc = accounts.find((a) => a.id === accountFromId);
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (acc && !isNaN(num) && num > 0)
+                      return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance - num} />;
+                    return null;
+                  })()}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
@@ -551,6 +573,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       </option>
                     ))}
                   </select>
+                  {(() => {
+                    const acc = accounts.find((a) => a.id === accountToId);
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (acc && !isNaN(num) && num > 0)
+                      return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance + num} />;
+                    return null;
+                  })()}
                 </div>
               </>
             )}

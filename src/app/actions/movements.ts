@@ -32,11 +32,15 @@ export async function getAccounts(walletId: string | null) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("accounts")
-    .select("id, name")
+    .select("id, name, current_balance")
     .eq("wallet_id", walletId)
     .eq("is_active", true)
     .order("name");
-  return (data ?? []).map((a) => ({ id: a.id, name: a.name }));
+  return (data ?? []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    current_balance: Number(a.current_balance),
+  }));
 }
 
 export async function getCategories(
@@ -86,6 +90,7 @@ export type MovementByAccountRow = {
   accountFromName: string;
   accountToName: string;
   status: "confirmed" | "pending";
+  holdBalance?: boolean;
 };
 
 export async function getMovementsByAccount(
@@ -97,7 +102,7 @@ export async function getMovementsByAccount(
   let q = supabase
     .from("transactions")
     .select(
-      "id, date, type, amount, description, account_from_id, account_to_id, status, " +
+      "id, date, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
         "category:categories(name, parent_id)"
     )
     .eq("wallet_id", walletId)
@@ -129,6 +134,7 @@ export async function getMovementsByAccount(
     account_from_id: string | null;
     account_to_id: string | null;
     status?: string | null;
+    hold_balance?: boolean;
     category: CatRow | null;
   };
   const rows = (tx ?? []) as unknown as TxRow[];
@@ -156,6 +162,7 @@ export async function getMovementsByAccount(
       accountFromName,
       accountToName,
       status: (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
+      holdBalance: !!t.hold_balance,
     };
   });
 }
@@ -233,6 +240,7 @@ export async function createMovement(params: {
   weekday?: number | null;
   day_of_month?: number | null;
   status?: "confirmed" | "pending";
+  hold_balance?: boolean;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -258,6 +266,7 @@ export async function createMovement(params: {
     weekday = null,
     day_of_month = null,
     status = "confirmed",
+    hold_balance = false,
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -317,6 +326,10 @@ export async function createMovement(params: {
     ruleId = rule.id;
   }
 
+  // hold_balance is only meaningful for pending movements.
+  // For confirmed movements, balances are always updated.
+  const effectiveHold = status === "pending" ? hold_balance : false;
+
   const { data: t, error: insertErr } = await supabase
     .from("transactions")
     .insert({
@@ -331,6 +344,7 @@ export async function createMovement(params: {
       created_by: user.id,
       status,
       recurring_rule_id: ruleId,
+      hold_balance: effectiveHold,
     })
     .select("id")
     .single();
@@ -338,7 +352,9 @@ export async function createMovement(params: {
   if (insertErr) return { error: insertErr.message };
   if (!t) return { error: "Insert failed" };
 
-  if (status === "confirmed") {
+  // Update balances if confirmed, or if pending but NOT holding balance
+  const shouldUpdateBalance = status === "confirmed" || (status === "pending" && !effectiveHold);
+  if (shouldUpdateBalance) {
     if (type === "income") {
       const e = await updateBalance(supabase, account_to_id!, amount);
       if (e.error) return e;
@@ -415,6 +431,7 @@ export async function getMovement(id: string) {
     account_to_id: data.account_to_id,
     description: data.description,
     status: (data.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
+    hold_balance: !!data.hold_balance,
   };
 }
 
@@ -611,12 +628,14 @@ export async function deleteMovement(id: string): Promise<{ error?: string }> {
 
   const { data: t } = await supabase
     .from("transactions")
-    .select("wallet_id, type, amount, account_from_id, account_to_id, status")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status, hold_balance")
     .eq("id", id)
     .single();
   if (!t) return { error: "Transaction not found" };
 
-  if (t.status !== "pending") {
+  // Reverse balance if: confirmed (always updated), or pending with hold_balance=false (was already applied)
+  const balanceWasApplied = t.status === "confirmed" || (t.status === "pending" && !t.hold_balance);
+  if (balanceWasApplied) {
     const undo = undoEffect(
       t.type,
       Number(t.amount),
@@ -651,26 +670,29 @@ export async function confirmMovement(id: string): Promise<{ error?: string }> {
 
   const { data: t } = await supabase
     .from("transactions")
-    .select("wallet_id, type, amount, account_from_id, account_to_id, status")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status, hold_balance")
     .eq("id", id)
     .single();
   if (!t) return { error: "Transaction not found" };
   if (t.status !== "pending") return { error: "Movement is not pending" };
 
-  const apply = applyEffect(
-    t.type,
-    Number(t.amount),
-    t.account_from_id,
-    t.account_to_id
-  );
-  for (const { id: aid, delta } of apply) {
-    const e = await updateBalance(supabase, aid, delta);
-    if (e.error) return e;
+  // Only update balances if they were held (not already applied)
+  if (t.hold_balance) {
+    const apply = applyEffect(
+      t.type,
+      Number(t.amount),
+      t.account_from_id,
+      t.account_to_id
+    );
+    for (const { id: aid, delta } of apply) {
+      const e = await updateBalance(supabase, aid, delta);
+      if (e.error) return e;
+    }
   }
 
   const { error: upErr } = await supabase
     .from("transactions")
-    .update({ status: "confirmed" })
+    .update({ status: "confirmed", hold_balance: false })
     .eq("id", id);
   if (upErr) return { error: upErr.message };
 
@@ -688,65 +710,82 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
 
-  for (;;) {
-    const { data: rules } = await supabase
-      .from("recurring_rules")
-      .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, end_date, weekday, day_of_month")
-      .eq("wallet_id", walletId)
-      .eq("is_active", true)
-      .lte("next_run_date", today)
-      .limit(10);
-    if (!rules || rules.length === 0) break;
+  // Fetch all active rules whose next_run_date is due (one pass, no infinite loop)
+  const { data: rules } = await supabase
+    .from("recurring_rules")
+    .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, end_date, weekday, day_of_month")
+    .eq("wallet_id", walletId)
+    .eq("is_active", true)
+    .lte("next_run_date", today);
+  if (!rules || rules.length === 0) return;
 
-    for (const r of rules) {
-      const isWorkDay =
-        r.recurrence_type === "monthly_nth_work_day" ||
-        r.recurrence_type === "monthly_nth_last_work_day";
-      const storedNext = r.next_run_date as string;
-      let runDate: string;
-      if (isWorkDay) {
-        const n = (r.work_day_index as number | null) ?? 1;
-        const wdType =
-          r.recurrence_type === "monthly_nth_work_day"
-            ? "monthly_nth_work_day"
-            : "monthly_nth_last_work_day";
-        const d = new Date(storedNext + "T12:00:00Z");
-        const y = d.getUTCFullYear();
-        const m = d.getUTCMonth();
-        const computed = workDayDateInMonth(y, m, wdType, n);
-        runDate = computed ?? storedNext;
-      } else {
-        runDate = storedNext;
-      }
-      const endDate = r.end_date as string | null;
-      if (endDate && runDate > endDate) {
-        await supabase
-          .from("recurring_rules")
-          .update({ is_active: false })
-          .eq("id", r.id);
-        continue;
-      }
-      const { error: insErr } = await supabase.from("transactions").insert({
-        wallet_id: r.wallet_id,
-        type: r.type,
-        category_id: r.category_id,
-        date: runDate,
-        amount: r.amount,
-        description: r.description ?? "",
-        account_from_id: r.account_from_id,
-        account_to_id: r.account_to_id,
-        created_by: null,
-        status: "pending",
-        recurring_rule_id: r.id,
-      });
-      if (insErr) continue;
+  for (const r of rules) {
+    const isWorkDay =
+      r.recurrence_type === "monthly_nth_work_day" ||
+      r.recurrence_type === "monthly_nth_last_work_day";
+    const storedNext = r.next_run_date as string;
+    const endDate = r.end_date as string | null;
+    const dayOfMonth =
+      r.recurrence_type === "monthly" && r.day_of_month != null
+        ? Number(r.day_of_month)
+        : null;
 
-      const dayOfMonth =
-        r.recurrence_type === "monthly" && r.day_of_month != null
-          ? Number(r.day_of_month)
-          : null;
-      const next = nextRunDate(
-        runDate,
+    // Compute the actual run date (may differ for work-day rules)
+    let runDate: string;
+    if (isWorkDay) {
+      const n = (r.work_day_index as number | null) ?? 1;
+      const wdType =
+        r.recurrence_type === "monthly_nth_work_day"
+          ? "monthly_nth_work_day"
+          : "monthly_nth_last_work_day";
+      const d = new Date(storedNext + "T12:00:00Z");
+      const computed = workDayDateInMonth(d.getUTCFullYear(), d.getUTCMonth(), wdType, n);
+      runDate = computed ?? storedNext;
+    } else {
+      runDate = storedNext;
+    }
+
+    if (endDate && runDate > endDate) {
+      await supabase
+        .from("recurring_rules")
+        .update({ is_active: false })
+        .eq("id", r.id);
+      continue;
+    }
+
+    // Create exactly ONE pending movement for this recurring rule
+    const { error: insErr } = await supabase.from("transactions").insert({
+      wallet_id: r.wallet_id,
+      type: r.type,
+      category_id: r.category_id,
+      date: runDate,
+      amount: r.amount,
+      description: r.description ?? "",
+      account_from_id: r.account_from_id,
+      account_to_id: r.account_to_id,
+      created_by: null,
+      status: "pending",
+      recurring_rule_id: r.id,
+      hold_balance: true,
+    });
+    if (insErr) continue;
+
+    // Advance next_run_date past today so only one pending is created
+    let next = nextRunDate(
+      runDate,
+      r.recurrence_type as RecurrenceType,
+      r.recurrence_type === "interval_months" ? (r.interval_months as number) : null,
+      isWorkDay ? (r.work_day_index as number | null) ?? 1 : null,
+      r.recurrence_type === "interval_days" ? (r.interval_days as number) ?? 1 : null,
+      null,
+      dayOfMonth
+    );
+    // Skip past all missed dates until next_run_date is in the future
+    let safetyCounter = 0;
+    while (next <= today && safetyCounter < 1000) {
+      if (endDate && next > endDate) break;
+      next = nextRunDate(
+        next,
         r.recurrence_type as RecurrenceType,
         r.recurrence_type === "interval_months" ? (r.interval_months as number) : null,
         isWorkDay ? (r.work_day_index as number | null) ?? 1 : null,
@@ -754,17 +793,102 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
         null,
         dayOfMonth
       );
-      if (endDate && next > endDate) {
-        await supabase
-          .from("recurring_rules")
-          .update({ next_run_date: next, is_active: false })
-          .eq("id", r.id);
-      } else {
-        await supabase
-          .from("recurring_rules")
-          .update({ next_run_date: next })
-          .eq("id", r.id);
-      }
+      safetyCounter++;
+    }
+
+    if (endDate && next > endDate) {
+      await supabase
+        .from("recurring_rules")
+        .update({ next_run_date: next, is_active: false })
+        .eq("id", r.id);
+    } else {
+      await supabase
+        .from("recurring_rules")
+        .update({ next_run_date: next })
+        .eq("id", r.id);
     }
   }
+}
+
+/* ---------- Balance preview for confirm / cancel dialogs ---------- */
+
+export type BalancePreviewRow = {
+  accountName: string;
+  currentBalance: number;
+  afterBalance: number;
+};
+
+/**
+ * Returns the affected accounts with current and projected balances
+ * for confirming, cancelling (pending), or deleting (confirmed) a movement.
+ */
+export async function getBalancePreview(
+  movementId: string,
+  action: "confirm" | "cancel"
+): Promise<BalancePreviewRow[]> {
+  const supabase = await createClient();
+  const { data: t } = await supabase
+    .from("transactions")
+    .select("type, amount, account_from_id, account_to_id, status, hold_balance")
+    .eq("id", movementId)
+    .single();
+  if (!t) return [];
+
+  const amount = Number(t.amount);
+  const holdBalance = !!t.hold_balance;
+  const isPending = t.status === "pending";
+
+  // Compute the delta per account for this action
+  const deltas: { id: string; delta: number }[] = [];
+
+  if (isPending && action === "confirm" && holdBalance) {
+    // Confirming a held pending movement → apply balance changes
+    if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: amount });
+    if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: -amount });
+    if (t.type === "transfer") {
+      if (t.account_from_id) deltas.push({ id: t.account_from_id, delta: -amount });
+      if (t.account_to_id) deltas.push({ id: t.account_to_id, delta: amount });
+    }
+  } else if (isPending && action === "cancel" && !holdBalance) {
+    // Cancelling a non-held pending movement → reverse balance changes
+    if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
+    if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
+    if (t.type === "transfer") {
+      if (t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
+      if (t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
+    }
+  } else if (!isPending && action === "cancel") {
+    // Deleting a confirmed movement → reverse balance changes
+    if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
+    if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
+    if (t.type === "transfer") {
+      if (t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
+      if (t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
+    }
+  }
+
+  // Collect all affected account IDs
+  const accountIds = new Set<string>();
+  if (t.account_from_id) accountIds.add(t.account_from_id);
+  if (t.account_to_id) accountIds.add(t.account_to_id);
+  if (accountIds.size === 0) return [];
+
+  const { data: accounts } = await supabase
+    .from("accounts")
+    .select("id, name, current_balance")
+    .in("id", Array.from(accountIds));
+
+  if (!accounts) return [];
+
+  const deltaMap = new Map(deltas.map((d) => [d.id, d.delta]));
+
+  return accounts.map((a) => {
+    const current = Number(a.current_balance);
+    const delta = deltaMap.get(a.id) ?? 0;
+    return {
+      accountName: a.name,
+      currentBalance: current,
+      afterBalance: current + delta,
+    };
+  });
 }

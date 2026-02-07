@@ -15,6 +15,8 @@ type Props = {
   cancelLabel?: string;
   variant: ConfirmVariant;
   loading?: boolean;
+  /** Optional extra content rendered below the message. */
+  children?: React.ReactNode;
 };
 
 export function ConfirmDialog({
@@ -27,6 +29,7 @@ export function ConfirmDialog({
   cancelLabel = "Go back",
   variant,
   loading = false,
+  children,
 }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -90,7 +93,7 @@ export function ConfirmDialog({
           >
             <JWalletLogo className="h-8 w-8" rounded />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <h2
               id="confirm-dialog-title"
               className="text-lg font-semibold text-slate-900"
@@ -103,6 +106,7 @@ export function ConfirmDialog({
             >
               {message}
             </p>
+            {children}
           </div>
           <div className="flex w-full gap-3 pt-2">
             <button

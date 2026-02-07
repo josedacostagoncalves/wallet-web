@@ -29,6 +29,7 @@ type Props = {
   totalInitialBalance: number;
   totalBalance: number;
   currentWalletId: string | null;
+  pendingAmounts?: Record<string, number>;
 };
 
 function sortByOrder<T extends { id: string }>(items: T[], order: string[]): T[] {
@@ -132,6 +133,7 @@ export function CurrentBalancesSection({
   totalInitialBalance,
   totalBalance,
   currentWalletId,
+  pendingAmounts = {},
 }: Props) {
   const [hideBalances, setHideBalances] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -343,6 +345,7 @@ export function CurrentBalancesSection({
           onReorder={handleReorder}
           showInitialBalance={displayOpts.showInitialBalance}
           showPlafond={displayOpts.showPlafond}
+          pendingAmounts={pendingAmounts}
         />
       </div>
 

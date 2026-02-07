@@ -38,6 +38,8 @@ type Props = {
   onReorder?: (accountIds: string[]) => void;
   showInitialBalance?: boolean;
   showPlafond?: boolean;
+  /** Net pending amount per account (only for pending movements that already updated balances, i.e. hold_balance=false) */
+  pendingAmounts?: Record<string, number>;
 };
 
 type MovementsState = {
@@ -86,6 +88,7 @@ export function AccountsSection({
   onReorder,
   showInitialBalance = true,
   showPlafond = true,
+  pendingAmounts = {},
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movementsByAccount, setMovementsByAccount] = useState<Record<string, MovementsState>>({});
@@ -301,6 +304,17 @@ export function AccountsSection({
                   <span className={a.current_balance < 0 ? "text-red-600" : ""}>
                     {fmt(a.current_balance, hideBalances)} €
                   </span>
+                  {(() => {
+                    const pending = pendingAmounts[a.id];
+                    if (pending != null && pending !== 0) {
+                      return (
+                        <span className="block text-xs text-amber-600 dark:text-amber-400 font-sans mt-0.5">
+                          {hideBalances ? MASK : `${fmt(pending, false)} € pending`}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                   {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
                     <span className="block text-xs text-slate-500 font-sans mt-0.5">
                       {hideBalances
@@ -366,7 +380,9 @@ export function AccountsSection({
                                     key={m.id}
                                     className={
                                       m.status === "pending"
-                                        ? "bg-yellow-50 hover:bg-yellow-100/80"
+                                        ? m.holdBalance
+                                          ? "bg-amber-100 hover:bg-amber-200/80"
+                                          : "bg-yellow-50 hover:bg-yellow-100/80"
                                         : movementRowBgClass(m.type)
                                     }
                                   >
@@ -404,6 +420,7 @@ export function AccountsSection({
                                       <MovementRowActions
                                         id={m.id}
                                         status={m.status}
+                                        holdBalance={m.holdBalance}
                                         onAfterAction={() => loadMovements(a.id, full ? 0 : 5)}
                                         showEdit={m.status === "pending"}
                                       />

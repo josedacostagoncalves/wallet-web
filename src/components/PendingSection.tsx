@@ -19,6 +19,7 @@ export type PendingRow = {
   subcategoryLabel: string;
   accountFromName: string;
   accountToName: string;
+  holdBalance?: boolean;
 };
 
 type Props = { pending: PendingRow[] };
@@ -76,7 +77,7 @@ export function PendingSection({ pending }: Props) {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {pending.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50/50 bg-amber-50">
+                  <tr key={p.id} className={`hover:bg-slate-50/50 ${p.holdBalance ? "bg-amber-100" : "bg-amber-50"}`}>
                     <td className="px-4 py-3">
                       <MovementTypeIcon type={p.type as "income" | "expense" | "transfer"} />
                     </td>
@@ -110,6 +111,7 @@ export function PendingSection({ pending }: Props) {
                       <MovementRowActions
                         id={p.id}
                         status="pending"
+                        holdBalance={p.holdBalance}
                         onAfterAction={onAfterAction}
                         showEdit
                       />

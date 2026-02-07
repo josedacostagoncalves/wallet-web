@@ -30,6 +30,7 @@ export default async function HomePage() {
   }[] = [];
   let totalInitialBalance = 0;
   let totalBalance = 0;
+  let pendingAmounts: Record<string, number> = {};
 
   if (currentWalletId) {
     await ensureRecurringGenerated(currentWalletId);
@@ -69,6 +70,30 @@ export default async function HomePage() {
       }
     }
     
+    // Fetch pending movements that did NOT hold balance (already applied to current_balance)
+    if (accountIds.length > 0) {
+      const { data: pendingTx } = await supabase
+        .from("transactions")
+        .select("type, amount, account_from_id, account_to_id")
+        .eq("wallet_id", currentWalletId)
+        .eq("status", "pending")
+        .eq("hold_balance", false);
+
+      const pa: Record<string, number> = {};
+      for (const tx of pendingTx ?? []) {
+        const amt = Number(tx.amount);
+        if (tx.type === "income" && tx.account_to_id) {
+          pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
+        } else if (tx.type === "expense" && tx.account_from_id) {
+          pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
+        } else if (tx.type === "transfer") {
+          if (tx.account_from_id) pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
+          if (tx.account_to_id) pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
+        }
+      }
+      pendingAmounts = pa;
+    }
+
     accounts = (data ?? []).map((a) => ({
       id: a.id,
       name: a.name,
@@ -140,6 +165,7 @@ export default async function HomePage() {
             totalInitialBalance={totalInitialBalance}
             totalBalance={totalBalance}
             currentWalletId={currentWalletId}
+            pendingAmounts={pendingAmounts}
           />
         </>
       )}
