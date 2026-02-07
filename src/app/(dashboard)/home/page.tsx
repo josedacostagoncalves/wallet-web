@@ -26,6 +26,7 @@ export default async function HomePage() {
     initial_balance: number;
     current_balance: number;
     last_update: string | null;
+    plafond: number | null;
   }[] = [];
   let totalInitialBalance = 0;
   let totalBalance = 0;

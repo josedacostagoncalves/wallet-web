@@ -190,11 +190,11 @@ export function DevicesSection() {
       <ConfirmDialog
         open={!!confirmRevokeId}
         onClose={() => setConfirmRevokeId(null)}
-        onConfirm={() => confirmRevokeId && handleRevoke(confirmRevokeId)}
+        onConfirm={() => { if (confirmRevokeId) return handleRevoke(confirmRevokeId); }}
         title="Log out device"
         message="This will end the session on that device. They will need to sign in again."
         confirmLabel="Log out"
-        variant="danger"
+        variant="cancel"
       />
       <ConfirmDialog
         open={confirmRevokeAll}
@@ -203,7 +203,7 @@ export function DevicesSection() {
         title="Log out all other devices"
         message="This will end all sessions except the current one. Other devices will need to sign in again."
         confirmLabel="Log out all"
-        variant="danger"
+        variant="cancel"
       />
     </div>
   );
