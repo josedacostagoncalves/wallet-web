@@ -1,11 +1,11 @@
 "use client";
 
+import { getAccountOrder, saveAccountOrder } from "@/app/actions/preferences";
 import { AccountsSection } from "@/components/AccountsSection";
 import type { AccountType } from "@/lib/account-types";
 import { useCallback, useEffect, useState } from "react";
 
 const STORAGE_KEY_HIDE = "j-wallet-hide-balances";
-const STORAGE_KEY_ORDER_PREFIX = "j-wallet-account-order-";
 
 type Account = {
   id: string;
@@ -22,31 +22,6 @@ type Props = {
   totalBalance: number;
   currentWalletId: string | null;
 };
-
-function orderKey(walletId: string) {
-  return `${STORAGE_KEY_ORDER_PREFIX}${walletId}`;
-}
-
-function loadOrder(walletId: string | null): string[] {
-  if (!walletId) return [];
-  try {
-    const raw = localStorage.getItem(orderKey(walletId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistOrder(walletId: string | null, ids: string[]) {
-  if (!walletId) return;
-  try {
-    localStorage.setItem(orderKey(walletId), JSON.stringify(ids));
-  } catch {
-    /* ignore */
-  }
-}
 
 function sortByOrder<T extends { id: string }>(items: T[], order: string[]): T[] {
   if (!order.length) return [...items];
@@ -130,6 +105,7 @@ export function CurrentBalancesSection({
   const [orderEditing, setOrderEditing] = useState(false);
   const [editOrder, setEditOrder] = useState<string[] | null>(null);
   const [savedOrder, setSavedOrder] = useState<string[]>([]);
+  const [savingOrder, setSavingOrder] = useState(false);
 
   useEffect(() => {
     try {
@@ -142,10 +118,20 @@ export function CurrentBalancesSection({
   }, []);
 
   useEffect(() => {
-    const order = loadOrder(currentWalletId);
-    setSavedOrder(order);
-    if (!orderEditing) setEditOrder(null);
-  }, [currentWalletId, orderEditing]);
+    if (!currentWalletId) {
+      setSavedOrder([]);
+      return;
+    }
+    let cancelled = false;
+    getAccountOrder(currentWalletId).then((order) => {
+      if (!cancelled) {
+        setSavedOrder(order);
+        if (!orderEditing) setEditOrder(null);
+      }
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load on wallet change
+  }, [currentWalletId]);
 
   useEffect(() => {
     if (orderEditing) setOrderEditing(false);
@@ -165,19 +151,20 @@ export function CurrentBalancesSection({
   }, []);
 
   const startReorder = useCallback(() => {
-    const order = loadOrder(currentWalletId);
-    const ids = order.length
-      ? order.filter((id) => accounts.some((a) => a.id === id))
+    const ids = savedOrder.length
+      ? savedOrder.filter((id) => accounts.some((a) => a.id === id))
       : accounts.map((a) => a.id);
     const extra = accounts.filter((a) => !ids.includes(a.id)).map((a) => a.id);
     setEditOrder([...ids, ...extra]);
     setOrderEditing(true);
-  }, [currentWalletId, accounts]);
+  }, [savedOrder, accounts]);
 
-  const saveOrderClick = useCallback(() => {
-    if (editOrder) {
-      persistOrder(currentWalletId, editOrder);
+  const saveOrderClick = useCallback(async () => {
+    if (editOrder && currentWalletId) {
+      setSavingOrder(true);
+      await saveAccountOrder(currentWalletId, editOrder);
       setSavedOrder(editOrder);
+      setSavingOrder(false);
     }
     setOrderEditing(false);
     setEditOrder(null);
@@ -215,9 +202,10 @@ export function CurrentBalancesSection({
                 <button
                   type="button"
                   onClick={saveOrderClick}
-                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100"
+                  disabled={savingOrder}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-50"
                 >
-                  Save order
+                  {savingOrder ? "Saving…" : "Save order"}
                 </button>
                 <button
                   type="button"
