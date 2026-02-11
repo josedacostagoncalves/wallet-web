@@ -569,22 +569,24 @@ export function ExpenseFormModal({
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                       title="Add category"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
                   )}
                 </div>
               </div>
               {(subcategories.length > 0 || categoryId) && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Subcategory *</label>
+                  <label className="block text-sm font-medium mb-1">
+                    Subcategory{subcategories.length > 0 ? " *" : ""}
+                  </label>
                   <div className="flex items-center gap-1.5">
                     <select
                       value={subcategoryId}
                       onChange={(e) => setSubcategoryId(e.target.value)}
-                      required
+                      required={subcategories.length > 0}
                       className={inputClass + " flex-1"}
                     >
-                      <option value="">Select…</option>
+                      <option value="">{subcategories.length > 0 ? "Select…" : "None"}</option>
                       {subcategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -601,7 +603,7 @@ export function ExpenseFormModal({
                         className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                         title="Add subcategory"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                       </button>
                     )}
                   </div>
@@ -675,115 +677,115 @@ export function ExpenseFormModal({
                 })()}
               </div>
               {(!isEdit || status !== "pending") && (
-              <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-                {!isEdit && (
-                  <>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveAsPending}
-                        onChange={(e) => {
-                          setSaveAsPending(e.target.checked);
-                          if (!e.target.checked) setHoldBalance(true);
-                        }}
-                      />
-                      <span className="text-sm font-medium">Save as pending</span>
-                    </label>
-                    {saveAsPending && (
-                      <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                  {!isEdit && (
+                    <>
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={holdBalance}
-                          onChange={(e) => setHoldBalance(e.target.checked)}
+                          checked={saveAsPending}
+                          onChange={(e) => {
+                            setSaveAsPending(e.target.checked);
+                            if (!e.target.checked) setHoldBalance(true);
+                          }}
                         />
-                        <span className="text-xs text-slate-600 dark:text-slate-400">
-                          Do not update balances until confirm
-                        </span>
+                        <span className="text-sm font-medium">Save as pending</span>
                       </label>
-                    )}
-                  </>
-                )}
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                  />
-                  <span className="text-sm font-medium">Make it recurring</span>
-                </label>
-                {isRecurring && (
-                  <div className="space-y-3 pl-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Schedule</label>
-                      <select
-                        value={recurrenceType}
-                        onChange={(e) => {
-                          const v = e.target.value as RecurrenceType;
-                          if (v) setRecurrenceType(v);
-                        }}
-                        className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                      >
-                        {RECURRENCE_OPTIONS.map((o, i) =>
-                          isRecurrenceOptionSeparator(o) ? (
-                            <option key={`sep-${i}`} disabled>
-                              {o.label}
-                            </option>
-                          ) : (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-                    {recurrenceType === "interval_days" && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Every how many days?</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={intervalDays}
-                          onChange={(e) => setIntervalDays(e.target.value)}
-                          placeholder="e.g. 14"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
-                      </div>
-                    )}
-                    {recurrenceType === "interval_months" && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Every how many months?</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={intervalMonths}
-                          onChange={(e) => setIntervalMonths(e.target.value)}
-                          placeholder="e.g. 3"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
-                      </div>
-                    )}
-                    {(recurrenceType === "monthly_nth_work_day" ||
-                      recurrenceType === "monthly_nth_last_work_day") && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          {recurrenceType === "monthly_nth_last_work_day"
-                            ? "Nth last work day (e.g. 3)"
-                            : "Nth work day (e.g. 3)"}
+                      {saveAsPending && (
+                        <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                          <input
+                            type="checkbox"
+                            checked={holdBalance}
+                            onChange={(e) => setHoldBalance(e.target.checked)}
+                          />
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            Do not update balances until confirm
+                          </span>
                         </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={workDayIndex}
-                          onChange={(e) => setWorkDayIndex(e.target.value)}
-                          placeholder="e.g. 3"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
+                      )}
+                    </>
+                  )}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => setIsRecurring(e.target.checked)}
+                    />
+                    <span className="text-sm font-medium">Make it recurring</span>
+                  </label>
+                  {isRecurring && (
+                    <div className="space-y-3 pl-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Schedule</label>
+                        <select
+                          value={recurrenceType}
+                          onChange={(e) => {
+                            const v = e.target.value as RecurrenceType;
+                            if (v) setRecurrenceType(v);
+                          }}
+                          className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                        >
+                          {RECURRENCE_OPTIONS.map((o, i) =>
+                            isRecurrenceOptionSeparator(o) ? (
+                              <option key={`sep-${i}`} disabled>
+                                {o.label}
+                              </option>
+                            ) : (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            )
+                          )}
+                        </select>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      {recurrenceType === "interval_days" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalDays}
+                            onChange={(e) => setIntervalDays(e.target.value)}
+                            placeholder="e.g. 14"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                      {recurrenceType === "interval_months" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalMonths}
+                            onChange={(e) => setIntervalMonths(e.target.value)}
+                            placeholder="e.g. 3"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                      {(recurrenceType === "monthly_nth_work_day" ||
+                        recurrenceType === "monthly_nth_last_work_day") && (
+                          <div>
+                            <label className="block text-sm font-medium mb-1">
+                              {recurrenceType === "monthly_nth_last_work_day"
+                                ? "Nth last work day (e.g. 3)"
+                                : "Nth work day (e.g. 3)"}
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={31}
+                              value={workDayIndex}
+                              onChange={(e) => setWorkDayIndex(e.target.value)}
+                              placeholder="e.g. 3"
+                              className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                            />
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
               )}
               {error && (
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

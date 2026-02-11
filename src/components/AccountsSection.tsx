@@ -247,11 +247,11 @@ export function AccountsSection({
                   orderEditing
                     ? undefined
                     : (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleExpand(a.id);
-                        }
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleExpand(a.id);
                       }
+                    }
                 }
                 className={
                   orderEditing
@@ -275,15 +275,15 @@ export function AccountsSection({
                     </div>
                   </td>
                 )}
-                <td className="px-4 py-3 font-medium">
+                <td className="px-4 py-3 font-medium min-w-0">
                   <span
-                    className="inline-flex items-center gap-2"
+                    className="inline-flex items-center gap-2 min-w-0"
                     title={accountTypeLabel(a.account_type)}
                   >
                     <span className="text-base leading-none" aria-hidden>
                       {accountTypeIcon(a.account_type)}
                     </span>
-                    {a.name}
+                    <span className="truncate max-w-[32ch]">{a.name}</span>
                   </span>
                 </td>
                 {showInitialBalance && (
@@ -394,57 +394,56 @@ export function AccountsSection({
                                     return new Date(b.date).getTime() - new Date(a.date).getTime();
                                   })
                                   .map((m) => (
-                                  <tr
-                                    key={m.id}
-                                    className={
-                                      m.status === "pending"
-                                        ? m.holdBalance
-                                          ? "bg-amber-100 hover:bg-amber-200/80"
-                                          : "bg-yellow-50 hover:bg-yellow-100/80"
-                                        : movementRowBgClass(m.type)
-                                    }
-                                  >
-                                    <td className="px-3 py-2">
-                                      <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
-                                    </td>
-                                    <td className="px-3 py-2">{m.date}</td>
-                                    <td className="px-3 py-2 text-slate-700 max-w-[180px] truncate">
-                                      {m.description || "—"}
-                                    </td>
-                                    <td className="px-3 py-2 text-slate-600">
-                                      {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
-                                    </td>
-                                    <td className="px-3 py-2 text-slate-600">
-                                      {formatFromTo(m.accountFromName, m.accountToName)}
-                                    </td>
-                                    <td
-                                      className={`px-3 py-2 text-right font-mono ${
-                                        m.type === "income"
-                                          ? "text-green-600"
-                                          : m.type === "expense"
-                                            ? "text-red-600"
-                                            : ""
-                                      }`}
+                                    <tr
+                                      key={m.id}
+                                      className={
+                                        m.status === "pending"
+                                          ? m.holdBalance
+                                            ? "bg-amber-100 hover:bg-amber-200/80"
+                                            : "bg-yellow-50 hover:bg-yellow-100/80"
+                                          : movementRowBgClass(m.type)
+                                      }
                                     >
-                                      {hideBalances
-                                        ? MASK
-                                        : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${m.amount.toLocaleString("pt-PT", {
+                                      <td className="px-3 py-2">
+                                        <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                                      </td>
+                                      <td className="px-3 py-2">{m.date}</td>
+                                      <td className="px-3 py-2 text-slate-700 max-w-[180px] truncate">
+                                        {m.description || "—"}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600">
+                                        {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600">
+                                        {formatFromTo(m.accountFromName, m.accountToName)}
+                                      </td>
+                                      <td
+                                        className={`px-3 py-2 text-right font-mono ${m.type === "income"
+                                            ? "text-green-600"
+                                            : m.type === "expense"
+                                              ? "text-red-600"
+                                              : ""
+                                          }`}
+                                      >
+                                        {hideBalances
+                                          ? MASK
+                                          : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${m.amount.toLocaleString("pt-PT", {
                                             minimumFractionDigits: 2,
                                             maximumFractionDigits: 2,
                                           })}`}{" "}
-                                      €
-                                    </td>
-                                    <td className="px-3 py-2">
-                                      <MovementRowActions
-                                        id={m.id}
-                                        status={m.status}
-                                        holdBalance={m.holdBalance}
-                                        onAfterAction={() => loadMovements(a.id, full ? 0 : 5)}
-                                        showEdit={m.status === "pending"}
-                                      />
-                                    </td>
-                                  </tr>
-                                ))}
+                                        €
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <MovementRowActions
+                                          id={m.id}
+                                          status={m.status}
+                                          holdBalance={m.holdBalance}
+                                          onAfterAction={() => loadMovements(a.id, full ? 0 : 5)}
+                                          showEdit={m.status === "pending"}
+                                        />
+                                      </td>
+                                    </tr>
+                                  ))}
                               </tbody>
                             </table>
                           </div>
