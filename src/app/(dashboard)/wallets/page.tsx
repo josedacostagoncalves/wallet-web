@@ -23,6 +23,7 @@ interface Wallet {
   is_active: boolean;
   deleted_at: string | null;
   delete_after: string | null;
+  shared_option?: string | null;
 }
 
 /* ─── Small SVG icons ─── */
@@ -240,7 +241,7 @@ export default function WalletsPage() {
     const { data: list } = await supabase
       .from("wallet_members")
       .select(
-        "wallet_id, wallets(id, name, is_shared, is_active, deleted_at, delete_after)"
+        "wallet_id, wallets(id, name, is_shared, is_active, deleted_at, delete_after, shared_option)"
       )
       .eq("user_id", user.id);
 
@@ -390,17 +391,28 @@ export default function WalletsPage() {
               return (
                 <tbody key={w.id}>
                   <tr
-                    className={`border-b border-slate-100 ${
-                      isSoftDeleted
-                        ? "opacity-50 bg-red-50 dark:bg-red-950/20"
-                        : !w.is_active
-                          ? "opacity-60"
-                          : ""
-                    }`}
+                    className={`border-b border-slate-100 ${isSoftDeleted
+                      ? "opacity-50 bg-red-50 dark:bg-red-950/20"
+                      : !w.is_active
+                        ? "opacity-60"
+                        : ""
+                      }`}
                   >
                     <td className="p-3 font-medium">{w.name}</td>
                     <td className="p-3">
-                      {w.is_shared ? "Shared" : "Personal"}
+                      {w.is_shared ? (
+                        w.shared_option === "track" ? (
+                          "Shared: Track"
+                        ) : w.shared_option === "split" ? (
+                          "Shared: Split"
+                        ) : w.shared_option === "track_and_split" ? (
+                          "Shared: Track and Split"
+                        ) : (
+                          "Shared"
+                        )
+                      ) : (
+                        "Personal"
+                      )}
                     </td>
                     <td className="p-3">
                       {isSoftDeleted ? (

@@ -12,6 +12,7 @@ export default function NewWalletPage() {
   const { showToast } = useToast();
   const [name, setName] = useState("");
   const [isShared, setIsShared] = useState(false);
+  const [sharedOption, setSharedOption] = useState<"track" | "split" | "track_and_split">("track");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +35,7 @@ export default function NewWalletPage() {
     const { data: walletId, error: rpcErr } = await supabase.rpc("create_wallet", {
       p_name: name.trim(),
       p_is_shared: isShared,
+      p_shared_option: isShared ? sharedOption : null,
     });
 
     if (rpcErr) {
@@ -55,7 +57,7 @@ export default function NewWalletPage() {
       action: "wallet_create",
       entity_type: "wallet",
       entity_id: walletId,
-      payload: { name: name.trim(), is_shared: isShared },
+      payload: { name: name.trim(), is_shared: isShared, shared_option: isShared ? sharedOption : null },
     });
 
     // Automatically select the newly created wallet
@@ -94,6 +96,54 @@ export default function NewWalletPage() {
         <p className="text-sm text-slate-500">
           You can add members to a shared wallet later from the wallet settings.
         </p>
+        {isShared && (
+          <div className="mt-4">
+            <p className="text-sm font-medium mb-2">Shared wallet type</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <button
+                type="button"
+                onClick={() => setSharedOption("track")}
+                className={
+                  "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+                  (sharedOption === "track"
+                    ? "border-slate-800 bg-slate-800/5"
+                    : "border-slate-200 hover:border-slate-300")
+                }
+              >
+                <div className="text-sm font-semibold mb-1">Shared: Track</div>
+                <div className="text-xs text-slate-600">Register movements and account balances</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSharedOption("split")}
+                className={
+                  "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+                  (sharedOption === "split"
+                    ? "border-slate-800 bg-slate-800/5"
+                    : "border-slate-200 hover:border-slate-300")
+                }
+              >
+                <div className="text-sm font-semibold mb-1">Shared: Split</div>
+                <div className="text-xs text-slate-600">Register movements and split expenses among members</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSharedOption("track_and_split")}
+                className={
+                  "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+                  (sharedOption === "track_and_split"
+                    ? "border-slate-800 bg-slate-800/5"
+                    : "border-slate-200 hover:border-slate-300")
+                }
+              >
+                <div className="text-sm font-semibold mb-1">Shared: Track and Split</div>
+                <div className="text-xs text-slate-600">Register movements and split expenses (based on income)</div>
+              </button>
+            </div>
+          </div>
+        )}
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex gap-3">
           <button

@@ -12,6 +12,7 @@ import {
   confirmMovement,
   deleteMovement,
 } from "@/app/actions/movements";
+import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
@@ -64,6 +65,12 @@ export function ExpenseFormModal({
   const [subcategoryId, setSubcategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [accountFromId, setAccountFromId] = useState("");
+  const [paidByMemberId, setPaidByMemberId] = useState<string | null>(null);
+  const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
+  const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
+  const [walletMembers, setWalletMembers] = useState<
+    { id: string; user_id: string; email: string }[]
+  >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -88,11 +95,15 @@ export function ExpenseFormModal({
   >(null);
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountFromId: string; holdBalance: boolean } | null>(null);
+  const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!movementId;
   const isCopy = mode === "copy";
 
   useEffect(() => {
-    if (!open || !currentWalletId) return;
+    if (!open || !currentWalletId) {
+      autoSelectedMember.current = false;
+      return;
+    }
     getAccounts(currentWalletId).then(setAccounts);
     getCategories(currentWalletId, "expense").then(setCategories);
   }, [open, currentWalletId]);
@@ -256,6 +267,7 @@ export function ExpenseFormModal({
     setSubcategoryId("");
     setAmount("");
     setAccountFromId("");
+    setPaidByMemberId(null);
     setSaveAsPending(false);
     setHoldBalance(true);
     setIsRecurring(false);
@@ -272,6 +284,32 @@ export function ExpenseFormModal({
     if (mode === "new" && !movementId && !copyFromMovementId && !copyFromRecurringId) {
       resetForm();
     }
+
+    // Fetch wallet split info and auto-select member AFTER form reset
+    if (currentWalletId) {
+      getWalletSplitInfo(currentWalletId).then((result) => {
+        if (!result.error) {
+          setWalletSharedOption(result.shared_option ?? null);
+          setWalletSplitType(result.split_type ?? null);
+          setWalletMembers(result.members ?? []);
+
+          // Auto-select current user for split wallet member field (only once per modal open)
+          if (!autoSelectedMember.current && (result.shared_option === "split" || result.shared_option === "track_and_split") && result.members && result.members.length > 0) {
+            autoSelectedMember.current = true;
+            getCurrentUserId().then((userResult) => {
+              if (userResult.userId) {
+                // Find the member that matches the current user
+                const currentMember = result.members?.find((m) => m.user_id === userResult.userId);
+                if (currentMember) {
+                  setPaidByMemberId(currentMember.id);
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !loading && !loadingData) onClose();
     };
@@ -282,7 +320,7 @@ export function ExpenseFormModal({
       document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
-  }, [open, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
+  }, [open, currentWalletId, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -291,7 +329,15 @@ export function ExpenseFormModal({
     if (!catId) return "Please select a category";
     if (subcategories.length > 0 && !subcategoryId) return "Please select a subcategory";
     if (!description.trim()) return "Description is required";
-    if (!accountFromId) return "Account (pay from) is required";
+
+    // Account required for 'track' and 'track_and_split' wallets, not for 'split'
+    const isSplitOnly = walletSharedOption === "split";
+    if (!isSplitOnly && !accountFromId) return "Account (pay from) is required";
+
+    // Member required for 'split' and 'track_and_split' wallets
+    const isSplitWallet = walletSharedOption === "split" || walletSharedOption === "track_and_split";
+    if (isSplitWallet && !paidByMemberId) return "Please select a member who paid";
+
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
       if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
@@ -349,6 +395,7 @@ export function ExpenseFormModal({
             ? parseInt(intervalDays, 10)
             : null,
         work_day_index: isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+        paid_by_member_id: paidByMemberId,
       });
       setLoading(false);
       if (res.error) {
@@ -384,6 +431,7 @@ export function ExpenseFormModal({
           : null,
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+      paid_by_member_id: paidByMemberId,
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
     });
@@ -621,61 +669,81 @@ export function ExpenseFormModal({
                   className={inputClass}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
-                <select
-                  value={accountFromId}
-                  onChange={(e) => setAccountFromId(e.target.value)}
-                  required
-                  className={inputClass}
-                >
-                  <option value="">Select…</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                {(() => {
-                  const num = parseFloat(amount.replace(",", "."));
-                  if (isNaN(num) || num <= 0) return null;
-                  const orig = editOriginal.current;
-                  const accountChanged =
-                    isEdit && orig && !orig.holdBalance && orig.accountFromId && orig.accountFromId !== accountFromId;
-                  return (
-                    <>
-                      {/* Original account reversal when account changed */}
-                      {accountChanged && (() => {
-                        const oldAcc = accounts.find((a) => a.id === orig.accountFromId);
-                        if (!oldAcc) return null;
-                        return (
-                          <BalanceHint
-                            label={oldAcc.name}
-                            currentBalance={oldAcc.current_balance}
-                            afterBalance={oldAcc.current_balance + orig.amount}
-                          />
-                        );
-                      })()}
-                      {/* Selected account */}
-                      {(() => {
-                        const acc = accounts.find((a) => a.id === accountFromId);
-                        if (!acc) return null;
-                        const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountFromId === accountFromId;
-                        const afterBalance = sameAccount
-                          ? acc.current_balance - (num - orig.amount)
-                          : acc.current_balance - num;
-                        return (
-                          <BalanceHint
-                            label={accountChanged ? acc.name : undefined}
-                            currentBalance={acc.current_balance}
-                            afterBalance={afterBalance}
-                          />
-                        );
-                      })()}
-                    </>
-                  );
-                })()}
-              </div>
+              {walletSharedOption !== "split" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
+                  <select
+                    value={accountFromId}
+                    onChange={(e) => setAccountFromId(e.target.value)}
+                    required={walletSharedOption !== "split"}
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (isNaN(num) || num <= 0) return null;
+                    const orig = editOriginal.current;
+                    const accountChanged =
+                      isEdit && orig && !orig.holdBalance && orig.accountFromId && orig.accountFromId !== accountFromId;
+                    return (
+                      <>
+                        {/* Original account reversal when account changed */}
+                        {accountChanged && (() => {
+                          const oldAcc = accounts.find((a) => a.id === orig.accountFromId);
+                          if (!oldAcc) return null;
+                          return (
+                            <BalanceHint
+                              label={oldAcc.name}
+                              currentBalance={oldAcc.current_balance}
+                              afterBalance={oldAcc.current_balance + orig.amount}
+                            />
+                          );
+                        })()}
+                        {/* Selected account */}
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === accountFromId);
+                          if (!acc) return null;
+                          const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountFromId === accountFromId;
+                          const afterBalance = sameAccount
+                            ? acc.current_balance - (num - orig.amount)
+                            : acc.current_balance - num;
+                          return (
+                            <BalanceHint
+                              label={accountChanged ? acc.name : undefined}
+                              currentBalance={acc.current_balance}
+                              afterBalance={afterBalance}
+                            />
+                          );
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Paid by member {walletSharedOption === "split" && "*"}</label>
+                  <select
+                    value={paidByMemberId || ""}
+                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
+                    required={walletSharedOption === "split"}
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {walletMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {(!isEdit || status !== "pending") && (
                 <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
                   {!isEdit && (

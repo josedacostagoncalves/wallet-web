@@ -12,6 +12,7 @@ import {
   confirmMovement,
   deleteMovement,
 } from "@/app/actions/movements";
+import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
@@ -64,6 +65,12 @@ export function IncomeFormModal({
   const [subcategoryId, setSubcategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [accountToId, setAccountToId] = useState("");
+  const [paidByMemberId, setPaidByMemberId] = useState<string | null>(null);
+  const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
+  const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
+  const [walletMembers, setWalletMembers] = useState<
+    { id: string; user_id: string; email: string }[]
+  >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -88,11 +95,15 @@ export function IncomeFormModal({
   >(null);
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountToId: string; holdBalance: boolean } | null>(null);
+  const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!movementId;
   const isCopy = mode === "copy";
 
   useEffect(() => {
-    if (!open || !currentWalletId) return;
+    if (!open || !currentWalletId) {
+      autoSelectedMember.current = false;
+      return;
+    }
     getAccounts(currentWalletId).then(setAccounts);
     getCategories(currentWalletId, "income").then(setCategories);
   }, [open, currentWalletId]);
@@ -256,6 +267,7 @@ export function IncomeFormModal({
     setSubcategoryId("");
     setAmount("");
     setAccountToId("");
+    setPaidByMemberId(null);
     setSaveAsPending(false);
     setHoldBalance(true);
     setIsRecurring(false);
@@ -272,6 +284,32 @@ export function IncomeFormModal({
     if (mode === "new" && !movementId && !copyFromMovementId && !copyFromRecurringId) {
       resetForm();
     }
+
+    // Fetch wallet split info and auto-select member AFTER form reset
+    if (currentWalletId) {
+      getWalletSplitInfo(currentWalletId).then((result) => {
+        if (!result.error) {
+          setWalletSharedOption(result.shared_option ?? null);
+          setWalletSplitType(result.split_type ?? null);
+          setWalletMembers(result.members ?? []);
+
+          // Auto-select current user for split wallet member field (only once per modal open)
+          if (!autoSelectedMember.current && (result.shared_option === "split" || result.shared_option === "track_and_split") && result.members && result.members.length > 0) {
+            autoSelectedMember.current = true;
+            getCurrentUserId().then((userResult) => {
+              if (userResult.userId) {
+                // Find the member that matches the current user
+                const currentMember = result.members?.find((m) => m.user_id === userResult.userId);
+                if (currentMember) {
+                  setPaidByMemberId(currentMember.id);
+                }
+              }
+            });
+          }
+        }
+      });
+    }
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !loading && !loadingData) onClose();
     };
@@ -282,7 +320,7 @@ export function IncomeFormModal({
       document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
-  }, [open, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
+  }, [open, currentWalletId, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -290,7 +328,15 @@ export function IncomeFormModal({
     const catId = subcategoryId || categoryId;
     if (!catId) return "Please select a category";
     if (!description.trim()) return "Description is required";
-    if (!accountToId) return "Account (receive) is required";
+
+    // Account required for 'track' and 'track_and_split' wallets, not for 'split'
+    const isSplitOnly = walletSharedOption === "split";
+    if (!isSplitOnly && !accountToId) return "Account (receive) is required";
+
+    // Member required for 'split' and 'track_and_split' wallets
+    const isSplitWallet = walletSharedOption === "split" || walletSharedOption === "track_and_split";
+    if (isSplitWallet && !paidByMemberId) return "Please select a member who received";
+
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
       if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
@@ -348,6 +394,7 @@ export function IncomeFormModal({
             ? parseInt(intervalDays, 10)
             : null,
         work_day_index: isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+        paid_by_member_id: paidByMemberId,
       });
       setLoading(false);
       if (res.error) {
@@ -383,6 +430,7 @@ export function IncomeFormModal({
           : null,
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+      paid_by_member_id: paidByMemberId,
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
     });
@@ -568,7 +616,7 @@ export function IncomeFormModal({
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                       title="Add category"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
                   )}
                 </div>
@@ -599,7 +647,7 @@ export function IncomeFormModal({
                         className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
                         title="Add subcategory"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                       </button>
                     )}
                   </div>
@@ -617,171 +665,191 @@ export function IncomeFormModal({
                   className={inputClass}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Account (receive) *</label>
-                <select
-                  value={accountToId}
-                  onChange={(e) => setAccountToId(e.target.value)}
-                  required
-                  className={inputClass}
-                >
-                  <option value="">Select…</option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                {(() => {
-                  const num = parseFloat(amount.replace(",", "."));
-                  if (isNaN(num) || num <= 0) return null;
-                  const orig = editOriginal.current;
-                  const accountChanged =
-                    isEdit && orig && !orig.holdBalance && orig.accountToId && orig.accountToId !== accountToId;
-                  return (
-                    <>
-                      {/* Original account reversal when account changed */}
-                      {accountChanged && (() => {
-                        const oldAcc = accounts.find((a) => a.id === orig.accountToId);
-                        if (!oldAcc) return null;
-                        return (
-                          <BalanceHint
-                            label={oldAcc.name}
-                            currentBalance={oldAcc.current_balance}
-                            afterBalance={oldAcc.current_balance - orig.amount}
-                          />
-                        );
-                      })()}
-                      {/* Selected account */}
-                      {(() => {
-                        const acc = accounts.find((a) => a.id === accountToId);
-                        if (!acc) return null;
-                        const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountToId === accountToId;
-                        const afterBalance = sameAccount
-                          ? acc.current_balance + (num - orig.amount)
-                          : acc.current_balance + num;
-                        return (
-                          <BalanceHint
-                            label={accountChanged ? acc.name : undefined}
-                            currentBalance={acc.current_balance}
-                            afterBalance={afterBalance}
-                          />
-                        );
-                      })()}
-                    </>
-                  );
-                })()}
-              </div>
+              {walletSharedOption !== "split" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Account (receive) *</label>
+                  <select
+                    value={accountToId}
+                    onChange={(e) => setAccountToId(e.target.value)}
+                    required={walletSharedOption !== "split"}
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (isNaN(num) || num <= 0) return null;
+                    const orig = editOriginal.current;
+                    const accountChanged =
+                      isEdit && orig && !orig.holdBalance && orig.accountToId && orig.accountToId !== accountToId;
+                    return (
+                      <>
+                        {/* Original account reversal when account changed */}
+                        {accountChanged && (() => {
+                          const oldAcc = accounts.find((a) => a.id === orig.accountToId);
+                          if (!oldAcc) return null;
+                          return (
+                            <BalanceHint
+                              label={oldAcc.name}
+                              currentBalance={oldAcc.current_balance}
+                              afterBalance={oldAcc.current_balance - orig.amount}
+                            />
+                          );
+                        })()}
+                        {/* Selected account */}
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === accountToId);
+                          if (!acc) return null;
+                          const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountToId === accountToId;
+                          const afterBalance = sameAccount
+                            ? acc.current_balance + (num - orig.amount)
+                            : acc.current_balance + num;
+                          return (
+                            <BalanceHint
+                              label={accountChanged ? acc.name : undefined}
+                              currentBalance={acc.current_balance}
+                              afterBalance={afterBalance}
+                            />
+                          );
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Received by member {walletSharedOption === "split" && "*"}</label>
+                  <select
+                    value={paidByMemberId || ""}
+                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
+                    required={walletSharedOption === "split"}
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {walletMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {(!isEdit || status !== "pending") && (
-              <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-                {!isEdit && (
-                  <>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveAsPending}
-                        onChange={(e) => {
-                          setSaveAsPending(e.target.checked);
-                          if (!e.target.checked) setHoldBalance(true);
-                        }}
-                      />
-                      <span className="text-sm font-medium">Save as pending</span>
-                    </label>
-                    {saveAsPending && (
-                      <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                  {!isEdit && (
+                    <>
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={holdBalance}
-                          onChange={(e) => setHoldBalance(e.target.checked)}
+                          checked={saveAsPending}
+                          onChange={(e) => {
+                            setSaveAsPending(e.target.checked);
+                            if (!e.target.checked) setHoldBalance(true);
+                          }}
                         />
-                        <span className="text-xs text-slate-600 dark:text-slate-400">
-                          Do not update balances until confirm
-                        </span>
+                        <span className="text-sm font-medium">Save as pending</span>
                       </label>
-                    )}
-                  </>
-                )}
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => setIsRecurring(e.target.checked)}
-                  />
-                  <span className="text-sm font-medium">Make it recurring</span>
-                </label>
-                {isRecurring && (
-                  <div className="space-y-3 pl-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Schedule</label>
-                      <select
-                        value={recurrenceType}
-                        onChange={(e) => {
-                          const v = e.target.value as RecurrenceType;
-                          if (v) setRecurrenceType(v);
-                        }}
-                        className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                      >
-                        {RECURRENCE_OPTIONS.map((o, i) =>
-                          isRecurrenceOptionSeparator(o) ? (
-                            <option key={`sep-${i}`} disabled>
-                              {o.label}
-                            </option>
-                          ) : (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          )
-                        )}
-                      </select>
-                    </div>
-                    {recurrenceType === "interval_days" && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Every how many days?</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={intervalDays}
-                          onChange={(e) => setIntervalDays(e.target.value)}
-                          placeholder="e.g. 14"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
-                      </div>
-                    )}
-                    {recurrenceType === "interval_months" && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Every how many months?</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={intervalMonths}
-                          onChange={(e) => setIntervalMonths(e.target.value)}
-                          placeholder="e.g. 3"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
-                      </div>
-                    )}
-                    {(recurrenceType === "monthly_nth_work_day" ||
-                      recurrenceType === "monthly_nth_last_work_day") && (
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          {recurrenceType === "monthly_nth_last_work_day"
-                            ? "Nth last work day (e.g. 3)"
-                            : "Nth work day (e.g. 3)"}
+                      {saveAsPending && (
+                        <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                          <input
+                            type="checkbox"
+                            checked={holdBalance}
+                            onChange={(e) => setHoldBalance(e.target.checked)}
+                          />
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            Do not update balances until confirm
+                          </span>
                         </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={workDayIndex}
-                          onChange={(e) => setWorkDayIndex(e.target.value)}
-                          placeholder="e.g. 3"
-                          className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                        />
+                      )}
+                    </>
+                  )}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isRecurring}
+                      onChange={(e) => setIsRecurring(e.target.checked)}
+                    />
+                    <span className="text-sm font-medium">Make it recurring</span>
+                  </label>
+                  {isRecurring && (
+                    <div className="space-y-3 pl-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Schedule</label>
+                        <select
+                          value={recurrenceType}
+                          onChange={(e) => {
+                            const v = e.target.value as RecurrenceType;
+                            if (v) setRecurrenceType(v);
+                          }}
+                          className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                        >
+                          {RECURRENCE_OPTIONS.map((o, i) =>
+                            isRecurrenceOptionSeparator(o) ? (
+                              <option key={`sep-${i}`} disabled>
+                                {o.label}
+                              </option>
+                            ) : (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            )
+                          )}
+                        </select>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                      {recurrenceType === "interval_days" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalDays}
+                            onChange={(e) => setIntervalDays(e.target.value)}
+                            placeholder="e.g. 14"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                      {recurrenceType === "interval_months" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalMonths}
+                            onChange={(e) => setIntervalMonths(e.target.value)}
+                            placeholder="e.g. 3"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                      {(recurrenceType === "monthly_nth_work_day" ||
+                        recurrenceType === "monthly_nth_last_work_day") && (
+                          <div>
+                            <label className="block text-sm font-medium mb-1">
+                              {recurrenceType === "monthly_nth_last_work_day"
+                                ? "Nth last work day (e.g. 3)"
+                                : "Nth work day (e.g. 3)"}
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={31}
+                              value={workDayIndex}
+                              onChange={(e) => setWorkDayIndex(e.target.value)}
+                              placeholder="e.g. 3"
+                              className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                            />
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
               )}
               {error && (
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

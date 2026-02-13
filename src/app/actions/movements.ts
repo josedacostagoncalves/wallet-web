@@ -103,7 +103,7 @@ export async function getMovementsByAccount(
     .from("transactions")
     .select(
       "id, date, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
-        "category:categories(name, parent_id)"
+      "category:categories(name, parent_id)"
     )
     .eq("wallet_id", walletId)
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
@@ -241,6 +241,7 @@ export async function createMovement(params: {
   day_of_month?: number | null;
   status?: "confirmed" | "pending";
   hold_balance?: boolean;
+  paid_by_member_id?: string | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -267,6 +268,7 @@ export async function createMovement(params: {
     day_of_month = null,
     status = "confirmed",
     hold_balance = false,
+    paid_by_member_id = null,
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -345,6 +347,7 @@ export async function createMovement(params: {
       status,
       recurring_rule_id: ruleId,
       hold_balance: effectiveHold,
+      paid_by_member_id,
     })
     .select("id")
     .single();
@@ -450,6 +453,7 @@ export async function updateMovement(
     interval_months?: number | null;
     interval_days?: number | null;
     work_day_index?: number | null;
+    paid_by_member_id?: string | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -478,6 +482,7 @@ export async function updateMovement(
     interval_months = null,
     interval_days = null,
     work_day_index = null,
+    paid_by_member_id = null,
   } = params;
 
   if (type === "income" && !account_to_id)
@@ -500,6 +505,7 @@ export async function updateMovement(
       account_from_id,
       account_to_id,
       description: desc,
+      paid_by_member_id,
     };
     const { error: upErr } = await supabase
       .from("transactions")
@@ -588,6 +594,7 @@ export async function updateMovement(
     account_to_id: string | null;
     description: string;
     recurring_rule_id?: string | null;
+    paid_by_member_id: string | null;
   } = {
     type,
     category_id,
@@ -596,6 +603,7 @@ export async function updateMovement(
     account_from_id,
     account_to_id,
     description: desc,
+    paid_by_member_id,
   };
   if (ruleId != null) updatePayload.recurring_rule_id = ruleId;
 

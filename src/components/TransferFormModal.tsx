@@ -12,6 +12,7 @@ import {
   confirmMovement,
   deleteMovement,
 } from "@/app/actions/movements";
+import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
@@ -65,6 +66,12 @@ export function TransferFormModal({
   const [amount, setAmount] = useState("");
   const [accountFromId, setAccountFromId] = useState("");
   const [accountToId, setAccountToId] = useState("");
+  const [paidByMemberId, setPaidByMemberId] = useState<string | null>(null);
+  const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
+  const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
+  const [walletMembers, setWalletMembers] = useState<
+    { id: string; user_id: string; email: string }[]
+  >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -89,11 +96,15 @@ export function TransferFormModal({
   >(null);
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountFromId: string; accountToId: string; holdBalance: boolean } | null>(null);
+  const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!movementId;
   const isCopy = mode === "copy";
 
   useEffect(() => {
-    if (!open || !currentWalletId) return;
+    if (!open || !currentWalletId) {
+      autoSelectedMember.current = false;
+      return;
+    }
     getAccounts(currentWalletId).then(setAccounts);
     getCategories(currentWalletId, "transfer").then(setCategories);
   }, [open, currentWalletId]);
@@ -263,6 +274,7 @@ export function TransferFormModal({
     setAmount("");
     setAccountFromId("");
     setAccountToId("");
+    setPaidByMemberId(null);
     setSaveAsPending(false);
     setHoldBalance(true);
     setIsRecurring(false);
@@ -297,8 +309,17 @@ export function TransferFormModal({
     const catId = subcategoryId || categoryId;
     if (!catId) return "Please select a category";
     if (!description.trim()) return "Description is required";
-    if (!accountFromId || !accountToId) return "From and to accounts are required";
-    if (accountFromId === accountToId) return "From and to accounts must be different";
+
+    // For track and track_and_split: accounts always required
+    // For split: accounts not used, only member
+    const isSplitOnly = walletSharedOption === "split";
+    if (!isSplitOnly && (!accountFromId || !accountToId)) return "From and to accounts are required";
+    if (!isSplitOnly && accountFromId === accountToId) return "From and to accounts must be different";
+
+    // Member required for split and track_and_split
+    const isSplitWallet = walletSharedOption === "split" || walletSharedOption === "track_and_split";
+    if (isSplitWallet && !paidByMemberId) return "Please select a member who paid";
+
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
       if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
@@ -356,6 +377,7 @@ export function TransferFormModal({
             ? parseInt(intervalDays, 10)
             : null,
         work_day_index: isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+        paid_by_member_id: paidByMemberId,
       });
       setLoading(false);
       if (res.error) {
@@ -391,6 +413,7 @@ export function TransferFormModal({
           : null,
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+      paid_by_member_id: paidByMemberId,
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
     });
@@ -531,322 +554,343 @@ export function TransferFormModal({
             <div className="px-6 py-4 text-sm text-slate-500">Loading…</div>
           )}
           <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
-          <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Date *</label>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description *</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={2}
-                required
-                placeholder="e.g. Rent payment"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Category *</label>
-              <div className="flex items-center gap-1.5">
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  required
-                  className={inputClass + " flex-1"}
-                >
-                  <option value="">Select…</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {!categoryId && (
-                  <button
-                    type="button"
-                    onClick={() => setCatModal({ kind: "add-category", type: "transfer" })}
-                    className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                    title="Add category"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-                  </button>
-                )}
-              </div>
-            </div>
-            {(subcategories.length > 0 || categoryId) && (
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Subcategory</label>
+                <label className="block text-sm font-medium mb-1">Date *</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Description *</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  required
+                  placeholder="e.g. Rent payment"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Category *</label>
                 <div className="flex items-center gap-1.5">
                   <select
-                    value={subcategoryId}
-                    onChange={(e) => setSubcategoryId(e.target.value)}
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    required
                     className={inputClass + " flex-1"}
                   >
-                    <option value="">None</option>
-                    {subcategories.map((c) => (
+                    <option value="">Select…</option>
+                    {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
-                  {categoryId && (
+                  {!categoryId && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const parent = categories.find((c) => c.id === categoryId);
-                        if (parent) setCatModal({ kind: "add-subcategory", type: "transfer", parentId: parent.id, parentName: parent.name });
-                      }}
+                      onClick={() => setCatModal({ kind: "add-category", type: "transfer" })}
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      title="Add subcategory"
+                      title="Add category"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
                   )}
                 </div>
               </div>
-            )}
-            <div>
-              <label className="block text-sm font-medium mb-1">Amount (€) *</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                placeholder="0,00"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">From account *</label>
-              <select
-                value={accountFromId}
-                onChange={(e) => setAccountFromId(e.target.value)}
-                required
-                className={inputClass}
-              >
-                <option value="">Select…</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              {(() => {
-                const num = parseFloat(amount.replace(",", "."));
-                if (isNaN(num) || num <= 0) return null;
-                const orig = editOriginal.current;
-                const fromChanged =
-                  isEdit && orig && !orig.holdBalance && orig.accountFromId && orig.accountFromId !== accountFromId;
-                return (
-                  <>
-                    {fromChanged && (() => {
-                      const oldAcc = accounts.find((a) => a.id === orig.accountFromId);
-                      if (!oldAcc) return null;
-                      return (
-                        <BalanceHint
-                          label={oldAcc.name}
-                          currentBalance={oldAcc.current_balance}
-                          afterBalance={oldAcc.current_balance + orig.amount}
+              {(subcategories.length > 0 || categoryId) && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Subcategory</label>
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={subcategoryId}
+                      onChange={(e) => setSubcategoryId(e.target.value)}
+                      className={inputClass + " flex-1"}
+                    >
+                      <option value="">None</option>
+                      {subcategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {categoryId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const parent = categories.find((c) => c.id === categoryId);
+                          if (parent) setCatModal({ kind: "add-subcategory", type: "transfer", parentId: parent.id, parentName: parent.name });
+                        }}
+                        className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        title="Add subcategory"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                  placeholder="0,00"
+                  className={inputClass}
+                />
+              </div>
+              {walletSharedOption !== "split" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">From account *</label>
+                  <select
+                    value={accountFromId}
+                    onChange={(e) => setAccountFromId(e.target.value)}
+                    required
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (isNaN(num) || num <= 0) return null;
+                    const orig = editOriginal.current;
+                    const fromChanged =
+                      isEdit && orig && !orig.holdBalance && orig.accountFromId && orig.accountFromId !== accountFromId;
+                    return (
+                      <>
+                        {fromChanged && (() => {
+                          const oldAcc = accounts.find((a) => a.id === orig.accountFromId);
+                          if (!oldAcc) return null;
+                          return (
+                            <BalanceHint
+                              label={oldAcc.name}
+                              currentBalance={oldAcc.current_balance}
+                              afterBalance={oldAcc.current_balance + orig.amount}
+                            />
+                          );
+                        })()}
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === accountFromId);
+                          if (!acc) return null;
+                          const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountFromId === accountFromId;
+                          const afterBalance = sameAccount
+                            ? acc.current_balance - (num - orig.amount)
+                            : acc.current_balance - num;
+                          return (
+                            <BalanceHint
+                              label={fromChanged ? acc.name : undefined}
+                              currentBalance={acc.current_balance}
+                              afterBalance={afterBalance}
+                            />
+                          );
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {walletSharedOption !== "split" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">To account *</label>
+                  <select
+                    value={accountToId}
+                    onChange={(e) => setAccountToId(e.target.value)}
+                    required
+                    className={inputClass}
+                  >
+                    <option value="">Select…</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {(() => {
+                    const num = parseFloat(amount.replace(",", "."));
+                    if (isNaN(num) || num <= 0) return null;
+                    const orig = editOriginal.current;
+                    const toChanged =
+                      isEdit && orig && !orig.holdBalance && orig.accountToId && orig.accountToId !== accountToId;
+                    return (
+                      <>
+                        {toChanged && (() => {
+                          const oldAcc = accounts.find((a) => a.id === orig.accountToId);
+                          if (!oldAcc) return null;
+                          return (
+                            <BalanceHint
+                              label={oldAcc.name}
+                              currentBalance={oldAcc.current_balance}
+                              afterBalance={oldAcc.current_balance - orig.amount}
+                            />
+                          );
+                        })()}
+                        {(() => {
+                          const acc = accounts.find((a) => a.id === accountToId);
+                          if (!acc) return null;
+                          const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountToId === accountToId;
+                          const afterBalance = sameAccount
+                            ? acc.current_balance + (num - orig.amount)
+                            : acc.current_balance + num;
+                          return (
+                            <BalanceHint
+                              label={toChanged ? acc.name : undefined}
+                              currentBalance={acc.current_balance}
+                              afterBalance={afterBalance}
+                            />
+                          );
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+              {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Paid by member {walletSharedOption === "split" && "*"}</label>
+                  <select
+                    value={paidByMemberId || ""}
+                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
+                    className={inputClass}
+                  >
+                    <option value="">Not specified</option>
+                    {walletMembers.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {(!isEdit || status !== "pending") && (
+                <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                  {!isEdit && (
+                    <>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveAsPending}
+                          onChange={(e) => {
+                            setSaveAsPending(e.target.checked);
+                            if (!e.target.checked) setHoldBalance(true);
+                          }}
                         />
-                      );
-                    })()}
-                    {(() => {
-                      const acc = accounts.find((a) => a.id === accountFromId);
-                      if (!acc) return null;
-                      const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountFromId === accountFromId;
-                      const afterBalance = sameAccount
-                        ? acc.current_balance - (num - orig.amount)
-                        : acc.current_balance - num;
-                      return (
-                        <BalanceHint
-                          label={fromChanged ? acc.name : undefined}
-                          currentBalance={acc.current_balance}
-                          afterBalance={afterBalance}
-                        />
-                      );
-                    })()}
-                  </>
-                );
-              })()}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">To account *</label>
-              <select
-                value={accountToId}
-                onChange={(e) => setAccountToId(e.target.value)}
-                required
-                className={inputClass}
-              >
-                <option value="">Select…</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              {(() => {
-                const num = parseFloat(amount.replace(",", "."));
-                if (isNaN(num) || num <= 0) return null;
-                const orig = editOriginal.current;
-                const toChanged =
-                  isEdit && orig && !orig.holdBalance && orig.accountToId && orig.accountToId !== accountToId;
-                return (
-                  <>
-                    {toChanged && (() => {
-                      const oldAcc = accounts.find((a) => a.id === orig.accountToId);
-                      if (!oldAcc) return null;
-                      return (
-                        <BalanceHint
-                          label={oldAcc.name}
-                          currentBalance={oldAcc.current_balance}
-                          afterBalance={oldAcc.current_balance - orig.amount}
-                        />
-                      );
-                    })()}
-                    {(() => {
-                      const acc = accounts.find((a) => a.id === accountToId);
-                      if (!acc) return null;
-                      const sameAccount = isEdit && orig && !orig.holdBalance && orig.accountToId === accountToId;
-                      const afterBalance = sameAccount
-                        ? acc.current_balance + (num - orig.amount)
-                        : acc.current_balance + num;
-                      return (
-                        <BalanceHint
-                          label={toChanged ? acc.name : undefined}
-                          currentBalance={acc.current_balance}
-                          afterBalance={afterBalance}
-                        />
-                      );
-                    })()}
-                  </>
-                );
-              })()}
-            </div>
-            {(!isEdit || status !== "pending") && (
-            <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-              {!isEdit && (
-                <>
+                        <span className="text-sm font-medium">Save as pending</span>
+                      </label>
+                      {saveAsPending && (
+                        <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
+                          <input
+                            type="checkbox"
+                            checked={holdBalance}
+                            onChange={(e) => setHoldBalance(e.target.checked)}
+                          />
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            Do not update balances until confirm
+                          </span>
+                        </label>
+                      )}
+                    </>
+                  )}
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={saveAsPending}
-                      onChange={(e) => {
-                        setSaveAsPending(e.target.checked);
-                        if (!e.target.checked) setHoldBalance(true);
-                      }}
+                      checked={isRecurring}
+                      onChange={(e) => setIsRecurring(e.target.checked)}
                     />
-                    <span className="text-sm font-medium">Save as pending</span>
+                    <span className="text-sm font-medium">Make it recurring</span>
                   </label>
-                  {saveAsPending && (
-                    <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
-                      <input
-                        type="checkbox"
-                        checked={holdBalance}
-                        onChange={(e) => setHoldBalance(e.target.checked)}
-                      />
-                      <span className="text-xs text-slate-600 dark:text-slate-400">
-                        Do not update balances until confirm
-                      </span>
-                    </label>
-                  )}
-                </>
-              )}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isRecurring}
-                  onChange={(e) => setIsRecurring(e.target.checked)}
-                />
-                <span className="text-sm font-medium">Make it recurring</span>
-              </label>
-              {isRecurring && (
-                <div className="space-y-3 pl-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Schedule</label>
-                    <select
-                      value={recurrenceType}
-                      onChange={(e) => {
-                        const v = e.target.value as RecurrenceType;
-                        if (v) setRecurrenceType(v);
-                      }}
-                      className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                    >
-                      {RECURRENCE_OPTIONS.map((o, i) =>
-                        isRecurrenceOptionSeparator(o) ? (
-                          <option key={`sep-${i}`} disabled>
-                            {o.label}
-                          </option>
-                        ) : (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        )
+                  {isRecurring && (
+                    <div className="space-y-3 pl-6">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Schedule</label>
+                        <select
+                          value={recurrenceType}
+                          onChange={(e) => {
+                            const v = e.target.value as RecurrenceType;
+                            if (v) setRecurrenceType(v);
+                          }}
+                          className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                        >
+                          {RECURRENCE_OPTIONS.map((o, i) =>
+                            isRecurrenceOptionSeparator(o) ? (
+                              <option key={`sep-${i}`} disabled>
+                                {o.label}
+                              </option>
+                            ) : (
+                              <option key={o.value} value={o.value}>
+                                {o.label}
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </div>
+                      {recurrenceType === "interval_days" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalDays}
+                            onChange={(e) => setIntervalDays(e.target.value)}
+                            placeholder="e.g. 14"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
                       )}
-                    </select>
-                  </div>
-                  {recurrenceType === "interval_days" && (
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Every how many days?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={intervalDays}
-                        onChange={(e) => setIntervalDays(e.target.value)}
-                        placeholder="e.g. 14"
-                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                      />
-                    </div>
-                  )}
-                  {recurrenceType === "interval_months" && (
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Every how many months?</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={intervalMonths}
-                        onChange={(e) => setIntervalMonths(e.target.value)}
-                        placeholder="e.g. 3"
-                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                      />
-                    </div>
-                  )}
-                  {(recurrenceType === "monthly_nth_work_day" ||
-                    recurrenceType === "monthly_nth_last_work_day") && (
-                    <div>
-                      <label className="block text-sm font-medium mb-1">
-                        {recurrenceType === "monthly_nth_last_work_day"
-                          ? "Nth last work day (e.g. 3)"
-                          : "Nth work day (e.g. 3)"}
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={31}
-                        value={workDayIndex}
-                        onChange={(e) => setWorkDayIndex(e.target.value)}
-                        placeholder="e.g. 3"
-                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                      />
+                      {recurrenceType === "interval_months" && (
+                        <div>
+                          <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={intervalMonths}
+                            onChange={(e) => setIntervalMonths(e.target.value)}
+                            placeholder="e.g. 3"
+                            className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
+                      {(recurrenceType === "monthly_nth_work_day" ||
+                        recurrenceType === "monthly_nth_last_work_day") && (
+                          <div>
+                            <label className="block text-sm font-medium mb-1">
+                              {recurrenceType === "monthly_nth_last_work_day"
+                                ? "Nth last work day (e.g. 3)"
+                                : "Nth work day (e.g. 3)"}
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={31}
+                              value={workDayIndex}
+                              onChange={(e) => setWorkDayIndex(e.target.value)}
+                              placeholder="e.g. 3"
+                              className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                            />
+                          </div>
+                        )}
                     </div>
                   )}
                 </div>
               )}
+              {error && (
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              )}
             </div>
-            )}
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            )}
-          </div>
-          <div className="w-full sm:min-w-0 sm:w-1/2 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
+            <div className="w-full sm:min-w-0 sm:w-1/2 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
               <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   {!categoryId

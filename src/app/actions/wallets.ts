@@ -6,6 +6,8 @@ import { logActivity } from "@/lib/activity-log";
 export async function createWallet(params: {
   name: string;
   is_shared: boolean;
+  shared_option?: string | null;
+  split_type?: string | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -18,6 +20,8 @@ export async function createWallet(params: {
     .insert({
       name: params.name,
       is_shared: params.is_shared,
+      shared_option: params.shared_option ?? null,
+      split_type: params.split_type ?? null,
       created_by: user.id,
       is_active: true,
     })
@@ -39,14 +43,14 @@ export async function createWallet(params: {
     entity_type: "wallet",
     entity_id: w.id,
     wallet_id: w.id,
-    payload: { name: params.name, is_shared: params.is_shared },
+    payload: { name: params.name, is_shared: params.is_shared, shared_option: params.shared_option ?? null, split_type: params.split_type ?? null },
   });
   return {};
 }
 
 export async function updateWallet(
   id: string,
-  params: { name?: string; is_shared?: boolean; is_active?: boolean }
+  params: { name?: string; is_shared?: boolean; is_active?: boolean; shared_option?: string | null; split_type?: string | null }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
 
@@ -60,6 +64,8 @@ export async function updateWallet(
   const updates: Record<string, unknown> = {};
   if (params.name !== undefined) updates.name = params.name;
   if (params.is_shared !== undefined) updates.is_shared = params.is_shared;
+  if (params.shared_option !== undefined) updates.shared_option = params.shared_option;
+  if (params.split_type !== undefined) updates.split_type = params.split_type;
   if (params.is_active !== undefined) updates.is_active = params.is_active;
 
   if (Object.keys(updates).length === 0) return {};
@@ -445,4 +451,166 @@ export async function getWalletDetails(
       is_shared: wallet.is_shared,
     },
   };
+}
+
+export async function updateMemberIncome(
+  walletId: string,
+  memberId: string,
+  incomeMonthly: number | null
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Verify user is member (owner) of this wallet
+  const { data: member } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .single();
+  if (!member) return { error: "Not a member of this wallet" };
+  if (member.role !== "owner") return { error: "Only wallet owner can update member info" };
+
+  // Update member income
+  const { error: err } = await supabase
+    .from("wallet_members")
+    .update({ income_monthly: incomeMonthly })
+    .eq("wallet_id", walletId)
+    .eq("user_id", memberId);
+
+  if (err) return { error: err.message };
+
+  await logActivity(supabase, {
+    action: "wallet_member_update",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: { member_id: memberId, income_monthly: incomeMonthly },
+  });
+
+  return {};
+}
+
+export async function getWalletSettlements(
+  walletId: string
+): Promise<{
+  settlements?: Array<{
+    member_id: string;
+    email: string;
+    total_paid: number;
+    total_share: number;
+    balance: number;
+  }>;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Verify user is member of this wallet
+  const { data: member } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .single();
+  if (!member) return { error: "Not a member of this wallet" };
+
+  // Call the settlement calculation RPC function
+  const { data, error: err } = await supabase.rpc(
+    "calculate_wallet_settlement",
+    { p_wallet_id: walletId }
+  );
+
+  if (err) return { error: err.message };
+
+  return { settlements: data ?? [] };
+}
+
+export async function getWalletSplitInfo(
+  walletId: string
+): Promise<{
+  shared_option?: string | null;
+  split_type?: string | null;
+  members?: Array<{ id: string; user_id: string; email: string }>;
+  error?: string;
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  // Fetch wallet split_type and shared_option
+  const { data: wallet, error: walletErr } = await supabase
+    .from("wallets")
+    .select("split_type, shared_option")
+    .eq("id", walletId)
+    .single();
+  if (walletErr || !wallet) return { error: walletErr?.message ?? "Wallet not found" };
+
+  // Fetch wallet members
+  const { data: memberData, error: memberErr } = await supabase
+    .from("wallet_members")
+    .select("id, user_id, profiles(first_name, last_name)")
+    .eq("wallet_id", walletId);
+
+  if (memberErr) return { error: memberErr.message };
+
+  // Format members - use profile name or email as fallback
+  const members = (memberData ?? []).map((m: any) => {
+    const profile = m.profiles as any;
+    let displayName = profile?.email ?? m.user_id;
+
+    if (profile?.first_name || profile?.last_name) {
+      displayName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
+    }
+
+    return {
+      id: m.id,
+      user_id: m.user_id,
+      email: displayName,
+    };
+  });
+
+  // Infer shared_option from split_type if shared_option is not explicitly set
+  let sharedOption = wallet.shared_option;
+  if (!sharedOption && wallet.split_type) {
+    // If split_type is set but shared_option is not, infer it
+    sharedOption = "split";
+  }
+
+  // If still no shared_option but wallet is shared, default to 'track'
+  // This ensures non-null values for proper conditional rendering
+  if (!sharedOption) {
+    // Query to check if wallet is shared
+    const { data: walletFull } = await supabase
+      .from("wallets")
+      .select("is_shared")
+      .eq("id", walletId)
+      .single();
+    if (walletFull?.is_shared) {
+      sharedOption = "track";
+    }
+  }
+
+  return {
+    shared_option: sharedOption,
+    split_type: wallet.split_type,
+    members,
+  };
+}
+
+export async function getCurrentUserId(): Promise<{ userId?: string; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  return { userId: user.id };
 }

@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/movements";
+import { getWalletSettlements } from "@/app/actions/wallets";
 import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
+import { SettlementsSection } from "@/components/SettlementsSection";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 
@@ -29,17 +31,38 @@ export default async function HomePage() {
   let totalInitialBalance = 0;
   let totalBalance = 0;
   let pendingAmounts: Record<string, number> = {};
+  let walletSharedOption: string | null = null;
+  let walletSplitType: string | null = null;
+  let settlements: any[] = [];
 
   if (currentWalletId) {
     await ensureRecurringGenerated(currentWalletId);
+
+    // Fetch wallet shared_option and split type
+    const { data: walletData } = await supabase
+      .from("wallets")
+      .select("shared_option, split_type")
+      .eq("id", currentWalletId)
+      .single();
+    walletSharedOption = walletData?.shared_option ?? null;
+    walletSplitType = walletData?.split_type ?? null;
+
+    // Fetch settlements if wallet is split type
+    if (walletSharedOption === "split" || walletSharedOption === "track_and_split") {
+      const { settlements: settle } = await getWalletSettlements(currentWalletId);
+      if (settle) {
+        settlements = settle;
+      }
+    }
+
     const { data } = await supabase
       .from("accounts")
       .select("id, name, account_type, initial_balance, current_balance, plafond")
       .eq("wallet_id", currentWalletId)
       .eq("is_active", true);
-    
+
     const accountIds = (data ?? []).map((a) => a.id);
-    
+
     // Get last update date for each account from transactions
     const lastUpdates: Record<string, string | null> = {};
     if (accountIds.length > 0) {
@@ -48,13 +71,13 @@ export default async function HomePage() {
         .select("account_from_id, date")
         .in("account_from_id", accountIds)
         .order("date", { ascending: false });
-      
+
       const { data: movementsTo } = await supabase
         .from("transactions")
         .select("account_to_id, date")
         .in("account_to_id", accountIds)
         .order("date", { ascending: false });
-      
+
       // Combine and find latest date for each account
       for (const accId of accountIds) {
         const fromDates = (movementsFrom ?? [])
@@ -67,7 +90,7 @@ export default async function HomePage() {
         lastUpdates[accId] = allDates.length > 0 ? allDates[0] : null;
       }
     }
-    
+
     // Fetch pending movements that did NOT hold balance (already applied to current_balance)
     if (accountIds.length > 0) {
       const { data: pendingTx } = await supabase
@@ -123,13 +146,18 @@ export default async function HomePage() {
         </div>
       ) : (
         <>
-          <CurrentBalancesSection
-            accounts={accounts}
-            totalInitialBalance={totalInitialBalance}
-            totalBalance={totalBalance}
-            currentWalletId={currentWalletId}
-            pendingAmounts={pendingAmounts}
-          />
+          {(walletSharedOption === "track" || walletSharedOption === "track_and_split") && (
+            <CurrentBalancesSection
+              accounts={accounts}
+              totalInitialBalance={totalInitialBalance}
+              totalBalance={totalBalance}
+              currentWalletId={currentWalletId}
+              pendingAmounts={pendingAmounts}
+            />
+          )}
+          {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+            <SettlementsSection settlements={settlements} splitType={walletSplitType} />
+          )}
         </>
       )}
     </div>
