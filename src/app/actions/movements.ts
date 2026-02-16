@@ -8,6 +8,30 @@ import {
   workDayDateInMonth,
 } from "@/lib/recurrence";
 
+async function getWalletShareFlags(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  walletId: string
+): Promise<{ isSplitOnly: boolean }> {
+  const { data: wallet } = await supabase
+    .from("wallets")
+    .select("shared_option, split_type")
+    .eq("id", walletId)
+    .single();
+
+  let sharedOption = wallet?.shared_option ?? null;
+  if (typeof sharedOption === "string") {
+    const normalized = sharedOption.trim().toLowerCase();
+    if (normalized === "control") sharedOption = "track";
+    else if (normalized === "split_equal") sharedOption = "split";
+    else if (normalized === "split_income") sharedOption = "track_and_split";
+    else sharedOption = normalized;
+  }
+
+  const hasSplitType = !!wallet?.split_type;
+  const isSplitOnly = sharedOption === "split" || (!sharedOption && hasSplitType);
+  return { isSplitOnly };
+}
+
 async function updateBalance(
   supabase: Awaited<ReturnType<typeof createClient>>,
   accountId: string,
@@ -93,10 +117,15 @@ export type MovementByAccountRow = {
   holdBalance?: boolean;
 };
 
+export type AccountBalancePoint = {
+  date: string;
+  balance: number;
+};
+
 export async function getMovementsByAccount(
   walletId: string,
   accountId: string,
-  limit?: number
+  options?: { limit?: number; fromDate?: string; toDate?: string }
 ): Promise<MovementByAccountRow[]> {
   const supabase = await createClient();
   let q = supabase
@@ -109,8 +138,14 @@ export async function getMovementsByAccount(
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
     .order("date", { ascending: false });
 
-  if (limit != null && limit > 0) {
-    q = q.limit(limit);
+  if (options?.fromDate) {
+    q = q.gte("date", options.fromDate);
+  }
+  if (options?.toDate) {
+    q = q.lte("date", options.toDate);
+  }
+  if (options?.limit != null && options.limit > 0) {
+    q = q.limit(options.limit);
   }
   const { data: tx } = await q;
 
@@ -165,6 +200,88 @@ export async function getMovementsByAccount(
       holdBalance: !!t.hold_balance,
     };
   });
+}
+
+export async function getAccountBalanceSeries(
+  walletId: string,
+  accountId: string,
+  fromDate?: string | null,
+  toDate?: string | null
+): Promise<{ series: AccountBalancePoint[]; oldestDate: string | null }> {
+  const supabase = await createClient();
+
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("id, initial_balance")
+    .eq("id", accountId)
+    .single();
+
+  const q = supabase
+    .from("transactions")
+    .select(
+      "id, date, type, amount, account_from_id, account_to_id, status, hold_balance"
+    )
+    .eq("wallet_id", walletId)
+    .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
+    .order("date", { ascending: true });
+
+  const { data: tx } = toDate ? await q.lte("date", toDate) : await q;
+
+  type TxRow = {
+    id: string;
+    date: string;
+    type: string;
+    amount: number;
+    account_from_id: string | null;
+    account_to_id: string | null;
+    status?: string | null;
+    hold_balance?: boolean;
+  };
+
+  const rows = (tx ?? []) as unknown as TxRow[];
+  if (!rows.length) return { series: [], oldestDate: null };
+
+  const oldestDate = rows[0].date.slice(0, 10);
+  const startDate = (fromDate ?? oldestDate).slice(0, 10);
+  const endDate = (toDate ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
+
+  if (startDate > endDate) return { series: [], oldestDate };
+
+  let balance = Number(account?.initial_balance ?? 0);
+  let balanceAtStart = balance;
+  const dayBalance = new Map<string, number>();
+
+  for (const t of rows) {
+    const dateKey = t.date.slice(0, 10);
+    if (dateKey > endDate) break;
+    const statusConfirmed = t.status === "confirmed" || !t.status;
+    const includePending = t.status === "pending" && !t.hold_balance;
+    if (!statusConfirmed && !includePending) continue;
+
+    const amount = Math.abs(Number(t.amount));
+    if (t.account_from_id === accountId) balance -= amount;
+    if (t.account_to_id === accountId) balance += amount;
+
+    if (dateKey < startDate) {
+      balanceAtStart = balance;
+      continue;
+    }
+    dayBalance.set(dateKey, balance);
+  }
+
+  const series: AccountBalancePoint[] = [];
+  let cursor = new Date(startDate + "T00:00:00");
+  const end = new Date(endDate + "T00:00:00");
+  let currentBalance = balanceAtStart;
+
+  while (cursor <= end) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (dayBalance.has(key)) currentBalance = dayBalance.get(key)!;
+    series.push({ date: key, balance: currentBalance });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return { series, oldestDate };
 }
 
 export async function getRecentMovementsByType(
@@ -271,11 +388,15 @@ export async function createMovement(params: {
     paid_by_member_id = null,
   } = params;
 
-  if (type === "income" && !account_to_id)
+  const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
+  const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
+
+  const { isSplitOnly } = await getWalletShareFlags(supabase, wallet_id);
+  if (!isSplitOnly && type === "income" && !normalizedAccountToId)
     return { error: "Account to receive is required for income" };
-  if (type === "expense" && !account_from_id)
+  if (!isSplitOnly && type === "expense" && !normalizedAccountFromId)
     return { error: "Account to pay from is required for expense" };
-  if (type === "transfer" && (!account_from_id || !account_to_id))
+  if (type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
     return { error: "From and to accounts are required for transfer" };
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
@@ -307,8 +428,8 @@ export async function createMovement(params: {
         type,
         category_id,
         amount,
-        account_from_id,
-        account_to_id,
+        account_from_id: normalizedAccountFromId,
+        account_to_id: normalizedAccountToId,
         description: desc,
         recurrence_type,
         interval_months: recurrence_type === "interval_months" ? interval_months : null,
@@ -340,8 +461,8 @@ export async function createMovement(params: {
       category_id,
       date,
       amount,
-      account_from_id,
-      account_to_id,
+      account_from_id: normalizedAccountFromId,
+      account_to_id: normalizedAccountToId,
       description: desc,
       created_by: user.id,
       status,
@@ -356,18 +477,19 @@ export async function createMovement(params: {
   if (!t) return { error: "Insert failed" };
 
   // Update balances if confirmed, or if pending but NOT holding balance
-  const shouldUpdateBalance = status === "confirmed" || (status === "pending" && !effectiveHold);
+  const shouldUpdateBalance =
+    !isSplitOnly && (status === "confirmed" || (status === "pending" && !effectiveHold));
   if (shouldUpdateBalance) {
     if (type === "income") {
-      const e = await updateBalance(supabase, account_to_id!, amount);
+      const e = await updateBalance(supabase, normalizedAccountToId!, amount);
       if (e.error) return e;
     } else if (type === "expense") {
-      const e = await updateBalance(supabase, account_from_id!, -amount);
+      const e = await updateBalance(supabase, normalizedAccountFromId!, -amount);
       if (e.error) return e;
     } else {
-      let e = await updateBalance(supabase, account_from_id!, -amount);
+      let e = await updateBalance(supabase, normalizedAccountFromId!, -amount);
       if (e.error) return e;
-      e = await updateBalance(supabase, account_to_id!, amount);
+      e = await updateBalance(supabase, normalizedAccountToId!, amount);
       if (e.error) return e;
     }
   }
@@ -485,11 +607,18 @@ export async function updateMovement(
     paid_by_member_id = null,
   } = params;
 
-  if (type === "income" && !account_to_id)
+  const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
+  const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
+
+  const { isSplitOnly: isSplitOnlyForUpdate } = await getWalletShareFlags(
+    supabase,
+    old.wallet_id
+  );
+  if (!isSplitOnlyForUpdate && type === "income" && !normalizedAccountToId)
     return { error: "Account to receive is required for income" };
-  if (type === "expense" && !account_from_id)
+  if (!isSplitOnlyForUpdate && type === "expense" && !normalizedAccountFromId)
     return { error: "Account to pay from is required for expense" };
-  if (type === "transfer" && (!account_from_id || !account_to_id))
+  if (type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
     return { error: "From and to accounts are required for transfer" };
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
@@ -502,8 +631,8 @@ export async function updateMovement(
       category_id,
       date,
       amount,
-      account_from_id,
-      account_to_id,
+      account_from_id: normalizedAccountFromId,
+      account_to_id: normalizedAccountToId,
       description: desc,
       paid_by_member_id,
     };

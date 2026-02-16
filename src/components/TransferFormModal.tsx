@@ -70,7 +70,14 @@ export function TransferFormModal({
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
   const [walletMembers, setWalletMembers] = useState<
-    { id: string; user_id: string; email: string }[]
+    {
+      id: string;
+      user_id: string;
+      display_name: string;
+      first_name: string | null;
+      last_name: string | null;
+      avatar_url: string | null;
+    }[]
   >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
@@ -768,8 +775,8 @@ export function TransferFormModal({
                   >
                     <option value="">Not specified</option>
                     {walletMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.email}
+                      <option key={m.user_id} value={m.user_id}>
+                        {m.display_name}
                       </option>
                     ))}
                   </select>

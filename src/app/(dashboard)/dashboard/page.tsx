@@ -2,11 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/movements";
 import { AllMovementsSection } from "@/components/AllMovementsSection";
-import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
-import { NewExpenseTrigger } from "@/components/NewExpenseTrigger";
-import { NewIncomeTrigger } from "@/components/NewIncomeTrigger";
-import { NewTransferTrigger } from "@/components/NewTransferTrigger";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
 import { workDayDateInMonth } from "@/lib/recurrence";
 
@@ -34,6 +30,7 @@ export default async function DashboardPage() {
     description: string | null;
     account_from_id: string | null;
     account_to_id: string | null;
+    paid_by_member_id: string | null;
     status?: string | null;
     hold_balance?: boolean;
     category: CategoryRow | null;
@@ -49,11 +46,14 @@ export default async function DashboardPage() {
     subcategoryLabel: string;
     accountFromName: string;
     accountToName: string;
+    paidByMemberName: string | null;
+    paidByMemberAvatar: string | null;
     status: "confirmed" | "pending";
   };
   let transactions: TxDisplay[] = [];
   let pending: PendingRow[] = [];
   let recurring: RecurringRow[] = [];
+  let isSplitOnlyWallet = false;
 
   if (currentWalletId) {
     await ensureRecurringGenerated(currentWalletId);
@@ -62,14 +62,16 @@ export default async function DashboardPage() {
       { data: cats },
       { data: tx },
       { data: rules },
+      { data: walletInfo },
+      { data: memberList },
     ] = await Promise.all([
       supabase.from("accounts").select("id, name").eq("wallet_id", currentWalletId),
       supabase.from("categories").select("id, name, parent_id").eq("wallet_id", currentWalletId),
       supabase
         .from("transactions")
         .select(
-          "id, date, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
-            "category:categories(name, parent_id)"
+          "id, date, type, amount, description, account_from_id, account_to_id, paid_by_member_id, status, hold_balance, " +
+          "category:categories(name, parent_id)"
         )
         .eq("wallet_id", currentWalletId)
         .order("date", { ascending: false })
@@ -79,9 +81,35 @@ export default async function DashboardPage() {
         .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active, end_date")
         .eq("wallet_id", currentWalletId)
         .order("next_run_date", { ascending: true }),
+      supabase
+        .from("wallets")
+        .select("shared_option, split_type")
+        .eq("id", currentWalletId)
+        .single(),
+      supabase
+        .from("wallet_members")
+        .select("user_id, profiles(first_name, last_name, avatar_url, email)")
+        .eq("wallet_id", currentWalletId),
     ]);
     const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
     const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
+    const membersMap = new Map<string, { name: string; avatar_url: string | null }>();
+    for (const m of (memberList ?? []) as any[]) {
+      const profile = m.profiles as any;
+      const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
+      const displayName = fullName || profile?.email || m.user_id;
+      membersMap.set(m.user_id, { name: displayName, avatar_url: profile?.avatar_url ?? null });
+    }
+    let walletSharedOption = walletInfo?.shared_option ?? null;
+    if (typeof walletSharedOption === "string") {
+      const normalized = walletSharedOption.trim().toLowerCase();
+      if (normalized === "control") walletSharedOption = "track";
+      else if (normalized === "split_equal") walletSharedOption = "split";
+      else if (normalized === "split_income") walletSharedOption = "track_and_split";
+      else walletSharedOption = normalized;
+    }
+    isSplitOnlyWallet =
+      walletSharedOption === "split" || (!walletSharedOption && !!walletInfo?.split_type);
     const rows = (tx ?? []) as unknown as TxRow[];
     const allTx = rows.map((t) => {
       const c = t.category;
@@ -91,6 +119,7 @@ export default async function DashboardPage() {
       const subcategoryLabel = c?.parent_id ? (c?.name ?? "—") : "—";
       const accountFromName = t.account_from_id ? (accountsMap.get(t.account_from_id) ?? "—") : "—";
       const accountToName = t.account_to_id ? (accountsMap.get(t.account_to_id) ?? "—") : "—";
+      const paidBy = t.paid_by_member_id ? membersMap.get(t.paid_by_member_id) : null;
       const status = (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending";
       return {
         id: t.id,
@@ -103,6 +132,8 @@ export default async function DashboardPage() {
         subcategoryLabel,
         accountFromName,
         accountToName,
+        paidByMemberName: paidBy?.name ?? null,
+        paidByMemberAvatar: paidBy?.avatar_url ?? null,
         status,
         holdBalance: !!t.hold_balance,
       };
@@ -183,7 +214,7 @@ export default async function DashboardPage() {
 
   const confirmed = transactions
     .filter((t) => t.status === "confirmed")
-    .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName }) => ({
+    .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, paidByMemberName, paidByMemberAvatar }) => ({
       id,
       date,
       type,
@@ -193,85 +224,31 @@ export default async function DashboardPage() {
       subcategoryLabel,
       accountFromName,
       accountToName,
-    }));
-
-  const calendarMovements = transactions.map(
-    ({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, status }) => ({
-      id,
-      date,
-      type,
-      amount,
-      description,
-      categoryLabel,
-      subcategoryLabel,
-      accountFromName,
-      accountToName,
-      status: status as "confirmed" | "pending",
-    })
-  );
-
-  const recurringNextRuns = recurring
-    .filter((r) => r.isActive && !r.isStopped)
-    .map((r) => ({
-      id: r.id,
-      date: r.nextRunDate,
-      type: r.type,
-      amount: r.amount,
-      description: r.description,
-      categoryLabel: r.categoryLabel,
-      subcategoryLabel: r.subcategoryLabel,
-      accountFromName: r.accountFromName,
-      accountToName: r.accountToName,
+      paidByMemberName,
+      paidByMemberAvatar,
     }));
 
   return (
     <div className="space-y-6">
       {!currentWalletId ? (
         <>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">Transactions</h1>
           <p className="text-slate-600">
-            Select or create a wallet to see the dashboard.
+            Select or create a wallet to see the transactions.
           </p>
         </>
       ) : (
-        <div className="relative">
-          <aside className="mb-8 flex flex-col items-center gap-4 xl:mb-0 xl:absolute xl:right-full xl:top-0 xl:mr-4 xl:items-stretch xl:w-[360px]">
-            <div className="flex flex-wrap justify-center gap-2 xl:justify-stretch">
-              <NewIncomeTrigger
-                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-green-200 bg-green-50/50 px-3 py-2 text-sm font-medium text-green-800 hover:border-green-400 hover:bg-green-100/50 dark:border-green-900 dark:bg-green-900/20 dark:text-green-200 dark:hover:border-green-600 dark:hover:bg-green-900/30"
-              >
-                <span aria-hidden>↓</span>
-                <span>New Income</span>
-              </NewIncomeTrigger>
-              <NewExpenseTrigger
-                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-red-200 bg-red-50/50 px-3 py-2 text-sm font-medium text-red-800 hover:border-red-400 hover:bg-red-100/50 dark:border-red-900 dark:bg-red-900/20 dark:text-red-200 dark:hover:border-red-600 dark:hover:bg-red-900/30"
-              >
-                <span aria-hidden>↑</span>
-                <span>New Expense</span>
-              </NewExpenseTrigger>
-              <NewTransferTrigger
-                className="inline-flex flex-1 min-w-[100px] items-center justify-center gap-1.5 rounded-lg border-2 border-blue-200 bg-blue-50/50 px-3 py-2 text-sm font-medium text-blue-800 hover:border-blue-400 hover:bg-blue-100/50 dark:border-blue-900 dark:bg-blue-900/20 dark:text-blue-200 dark:hover:border-blue-600 dark:hover:bg-blue-900/30"
-              >
-                <span aria-hidden>⇄</span>
-                <span>New Transfer</span>
-              </NewTransferTrigger>
-            </div>
-            <div className="flex justify-center xl:block">
-              <DashboardCalendar movements={calendarMovements} recurringNextRuns={recurringNextRuns} />
-            </div>
-          </aside>
-          <div className="space-y-8">
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
-            <section>
-              <RecurringSection recurring={recurring} />
-            </section>
-            <section>
-              <PendingSection pending={pending} />
-            </section>
-            <section>
-              <AllMovementsSection confirmed={confirmed} />
-            </section>
-          </div>
+        <div className="space-y-8">
+          <h1 className="text-2xl font-semibold">Transactions</h1>
+          <section>
+            <RecurringSection recurring={recurring} />
+          </section>
+          <section>
+            <PendingSection pending={pending} />
+          </section>
+          <section>
+            <AllMovementsSection confirmed={confirmed} isSplitOnly={isSplitOnlyWallet} />
+          </section>
         </div>
       )}
     </div>

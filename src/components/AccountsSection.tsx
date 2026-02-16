@@ -1,6 +1,11 @@
 "use client";
 
-import { getMovementsByAccount, type MovementByAccountRow } from "@/app/actions/movements";
+import {
+  getAccountBalanceSeries,
+  getMovementsByAccount,
+  type AccountBalancePoint,
+  type MovementByAccountRow,
+} from "@/app/actions/movements";
 import { MovementTypeIcon } from "@/components/ActionIcons";
 import { MovementRowActions } from "@/components/MovementRowActions";
 import {
@@ -14,7 +19,17 @@ import {
 } from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type Account = {
   id: string;
@@ -27,6 +42,24 @@ type Account = {
 };
 
 const MASK = "••••••";
+
+type RangeKey = "30d" | "3m" | "6m" | "1y" | "all" | "custom";
+
+const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
+  { key: "30d", label: "Last 30 days" },
+  { key: "3m", label: "Last 3 months" },
+  { key: "6m", label: "Last 6 months" },
+  { key: "1y", label: "Last year" },
+  { key: "all", label: "All" },
+  { key: "custom", label: "Custom" },
+];
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-PT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
 
 type Props = {
   accounts: Account[];
@@ -93,10 +126,143 @@ export function AccountsSection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [movementsByAccount, setMovementsByAccount] = useState<Record<string, MovementsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [chartAccountId, setChartAccountId] = useState<string | null>(null);
+  const [chartRange, setChartRange] = useState<RangeKey>("30d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [balanceSeries, setBalanceSeries] = useState<AccountBalancePoint[]>([]);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceOldest, setBalanceOldest] = useState<string | null>(null);
+  const [modalMovements, setModalMovements] = useState<MovementByAccountRow[]>([]);
+  const [modalMovementsFull, setModalMovementsFull] = useState(false);
+  const [modalMovementsLoading, setModalMovementsLoading] = useState(false);
+  const [showModalTransactions, setShowModalTransactions] = useState(false);
+  const [modalFilter, setModalFilter] = useState<"day" | "period" | "all">("period");
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const chartAccount = useMemo(
+    () => accounts.find((a) => a.id === chartAccountId) ?? null,
+    [accounts, chartAccountId]
+  );
+
+  const resolveRangeDates = useCallback(() => {
+    const today = new Date();
+    const end = today.toISOString().slice(0, 10);
+    const fromDate = (d: Date) => d.toISOString().slice(0, 10);
+
+    switch (chartRange) {
+      case "30d": {
+        const d = new Date(today);
+        d.setDate(d.getDate() - 29);
+        return { from: fromDate(d), to: end };
+      }
+      case "3m": {
+        const d = new Date(today);
+        d.setMonth(d.getMonth() - 3);
+        return { from: fromDate(d), to: end };
+      }
+      case "6m": {
+        const d = new Date(today);
+        d.setMonth(d.getMonth() - 6);
+        return { from: fromDate(d), to: end };
+      }
+      case "1y": {
+        const d = new Date(today);
+        d.setFullYear(d.getFullYear() - 1);
+        return { from: fromDate(d), to: end };
+      }
+      case "all":
+        return { from: undefined, to: undefined };
+      case "custom":
+        if (!customFrom || !customTo) return null;
+        return { from: customFrom, to: customTo };
+      default:
+        return { from: undefined, to: undefined };
+    }
+  }, [chartRange, customFrom, customTo]);
+
+  const activePeriod = useMemo(() => resolveRangeDates(), [resolveRangeDates]);
 
   useEffect(() => {
     if (orderEditing) setExpandedId(null);
   }, [orderEditing]);
+
+  const loadModalMovements = useCallback(
+    async (accountId: string, full: boolean, fromDate?: string, toDate?: string) => {
+      if (!currentWalletId) return;
+      setModalMovementsLoading(true);
+      const list = await getMovementsByAccount(currentWalletId, accountId, {
+        limit: full ? 0 : 5,
+        fromDate,
+        toDate,
+      });
+      setModalMovements(list);
+      setModalMovementsFull(full);
+      setModalMovementsLoading(false);
+    },
+    [currentWalletId]
+  );
+
+  const openChart = useCallback(
+    (accountId: string) => {
+      setChartAccountId(accountId);
+      setChartRange("30d");
+      setCustomFrom("");
+      setCustomTo("");
+      setBalanceSeries([]);
+      setBalanceOldest(null);
+      setShowModalTransactions(false);
+      setModalFilter("period");
+      setSelectedDay(null);
+      setModalMovements([]);
+      setModalMovementsFull(false);
+      setModalMovementsLoading(false);
+    },
+    []
+  );
+
+  const applyModalFilter = useCallback(
+    async (filter: "day" | "period" | "all", day?: string, full = false) => {
+      if (!chartAccountId) return;
+      let fromDate: string | undefined;
+      let toDate: string | undefined;
+
+      if (filter === "day" && day) {
+        fromDate = day;
+        toDate = day;
+      }
+      if (filter === "period") {
+        const dates = resolveRangeDates();
+        if (!dates) return;
+        fromDate = dates.from;
+        toDate = dates.to;
+      }
+
+      setModalFilter(filter);
+      setSelectedDay(filter === "day" ? day ?? null : null);
+      setShowModalTransactions(true);
+      await loadModalMovements(chartAccountId, full, fromDate, toDate);
+    },
+    [chartAccountId, loadModalMovements, resolveRangeDates]
+  );
+
+  useEffect(() => {
+    if (!chartAccountId || !currentWalletId) return;
+    const dates = resolveRangeDates();
+    if (!dates) return;
+    setBalanceLoading(true);
+    getAccountBalanceSeries(
+      currentWalletId,
+      chartAccountId,
+      dates.from,
+      dates.to
+    )
+      .then((res) => {
+        setBalanceSeries(res.series);
+        setBalanceOldest(res.oldestDate);
+      })
+      .finally(() => setBalanceLoading(false));
+  }, [chartAccountId, currentWalletId, resolveRangeDates]);
 
   async function loadMovements(accountId: string, limit: number) {
     if (!currentWalletId) return;
@@ -109,7 +275,9 @@ export function AccountsSection({
         full: limit === 0,
       },
     }));
-    const list = await getMovementsByAccount(currentWalletId, accountId, limit || undefined);
+    const list = await getMovementsByAccount(currentWalletId, accountId, {
+      limit: limit || undefined,
+    });
     setMovementsByAccount((prev) => ({
       ...prev,
       [accountId]: {
@@ -201,289 +369,480 @@ export function AccountsSection({
   }
 
   return (
-    <table className="w-full text-sm">
-      <thead className="bg-slate-50">
-        <tr>
-          {orderEditing && (
-            <th className="px-4 py-3 text-left font-medium text-slate-700 w-8">
-              {" "}
-            </th>
-          )}
-          <th className="px-4 py-3 text-left font-medium text-slate-700">
-            Account
-          </th>
-          {showInitialBalance && (
-            <th className="px-4 py-3 text-right font-medium text-slate-700">
-              Initial balance
-            </th>
-          )}
-          <th className="px-4 py-3 text-right font-medium text-slate-700">
-            Current balance
-          </th>
-          <th className="px-4 py-3 text-right font-medium text-slate-700">
-            Last Update
-          </th>
-          {!orderEditing && (
-            <th className="px-4 py-3 w-8">{" "}</th>
-          )}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-200">
-        {accounts.map((a) => {
-          const isExpanded = expandedId === a.id;
-          const state = movementsByAccount[a.id];
-          const movements = state?.movements ?? [];
-          const loading = state?.loading ?? false;
-          const full = state?.full ?? false;
+    <div className="w-full">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-900">
+            <tr className="border-b border-slate-200 dark:border-slate-800">
+              {orderEditing && <th className="px-4 py-3 w-8" />}
+              <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Account</th>
+              {showInitialBalance && (
+                <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Initial balance</th>
+              )}
+              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Current balance</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Last update</th>
+              {!orderEditing && <th className="px-4 py-3 w-16" />}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+            {accounts.map((a) => {
+              const state = movementsByAccount[a.id];
+              const isExpanded = expandedId === a.id;
+              const loading = state?.loading ?? false;
+              const movements = state?.movements ?? [];
+              const full = state?.full ?? false;
 
-          return (
-            <Fragment key={a.id}>
-              <tr
-                key={a.id}
-                role={orderEditing ? undefined : "button"}
-                tabIndex={orderEditing ? undefined : 0}
-                onClick={orderEditing ? undefined : () => toggleExpand(a.id)}
-                onKeyDown={
-                  orderEditing
-                    ? undefined
-                    : (e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleExpand(a.id);
-                      }
+              return (
+                <Fragment key={a.id}>
+                  <tr
+                    onClick={() => !orderEditing && toggleExpand(a.id)}
+                    className={
+                      orderEditing
+                        ? `hover:bg-slate-50/50 dark:hover:bg-slate-900/50 ${dragOverId === a.id ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 ring-inset" : ""}`
+                        : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50 cursor-pointer"
                     }
-                }
-                className={
-                  orderEditing
-                    ? `hover:bg-slate-50/50 ${dragOverId === a.id ? "bg-slate-100 ring-1 ring-slate-300 ring-inset" : ""}`
-                    : "hover:bg-slate-50/50 cursor-pointer"
-                }
-                onDragOver={orderEditing ? (e) => handleDragOver(e, a.id) : undefined}
-                onDragLeave={orderEditing ? handleDragLeave : undefined}
-                onDrop={orderEditing ? (e) => handleDrop(e, a.id) : undefined}
-                onDragEnd={orderEditing ? handleDragEnd : undefined}
-              >
-                {orderEditing && (
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, a.id)}
-                      className="p-1 rounded hover:bg-slate-200 text-slate-500 cursor-grab active:cursor-grabbing inline-flex touch-none"
-                      aria-label="Drag to reorder"
-                    >
-                      <DragHandleIcon />
-                    </div>
-                  </td>
-                )}
-                <td className="px-4 py-3 font-medium min-w-0">
-                  <span
-                    className="inline-flex items-center gap-2 min-w-0"
-                    title={accountTypeLabel(a.account_type)}
+                    onDragOver={orderEditing ? (e) => handleDragOver(e, a.id) : undefined}
+                    onDragLeave={orderEditing ? handleDragLeave : undefined}
+                    onDrop={orderEditing ? (e) => handleDrop(e, a.id) : undefined}
+                    onDragEnd={orderEditing ? handleDragEnd : undefined}
                   >
-                    <span className="text-base leading-none" aria-hidden>
-                      {accountTypeIcon(a.account_type)}
-                    </span>
-                    <span className="truncate max-w-[32ch]">{a.name}</span>
-                  </span>
-                </td>
-                {showInitialBalance && (
-                  <td className="px-4 py-3 text-right font-mono">
-                    {fmt(a.initial_balance, hideBalances)} €
-                  </td>
-                )}
-                <td className="px-4 py-3 text-right font-mono">
-                  <span className={a.current_balance < 0 ? "text-red-600" : ""}>
-                    {fmt(a.current_balance, hideBalances)} €
-                  </span>
-                  {(() => {
-                    const pending = pendingAmounts[a.id];
-                    if (pending != null && pending !== 0) {
-                      return (
-                        <span className="block text-xs text-amber-600 dark:text-amber-400 font-sans mt-0.5">
-                          {hideBalances ? MASK : `${fmt(pending, false)} € pending`}
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                  {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
-                    <span className="block text-xs text-slate-500 font-sans mt-0.5">
-                      {hideBalances
-                        ? MASK
-                        : `${fmt(a.plafond + a.current_balance, false)} € available of ${fmt(a.plafond, false)} €`}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-right text-slate-600">
-                  {a.last_update
-                    ? new Date(a.last_update).toLocaleDateString("pt-PT")
-                    : "—"}
-                </td>
-                {!orderEditing && (
-                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      onClick={() => toggleExpand(a.id)}
-                      className="p-0.5 rounded hover:bg-slate-200 text-slate-500"
-                      aria-expanded={isExpanded}
-                      aria-label={isExpanded ? "Collapse" : "Expand"}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
-                        aria-hidden
+                    {orderEditing && (
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, a.id)}
+                          className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 cursor-grab active:cursor-grabbing inline-flex touch-none"
+                          aria-label="Drag to reorder"
+                        >
+                          <DragHandleIcon />
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-4 py-3 font-medium min-w-0">
+                      <span
+                        className="inline-flex items-center gap-2 min-w-0"
+                        title={accountTypeLabel(a.account_type)}
                       >
-                        <path d="m9 18 6-6-6-6" />
-                      </svg>
-                    </button>
-                  </td>
-                )}
-              </tr>
-              {isExpanded && (
-                <tr key={`${a.id}-movements`} className="bg-slate-50/80">
-                  <td colSpan={(showInitialBalance ? 5 : 4)} className="px-4 py-3">
-                    <div className="pl-6 space-y-2">
-                      <h3 className="text-xs font-medium text-slate-700 mb-2">
-                        Movements
-                      </h3>
-                      {loading && !movements.length ? (
-                        <p className="text-xs text-slate-500">Loading…</p>
-                      ) : movements.length === 0 ? (
-                        <p className="text-xs text-slate-500">
-                          No movements for this account.
-                        </p>
-                      ) : (
-                        <>
-                          <div className="rounded-lg border border-slate-200 overflow-x-auto">
-                            <table className="w-full text-sm min-w-[640px]">
-                              <thead className="bg-slate-100">
-                                <tr>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600 w-10">Type</th>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    Date
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    Description
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    Category :: Subcategory
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-medium text-slate-600">
-                                    From → To
-                                  </th>
-                                  <th className="px-3 py-2 text-right font-medium text-slate-600">
-                                    Amount
-                                  </th>
-                                  <th className="px-3 py-2 w-24" />
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100">
-                                {[...movements]
-                                  .sort((a, b) => {
-                                    const aPending = a.status === "pending" ? 1 : 0;
-                                    const bPending = b.status === "pending" ? 1 : 0;
-                                    if (bPending !== aPending) return bPending - aPending;
-                                    return new Date(b.date).getTime() - new Date(a.date).getTime();
-                                  })
-                                  .map((m) => (
-                                    <tr
-                                      key={m.id}
-                                      className={
-                                        m.status === "pending"
-                                          ? m.holdBalance
-                                            ? "bg-amber-100 hover:bg-amber-200/80"
-                                            : "bg-yellow-50 hover:bg-yellow-100/80"
-                                          : movementRowBgClass(m.type)
-                                      }
-                                    >
+                        <span className="text-base leading-none" aria-hidden>
+                          {accountTypeIcon(a.account_type)}
+                        </span>
+                        <span className="truncate max-w-[32ch]">{a.name}</span>
+                      </span>
+                    </td>
+                    {showInitialBalance && (
+                      <td className="px-4 py-3 text-right font-mono">
+                        {fmt(a.initial_balance, hideBalances)} €
+                      </td>
+                    )}
+                    <td className="px-4 py-3 text-right font-mono">
+                      <span className={a.current_balance < 0 ? "text-red-600" : ""}>
+                        {fmt(a.current_balance, hideBalances)} €
+                      </span>
+                      {(() => {
+                        const pending = pendingAmounts?.[a.id];
+                        if (pending != null && pending !== 0) {
+                          return (
+                            <span className="block text-xs text-amber-600 dark:text-amber-400 font-sans mt-0.5">
+                              {hideBalances ? MASK : `${fmt(pending, false)} € pending`}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
+                        <span className="block text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5">
+                          {hideBalances
+                            ? MASK
+                            : `${fmt(a.plafond + a.current_balance, false)} € available of ${fmt(a.plafond, false)} €`}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">
+                      {a.last_update
+                        ? new Date(a.last_update).toLocaleDateString("pt-PT")
+                        : "—"}
+                    </td>
+                    {!orderEditing && (
+                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openChart(a.id)}
+                            className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500"
+                            aria-label="View balance evolution"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <path d="M3 3v18h18" />
+                              <path d="m19 9-5 5-4-4-3 3" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(a.id)}
+                            className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500"
+                            aria-expanded={isExpanded}
+                            aria-label={isExpanded ? "Collapse" : "Expand"}
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                              aria-hidden
+                            >
+                              <path d="m9 18 6-6-6-6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                  {isExpanded && (
+                    <tr key={`${a.id}-movements`} className="bg-slate-50/50 dark:bg-slate-900/50">
+                      <td colSpan={(showInitialBalance ? 5 : 4) + (orderEditing ? 1 : 0) + (!orderEditing ? 1 : 0)} className="px-4 py-3">
+                        <div className="pl-6 space-y-2">
+                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Recent movements</h3>
+                          {loading && !movements.length ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">Loading...</p>
+                          ) : movements.length === 0 ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">No movements for this account.</p>
+                          ) : (
+                            <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
+                              <table className="w-full text-xs">
+                                <thead className="bg-slate-100 dark:bg-slate-800">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">Type</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Date</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Description</th>
+                                    <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">Amount</th>
+                                    <th className="px-3 py-2 w-20" />
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                  {movements.map((m) => (
+                                    <tr key={m.id} className={movementRowBgClass(m.type)}>
                                       <td className="px-3 py-2">
                                         <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
                                       </td>
                                       <td className="px-3 py-2">{m.date}</td>
-                                      <td className="px-3 py-2 text-slate-700 max-w-[180px] truncate">
+                                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
                                         {m.description || "—"}
-                                      </td>
-                                      <td className="px-3 py-2 text-slate-600">
-                                        {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
-                                      </td>
-                                      <td className="px-3 py-2 text-slate-600">
-                                        {formatFromTo(m.accountFromName, m.accountToName)}
                                       </td>
                                       <td
                                         className={`px-3 py-2 text-right font-mono ${m.type === "income"
-                                            ? "text-green-600"
-                                            : m.type === "expense"
-                                              ? "text-red-600"
-                                              : ""
+                                          ? "text-green-600 dark:text-green-400"
+                                          : m.type === "expense"
+                                            ? "text-red-600 dark:text-red-400"
+                                            : ""
                                           }`}
                                       >
                                         {hideBalances
                                           ? MASK
-                                          : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${m.amount.toLocaleString("pt-PT", {
-                                            minimumFractionDigits: 2,
-                                            maximumFractionDigits: 2,
-                                          })}`}{" "}
+                                          : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${formatCurrency(m.amount)}`}{" "}
                                         €
                                       </td>
                                       <td className="px-3 py-2">
-                                        <MovementRowActions
-                                          id={m.id}
-                                          status={m.status}
-                                          holdBalance={m.holdBalance}
-                                          onAfterAction={() => loadMovements(a.id, full ? 0 : 5)}
-                                          showEdit={m.status === "pending"}
-                                        />
+                                        <MovementRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadMovements(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
                                       </td>
                                     </tr>
                                   ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => handleSeeAll(a.id, e)}
-                              disabled={loading}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-50"
-                            >
-                              {loading
-                                ? "Loading…"
-                                : full
-                                  ? "Show less"
-                                  : "See all movements"}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          {!loading && movements.length > 0 && (
+                            <div className="flex gap-2 pt-2">
+                              <button
+                                type="button"
+                                onClick={(e) => handleSeeAll(a.id, e)}
+                                disabled={loading}
+                                className="text-xs px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                              >
+                                {full ? "Show less" : "See all"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+            <tr className="bg-slate-50 dark:bg-slate-900/50 font-medium">
+              <td className="px-4 py-3 w-8" />
+              <td className="px-4 py-3">Total</td>
+              {showInitialBalance && (
+                <td className="px-4 py-3 text-right font-mono">
+                  {fmt(totalInitialBalance, hideBalances)} €
+                </td>
               )}
-            </Fragment>
-          );
-        })}
-        <tr className="bg-slate-50 font-medium">
-          <td className="px-4 py-3 w-8" />
-          <td className="px-4 py-3">Total</td>
-          {showInitialBalance && (
-            <td className="px-4 py-3 text-right font-mono">
-              {fmt(totalInitialBalance, hideBalances)} €
-            </td>
-          )}
-          <td className="px-4 py-3 text-right font-mono">
-            {fmt(totalBalance, hideBalances)} €
-          </td>
-          <td className="px-4 py-3" />
-        </tr>
-      </tbody>
-    </table>
+              <td className="px-4 py-3 text-right font-mono">
+                {fmt(totalBalance, hideBalances)} €
+              </td>
+              <td className="px-4 py-3" />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {chartAccountId &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setChartAccountId(null)}
+          >
+            <div className="absolute inset-0 bg-slate-900/50" />
+            <div
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Account evolution</h3>
+                  {chartAccount && (
+                    <p className="text-sm text-slate-500">{chartAccount.name}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setChartAccountId(null)}
+                  className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {RANGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setChartRange(opt.key)}
+                    className={
+                      "rounded-lg px-3 py-1.5 text-xs border " +
+                      (chartRange === opt.key
+                        ? "border-slate-700 bg-slate-900 text-white"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600")
+                    }
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+                {chartRange === "custom" && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={customFrom}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs"
+                    />
+                    <span className="text-xs text-slate-500">to</span>
+                    <input
+                      type="date"
+                      value={customTo}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs"
+                    />
+                  </div>
+                )}
+                {chartRange === "all" && balanceOldest && (
+                  <span className="text-xs text-slate-500">
+                    From {new Date(balanceOldest).toLocaleDateString("pt-PT")}
+                  </span>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+                {balanceLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-500">
+                    Loading evolution…
+                  </div>
+                ) : balanceSeries.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-500">
+                    No balance data for this period.
+                  </div>
+                ) : (
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={balanceSeries}
+                        onClick={(e) => {
+                          const label = (e as { activeLabel?: string } | null)?.activeLabel;
+                          if (label) applyModalFilter("day", label, true);
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(v) => v.slice(5)}
+                        />
+                        <YAxis
+                          tickFormatter={(v: number) => formatCurrency(v)}
+                          width={80}
+                        />
+                        <Tooltip
+                          formatter={(value: number) =>
+                            `${formatCurrency(value)} €`
+                          }
+                          labelFormatter={(label) =>
+                            new Date(label).toLocaleDateString("pt-PT")
+                          }
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="balance"
+                          stroke="#2563eb"
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700">Transactions</h4>
+                    {modalFilter === "day" && selectedDay && (
+                      <p className="text-xs text-slate-500">
+                        Day: {new Date(selectedDay).toLocaleDateString("pt-PT")}
+                      </p>
+                    )}
+                    {modalFilter === "period" && showModalTransactions && activePeriod && (
+                      <p className="text-xs text-slate-500">
+                        Period: {activePeriod.from ?? "—"} to {activePeriod.to ?? "—"}
+                      </p>
+                    )}
+                    {modalFilter === "all" && showModalTransactions && (
+                      <p className="text-xs text-slate-500">All transactions</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyModalFilter("period")}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                    >
+                      Show period
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyModalFilter("all")}
+                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                    >
+                      Show all
+                    </button>
+                    {showModalTransactions && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowModalTransactions(false);
+                          setSelectedDay(null);
+                          setModalFilter("period");
+                          setModalMovements([]);
+                          setModalMovementsFull(false);
+                          setModalMovementsLoading(false);
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      >
+                        Clear/Collapse
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {!showModalTransactions ? (
+                  <p className="text-xs text-slate-500">
+                    Select a day in the chart or use the buttons to show transactions.
+                  </p>
+                ) : modalMovementsLoading ? (
+                  <p className="text-xs text-slate-500">Loading…</p>
+                ) : modalMovements.length === 0 ? (
+                  <p className="text-xs text-slate-500">No transactions for this account.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!chartAccountId) return;
+                          applyModalFilter(
+                            modalFilter,
+                            selectedDay ?? undefined,
+                            !modalMovementsFull
+                          );
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      >
+                        {modalMovementsFull ? "Show less" : "Show all transactions"}
+                      </button>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 overflow-x-auto">
+                      <table className="w-full text-xs min-w-[640px]">
+                        <thead className="bg-slate-100">
+                          <tr>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">Type</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600">Date</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600">Description</th>
+                            <th className="px-4 py-2 text-right font-medium text-slate-600">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {modalMovements.map((m) => (
+                            <tr key={m.id} className={movementRowBgClass(m.type)}>
+                              <td className="px-4 py-2">
+                                <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                              </td>
+                              <td className="px-4 py-2">{m.date}</td>
+                              <td className="px-4 py-2 text-slate-700 max-w-[260px] truncate">
+                                {m.description || "—"}
+                              </td>
+                              <td
+                                className={`px-4 py-2 text-right font-mono ${m.type === "income"
+                                  ? "text-green-600"
+                                  : m.type === "expense"
+                                    ? "text-red-600"
+                                    : ""}`}
+                              >
+                                {hideBalances
+                                  ? MASK
+                                  : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${formatCurrency(m.amount)}`} {" "}
+                                €
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+    </div>
   );
 }

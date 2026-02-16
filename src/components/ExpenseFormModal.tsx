@@ -19,6 +19,7 @@ import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { UserIcon } from "@/components/UserIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
@@ -69,7 +70,14 @@ export function ExpenseFormModal({
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
   const [walletMembers, setWalletMembers] = useState<
-    { id: string; user_id: string; email: string }[]
+    {
+      id: string;
+      user_id: string;
+      display_name: string;
+      first_name: string | null;
+      last_name: string | null;
+      avatar_url: string | null;
+    }[]
   >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
@@ -288,24 +296,24 @@ export function ExpenseFormModal({
     // Fetch wallet split info and auto-select member AFTER form reset
     if (currentWalletId) {
       getWalletSplitInfo(currentWalletId).then((result) => {
-        if (!result.error) {
-          setWalletSharedOption(result.shared_option ?? null);
-          setWalletSplitType(result.split_type ?? null);
-          setWalletMembers(result.members ?? []);
+        const sharedOption = result.shared_option ?? null;
+        const members = result.members ?? [];
+        setWalletSharedOption(sharedOption);
+        setWalletSplitType(result.split_type ?? null);
+        setWalletMembers(members);
 
-          // Auto-select current user for split wallet member field (only once per modal open)
-          if (!autoSelectedMember.current && (result.shared_option === "split" || result.shared_option === "track_and_split") && result.members && result.members.length > 0) {
-            autoSelectedMember.current = true;
-            getCurrentUserId().then((userResult) => {
-              if (userResult.userId) {
-                // Find the member that matches the current user
-                const currentMember = result.members?.find((m) => m.user_id === userResult.userId);
-                if (currentMember) {
-                  setPaidByMemberId(currentMember.id);
-                }
+        // Auto-select current user for split wallet member field (only once per modal open)
+        if (!autoSelectedMember.current && (sharedOption === "split" || sharedOption === "track_and_split") && members.length > 0) {
+          autoSelectedMember.current = true;
+          getCurrentUserId().then((userResult) => {
+            if (userResult.userId) {
+              // Find the member that matches the current user
+              const currentMember = members.find((m) => m.user_id === userResult.userId);
+              if (currentMember) {
+                setPaidByMemberId(currentMember.id);
               }
-            });
-          }
+            }
+          });
         }
       });
     }
@@ -322,6 +330,9 @@ export function ExpenseFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
   }, [open, currentWalletId, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
 
+  const isSplitOnly = walletSharedOption === "split" || (!walletSharedOption && !!walletSplitType);
+  const isSplitWallet = walletSharedOption === "track_and_split" || isSplitOnly;
+
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
     if (isNaN(num) || num <= 0) return "Amount must be a positive number";
@@ -331,11 +342,9 @@ export function ExpenseFormModal({
     if (!description.trim()) return "Description is required";
 
     // Account required for 'track' and 'track_and_split' wallets, not for 'split'
-    const isSplitOnly = walletSharedOption === "split";
     if (!isSplitOnly && !accountFromId) return "Account (pay from) is required";
 
     // Member required for 'split' and 'track_and_split' wallets
-    const isSplitWallet = walletSharedOption === "split" || walletSharedOption === "track_and_split";
     if (isSplitWallet && !paidByMemberId) return "Please select a member who paid";
 
     if (isRecurring && recurrenceType === "interval_months") {
@@ -669,13 +678,13 @@ export function ExpenseFormModal({
                   className={inputClass}
                 />
               </div>
-              {walletSharedOption !== "split" && (
+              {!isSplitOnly && (
                 <div>
                   <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
                   <select
                     value={accountFromId}
                     onChange={(e) => setAccountFromId(e.target.value)}
-                    required={walletSharedOption !== "split"}
+                    required={!isSplitOnly}
                     className={inputClass}
                   >
                     <option value="">Select…</option>
@@ -726,22 +735,50 @@ export function ExpenseFormModal({
                   })()}
                 </div>
               )}
-              {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+              {isSplitWallet && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Paid by member {walletSharedOption === "split" && "*"}</label>
-                  <select
-                    value={paidByMemberId || ""}
-                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
-                    required={walletSharedOption === "split"}
-                    className={inputClass}
-                  >
-                    <option value="">Select…</option>
-                    {walletMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.email}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="block text-sm font-medium mb-2">Paid by member {walletSharedOption !== null && "*"}</label>
+                  <div className="space-y-2">
+                    {walletMembers.length === 0 && (
+                      <div className="text-xs text-slate-500">No members found.</div>
+                    )}
+                    {walletMembers.map((m) => {
+                      const isSelected = paidByMemberId === m.user_id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => setPaidByMemberId(m.user_id)}
+                          className={
+                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-colors " +
+                            (isSelected
+                              ? "border-slate-800 bg-slate-800/5"
+                              : "border-slate-300 hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500")
+                          }
+                        >
+                          {m.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={m.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
+                          ) : (
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                              <UserIcon className="w-4 h-4" />
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium truncate">{m.display_name}</div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                    <input
+                      type="hidden"
+                      required={isSplitWallet}
+                      value={paidByMemberId ?? ""}
+                      onChange={() => {
+                        return;
+                      }}
+                    />
+                  </div>
                 </div>
               )}
               {(!isEdit || status !== "pending") && (

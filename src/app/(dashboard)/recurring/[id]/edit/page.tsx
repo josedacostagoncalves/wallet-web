@@ -267,7 +267,7 @@ export default function EditRecurringPage() {
       <div className="space-y-4">
         <p className="text-slate-500">Recurring rule not found.</p>
         <Link href="/dashboard" className="underline">
-          ← Dashboard
+          ← Transactions
         </Link>
       </div>
     );
@@ -464,8 +464,8 @@ export default function EditRecurringPage() {
                     setWeekday(
                       rule
                         ? new Date(
-                            rule.next_run_date + "T12:00:00Z"
-                          ).getUTCDay()
+                          rule.next_run_date + "T12:00:00Z"
+                        ).getUTCDay()
                         : 1
                     );
                   } else if (v === "monthly") {
@@ -473,10 +473,10 @@ export default function EditRecurringPage() {
                     setDayOfMonth(
                       rule
                         ? String(
-                            new Date(
-                              rule.next_run_date + "T12:00:00Z"
-                            ).getUTCDate()
-                          )
+                          new Date(
+                            rule.next_run_date + "T12:00:00Z"
+                          ).getUTCDate()
+                        )
                         : "1"
                     );
                   } else {
@@ -531,23 +531,23 @@ export default function EditRecurringPage() {
             )}
             {(recurrenceType === "monthly_nth_work_day" ||
               recurrenceType === "monthly_nth_last_work_day") && (
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  {recurrenceType === "monthly_nth_last_work_day"
-                    ? "Nth last work day (e.g. 3 = 3rd last)"
-                    : "Nth work day (e.g. 3 = 3rd work day of month)"}
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={workDayIndex}
-                  onChange={(e) => setWorkDayIndex(e.target.value)}
-                  placeholder="e.g. 3"
-                  className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                />
-              </div>
-            )}
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    {recurrenceType === "monthly_nth_last_work_day"
+                      ? "Nth last work day (e.g. 3 = 3rd last)"
+                      : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={workDayIndex}
+                    onChange={(e) => setWorkDayIndex(e.target.value)}
+                    placeholder="e.g. 3"
+                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+              )}
             {recurrenceType === "weekly" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -621,7 +621,7 @@ export default function EditRecurringPage() {
                 date to continue.
               </p>
             </div>
-        )}
+          )}
         <div className="flex flex-col gap-2 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
           <div className="flex items-center gap-2">
             <input

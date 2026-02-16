@@ -7,6 +7,7 @@ import {
   formatFromTo,
 } from "@/lib/movement-labels";
 import { movementRowBgClass } from "@/lib/movement-row-style";
+import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -21,9 +22,11 @@ export type ConfirmedRow = {
   subcategoryLabel: string;
   accountFromName: string;
   accountToName: string;
+  paidByMemberName: string | null;
+  paidByMemberAvatar: string | null;
 };
 
-type Props = { confirmed: ConfirmedRow[] };
+type Props = { confirmed: ConfirmedRow[]; isSplitOnly: boolean };
 
 type FilterState = {
   types: Set<string>;
@@ -59,6 +62,7 @@ function matchSearch(t: ConfirmedRow, q: string): boolean {
     s(t.subcategoryLabel).includes(qq) ||
     s(t.accountFromName).includes(qq) ||
     s(t.accountToName).includes(qq) ||
+    s(t.paidByMemberName).includes(qq) ||
     s(t.type).includes(qq) ||
     s(t.date).includes(qq) ||
     amountStr.replace(/\s/g, "").toLowerCase().includes(qq.replace(/\s/g, ""))
@@ -94,7 +98,7 @@ function FilterIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export function AllMovementsSection({ confirmed }: Props) {
+export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -277,11 +281,10 @@ export function AllMovementsSection({ confirmed }: Props) {
                     ref={filterButtonRef}
                     type="button"
                     onClick={() => setFilterOpen((o) => !o)}
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                      hasActiveFilter
-                        ? "border-slate-500 bg-slate-100 text-slate-800"
-                        : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${hasActiveFilter
+                      ? "border-slate-500 bg-slate-100 text-slate-800"
+                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
                     aria-expanded={filterOpen}
                     aria-haspopup="dialog"
                     aria-label="Filter movements"
@@ -468,95 +471,120 @@ export function AllMovementsSection({ confirmed }: Props) {
             </div>
           )}
           <div className="overflow-x-auto border-t border-slate-200">
-          {confirmed.length === 0 ? (
-            <div className="p-6 text-xs text-slate-500">
-              No movements yet.{" "}
-              <Link href="/movements/new" className="underline">
-                Add one
-              </Link>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-6 text-xs text-slate-500">
-              No movements match your {[search.trim() && "search", hasActiveFilter && "filters"].filter(Boolean).join(" or ")}.
-              {(search.trim() || hasActiveFilter) && (
-                <span className="ml-1">
-                  {search.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => setSearch("")}
-                      className="underline hover:no-underline"
-                    >
-                      Clear search
-                    </button>
-                  )}
-                  {search.trim() && hasActiveFilter && " · "}
-                  {hasActiveFilter && (
-                    <button
-                      type="button"
-                      onClick={clearFilter}
-                      className="underline hover:no-underline"
-                    >
-                      Clear filters
-                    </button>
-                  )}
-                </span>
-              )}
-            </div>
-          ) : (
-            <table className="w-full text-xs min-w-[640px]">
-              <thead className="bg-slate-100">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">Type</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Description</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">
-                    Category :: Subcategory
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">From → To</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">Amount</th>
-                  <th className="px-4 py-3 w-24" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filtered.map((t) => (
-                  <tr key={t.id} className={movementRowBgClass(t.type)}>
-                    <td className="px-4 py-3">
-                      <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">{t.date}</td>
-                    <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
-                      {t.description || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatFromTo(t.accountFromName, t.accountToName)}
-                    </td>
-                    <td
-                      className={`px-4 py-3 text-right font-mono ${
-                        t.type === "income"
+            {confirmed.length === 0 ? (
+              <div className="p-6 text-xs text-slate-500">
+                No movements yet.{" "}
+                <Link href="/movements/new" className="underline">
+                  Add one
+                </Link>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-xs text-slate-500">
+                No movements match your {[search.trim() && "search", hasActiveFilter && "filters"].filter(Boolean).join(" or ")}.
+                {(search.trim() || hasActiveFilter) && (
+                  <span className="ml-1">
+                    {search.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch("")}
+                        className="underline hover:no-underline"
+                      >
+                        Clear search
+                      </button>
+                    )}
+                    {search.trim() && hasActiveFilter && " · "}
+                    {hasActiveFilter && (
+                      <button
+                        type="button"
+                        onClick={clearFilter}
+                        className="underline hover:no-underline"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <table className="w-full text-xs min-w-[640px]">
+                <thead className="bg-slate-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">Type</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">Date</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">Description</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">
+                      Category :: Subcategory
+                    </th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">
+                      {isSplitOnly ? "Paid by" : "From → To"}
+                    </th>
+                    <th className="px-4 py-2 text-right font-medium text-slate-600">Amount</th>
+                    <th className="px-4 py-2 w-24" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filtered.map((t) => (
+                    <tr key={t.id} className={movementRowBgClass(t.type)}>
+                      <td className="px-4 py-2">
+                        <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} />
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">{t.date}</td>
+                      <td className="px-4 py-2 text-slate-700 max-w-[180px] truncate">
+                        {t.description || "—"}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {isSplitOnly ? (
+                          t.paidByMemberName ? (
+                            <div className="flex items-center gap-2 min-w-0">
+                              {t.paidByMemberAvatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={t.paidByMemberAvatar}
+                                  alt=""
+                                  className="h-6 w-6 rounded-full object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                                  <UserIcon className="w-4 h-4" />
+                                </span>
+                              )}
+                              <span className="truncate text-sm font-medium text-slate-700">
+                                {t.paidByMemberName}
+                              </span>
+                            </div>
+                          ) : (
+                            "—"
+                          )
+                        ) : (
+                          formatFromTo(t.accountFromName, t.accountToName)
+                        )}
+                      </td>
+                      <td
+                        className={`px-4 py-2 text-right font-mono ${t.type === "income"
                           ? "text-green-600"
                           : t.type === "expense"
                             ? "text-red-600"
                             : ""
-                      }`}
-                    >
-                      {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                      {t.amount.toLocaleString("pt-PT", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      €
-                    </td>
-                    <td className="px-4 py-3">
-                      <MovementRowActions id={t.id} status="confirmed" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                          }`}
+                      >
+                        {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
+                        {t.amount.toLocaleString("pt-PT", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        €
+                      </td>
+                      <td className="px-4 py-2">
+                        <MovementRowActions id={t.id} status="confirmed" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </>
       )}

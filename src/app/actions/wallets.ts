@@ -537,7 +537,14 @@ export async function getWalletSplitInfo(
 ): Promise<{
   shared_option?: string | null;
   split_type?: string | null;
-  members?: Array<{ id: string; user_id: string; email: string }>;
+  members?: Array<{
+    id: string;
+    user_id: string;
+    display_name: string;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
+  }>;
   error?: string;
 }> {
   const supabase = await createClient();
@@ -557,29 +564,59 @@ export async function getWalletSplitInfo(
   // Fetch wallet members
   const { data: memberData, error: memberErr } = await supabase
     .from("wallet_members")
-    .select("id, user_id, profiles(first_name, last_name)")
+    .select("id, user_id, profiles(first_name, last_name, email, avatar_url)")
     .eq("wallet_id", walletId);
 
-  if (memberErr) return { error: memberErr.message };
+  const memberErrorMessage = memberErr ? memberErr.message : undefined;
 
   // Format members - use profile name or email as fallback
-  const members = (memberData ?? []).map((m: any) => {
+  let members = (memberData ?? []).map((m: any) => {
     const profile = m.profiles as any;
-    let displayName = profile?.email ?? m.user_id;
-
-    if (profile?.first_name || profile?.last_name) {
-      displayName = `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim();
-    }
+    const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
+    const displayName = fullName || profile?.email || m.user_id;
 
     return {
-      id: m.id,
+      id: m.user_id,
       user_id: m.user_id,
-      email: displayName,
+      display_name: displayName,
+      first_name: profile?.first_name ?? null,
+      last_name: profile?.last_name ?? null,
+      avatar_url: profile?.avatar_url ?? null,
     };
   });
 
+  if (members.length === 0) {
+    const { data: selfMember } = await supabase
+      .from("wallet_members")
+      .select("id, user_id")
+      .eq("wallet_id", walletId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (selfMember) {
+      const fallbackName = user.email ?? user.id;
+      members = [
+        {
+          id: selfMember.user_id,
+          user_id: selfMember.user_id,
+          display_name: fallbackName,
+          first_name: null,
+          last_name: null,
+          avatar_url: null,
+        },
+      ];
+    }
+  }
+
   // Infer shared_option from split_type if shared_option is not explicitly set
   let sharedOption = wallet.shared_option;
+  if (typeof sharedOption === "string") {
+    const normalized = sharedOption.trim().toLowerCase();
+    if (normalized === "control") sharedOption = "track";
+    else if (normalized === "split_equal") sharedOption = "split";
+    else if (normalized === "split_income") sharedOption = "track_and_split";
+    else sharedOption = normalized;
+  }
   if (!sharedOption && wallet.split_type) {
     // If split_type is set but shared_option is not, infer it
     sharedOption = "split";
@@ -603,6 +640,7 @@ export async function getWalletSplitInfo(
     shared_option: sharedOption,
     split_type: wallet.split_type,
     members,
+    error: memberErrorMessage,
   };
 }
 

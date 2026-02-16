@@ -162,16 +162,16 @@ export default function EditMovementPage() {
       recurrence_type: status === "confirmed" && isRecurring ? recurrenceType : undefined,
       interval_months:
         status === "confirmed" &&
-        isRecurring &&
-        recurrenceType === "interval_months" &&
-        intervalMonths.trim()
+          isRecurring &&
+          recurrenceType === "interval_months" &&
+          intervalMonths.trim()
           ? parseInt(intervalMonths, 10)
           : null,
       interval_days:
         status === "confirmed" &&
-        isRecurring &&
-        recurrenceType === "interval_days" &&
-        intervalDays.trim()
+          isRecurring &&
+          recurrenceType === "interval_days" &&
+          intervalDays.trim()
           ? parseInt(intervalDays, 10)
           : null,
       work_day_index:
@@ -270,7 +270,7 @@ export default function EditMovementPage() {
     return (
       <div className="space-y-4">
         <p className="text-slate-500">Movement not found.</p>
-        <Link href="/dashboard" className="underline">← Dashboard</Link>
+        <Link href="/dashboard" className="underline">← Transactions</Link>
       </div>
     );
   }
@@ -433,94 +433,94 @@ export default function EditMovementPage() {
           </>
         )}
         {status !== "pending" && (
-        <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="isRecurring"
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-            />
-            <label htmlFor="isRecurring" className="text-sm font-medium">
-              Make it recurring
-            </label>
-          </div>
-          {isRecurring && (
-            <div className="space-y-3 pl-6">
-              <div>
-                <label className="block text-sm font-medium mb-1">Schedule</label>
-                <select
-                  value={recurrenceType}
-                  onChange={(e) => {
-                    const v = e.target.value as RecurrenceType;
-                    if (v) setRecurrenceType(v);
-                  }}
-                  className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                >
-                  {RECURRENCE_OPTIONS.map((o, i) =>
-                    isRecurrenceOptionSeparator(o) ? (
-                      <option key={`sep-${i}`} disabled>
-                        {o.label}
-                      </option>
-                    ) : (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
-              {recurrenceType === "interval_days" && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Every how many days?</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={intervalDays}
-                    onChange={(e) => setIntervalDays(e.target.value)}
-                    placeholder="e.g. 14"
-                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                  />
-                </div>
-              )}
-              {recurrenceType === "interval_months" && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Every how many months?</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={intervalMonths}
-                    onChange={(e) => setIntervalMonths(e.target.value)}
-                    placeholder="e.g. 3"
-                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                  />
-                </div>
-              )}
-              {(recurrenceType === "monthly_nth_work_day" ||
-                recurrenceType === "monthly_nth_last_work_day") && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">
-                    {recurrenceType === "monthly_nth_last_work_day"
-                      ? "Nth last work day (e.g. 3 = 3rd last)"
-                      : "Nth work day (e.g. 3 = 3rd work day of month)"}
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={workDayIndex}
-                    onChange={(e) => setWorkDayIndex(e.target.value)}
-                    placeholder="e.g. 3"
-                    className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                  />
-                </div>
-              )}
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.
-              </p>
+          <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isRecurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+              />
+              <label htmlFor="isRecurring" className="text-sm font-medium">
+                Make it recurring
+              </label>
             </div>
-          )}
-        </div>
+            {isRecurring && (
+              <div className="space-y-3 pl-6">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Schedule</label>
+                  <select
+                    value={recurrenceType}
+                    onChange={(e) => {
+                      const v = e.target.value as RecurrenceType;
+                      if (v) setRecurrenceType(v);
+                    }}
+                    className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  >
+                    {RECURRENCE_OPTIONS.map((o, i) =>
+                      isRecurrenceOptionSeparator(o) ? (
+                        <option key={`sep-${i}`} disabled>
+                          {o.label}
+                        </option>
+                      ) : (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </div>
+                {recurrenceType === "interval_days" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={intervalDays}
+                      onChange={(e) => setIntervalDays(e.target.value)}
+                      placeholder="e.g. 14"
+                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                    />
+                  </div>
+                )}
+                {recurrenceType === "interval_months" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={intervalMonths}
+                      onChange={(e) => setIntervalMonths(e.target.value)}
+                      placeholder="e.g. 3"
+                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                    />
+                  </div>
+                )}
+                {(recurrenceType === "monthly_nth_work_day" ||
+                  recurrenceType === "monthly_nth_last_work_day") && (
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {recurrenceType === "monthly_nth_last_work_day"
+                          ? "Nth last work day (e.g. 3 = 3rd last)"
+                          : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={workDayIndex}
+                        onChange={(e) => setWorkDayIndex(e.target.value)}
+                        placeholder="e.g. 3"
+                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      />
+                    </div>
+                  )}
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.
+                </p>
+              </div>
+            )}
+          </div>
         )}
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex flex-wrap gap-3 items-center">

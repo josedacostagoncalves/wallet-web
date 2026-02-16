@@ -5,6 +5,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
 import { JWalletIcon } from "@/components/JWalletIcon";
+import { useMovementModals } from "@/contexts/MovementModalsContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -15,6 +16,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
   const router = useRouter();
+  const { openNewIncome, openNewExpense, openNewTransfer } = useMovementModals();
 
   const currentWallet = wallets.find((w) => w.id === currentWalletId);
   const greeting = firstName ? `Hello, ${firstName}` : "Hello";
@@ -30,41 +32,13 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[rgb(25,25,25)]">
-      <div className="relative max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        {/* Icon + Hello at same left offset as Dashboard calendar (xl): calendar left = content left - 376px */}
-        <div className="hidden xl:flex absolute left-4 top-0 bottom-0 w-[376px] items-center gap-4 -translate-x-[376px]">
+      <div className="relative w-full px-4 h-14 flex items-center justify-between gap-4">
+        {/* Icon + Hello */}
+        <div className="flex items-center gap-4 min-w-0 shrink-0">
           <JWalletIcon className="w-8 h-8 shrink-0" />
           <span className="font-bold text-white truncate">
             {greeting}
           </span>
-        </div>
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="xl:hidden flex items-center gap-4 min-w-0 shrink-0">
-            <JWalletIcon className="w-8 h-8 shrink-0" />
-            <span className="font-bold text-white truncate">
-              {greeting}
-            </span>
-          </div>
-          <nav className="hidden sm:flex items-center gap-2 shrink-0">
-            <Link
-              href="/home"
-              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
-            >
-              Home
-            </Link>
-            <Link
-              href="/dashboard"
-              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/reports"
-              className="px-3 py-1.5 rounded-lg text-sm font-bold text-white hover:bg-white/10"
-            >
-              Reports
-            </Link>
-          </nav>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {wallets.length > 0 && (
@@ -90,9 +64,8 @@ export function Header() {
                           setCurrentWallet(w.id);
                           setWalletOpen(false);
                         }}
-                        className={`block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${
-                          w.id === currentWalletId ? "font-medium bg-slate-50 dark:bg-slate-700/50" : ""
-                        }`}
+                        className={`block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${w.id === currentWalletId ? "font-medium bg-slate-50 dark:bg-slate-700/50" : ""
+                          }`}
                       >
                         {w.name} {w.is_shared ? " (shared)" : ""}
                       </button>
@@ -124,21 +97,73 @@ export function Header() {
                   onClick={() => setMenuOpen(false)}
                   aria-hidden
                 />
-                <div className="absolute right-0 top-full mt-1 py-1 w-52 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg z-50">
+                <div className="absolute right-0 top-full mt-1 py-1 w-56 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-lg z-50">
                   <Link
-                    href="/profile"
+                    href="/home"
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                    Settings
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M3 9l9-7 9 7" /><path d="M9 22V12h6v10" /></svg>
+                    Home
                   </Link>
+                  <hr className="my-1 border-slate-200 dark:border-slate-600" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openNewIncome();
+                    }}
+                    className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-green-700 dark:text-green-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M12 5v14" /><path d="M19 12H5" /></svg>
+                    New income
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openNewExpense();
+                    }}
+                    className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-red-700 dark:text-red-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M5 12h14" /></svg>
+                    New expense
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openNewTransfer();
+                    }}
+                    className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-blue-700 dark:text-blue-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M7 7h10" /><path d="M7 7l4-4" /><path d="M7 7l4 4" /><path d="M17 17H7" /><path d="M17 17l-4-4" /><path d="M17 17l-4 4" /></svg>
+                    New transfer
+                  </button>
+                  <hr className="my-1 border-slate-200 dark:border-slate-600" />
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /><path d="M12 20V4" /></svg>
+                    Transactions
+                  </Link>
+                  <Link
+                    href="/reports"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M3 3v18h18" /><path d="M7 15v3" /><path d="M12 11v7" /><path d="M17 7v11" /></svg>
+                    Reports
+                  </Link>
+                  <hr className="my-1 border-slate-200 dark:border-slate-600" />
                   <Link
                     href="/wallets"
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><rect width="20" height="14" x="2" y="5" rx="2" /><path d="M2 10h20" /></svg>
                     Wallets
                   </Link>
                   <Link
@@ -146,7 +171,7 @@ export function Header() {
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><circle cx="16" cy="11" r="1"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><circle cx="16" cy="11" r="1" /></svg>
                     Accounts
                   </Link>
                   <Link
@@ -154,7 +179,7 @@ export function Header() {
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></svg>
                     Categories
                   </Link>
                   <Link
@@ -162,8 +187,16 @@ export function Header() {
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
                     Activity Log
+                  </Link>
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
+                    Settings
                   </Link>
                   <hr className="my-1 border-slate-200 dark:border-slate-600" />
                   <button
@@ -173,7 +206,7 @@ export function Header() {
                     }}
                     className="flex items-center gap-2.5 w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                     Log out
                   </button>
                 </div>
