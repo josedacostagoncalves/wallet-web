@@ -1,0 +1,125 @@
+{
+    "common": {
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "add": "Añadir",
+        "search": "Buscar",
+        "filter": "Filtrar",
+        "close": "Cerrar",
+        "confirm": "Confirmar",
+        "yes": "Sí",
+        "no": "No",
+        "loading": "Cargando...",
+        "error": "Error",
+        "success": "Éxito",
+        "hello": "Hola"
+    },
+    "navigation": {
+        "home": "Inicio",
+        "newIncome": "Nuevo ingreso",
+        "newExpense": "Nuevo gasto",
+        "newTransfer": "Nueva transferencia",
+        "transactions": "Transacciones",
+        "reports": "Informes",
+        "statements": "Extractos",
+        "wallets": "Carteras",
+        "accounts": "Cuentas",
+        "categories": "Categorías",
+        "activityLog": "Registro de actividad",
+        "settings": "Configuración",
+        "sidebarControl": "Control de barra lateral",
+        "expanded": "Expandida",
+        "collapsed": "Contraída",
+        "expandOnHover": "Expandir al pasar el ratón",
+        "selectWallet": "Seleccionar cartera",
+        "manageWallets": "Gestionar carteras"
+    },
+    "auth": {
+        "login": "Iniciar sesión",
+        "signup": "Registrarse",
+        "logout": "Cerrar sesión",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "forgotPassword": "¿Olvidó su contraseña?",
+        "dontHaveAccount": "¿No tiene una cuenta?",
+        "alreadyHaveAccount": "¿Ya tiene una cuenta?"
+    },
+    "dashboard": {
+        "title": "Panel",
+        "welcome": "Bienvenido",
+        "currentBalance": "Saldo Actual",
+        "totalIncome": "Ingresos Totales",
+        "totalExpenses": "Gastos Totales",
+        "recentTransactions": "Transacciones Recientes"
+    },
+    "settings": {
+        "title": "Configuración",
+        "profile": "Perfil",
+        "theme": "Tema",
+        "language": "Idioma",
+        "devices": "Dispositivos",
+        "notifications": "Notificaciones",
+        "security": "Seguridad",
+        "darkMode": "Modo Oscuro",
+        "lightMode": "Modo Claro",
+        "systemMode": "Predeterminado del Sistema"
+    },
+    "language": {
+        "english": "Inglés",
+        "portuguese": "Portugués",
+        "spanish": "Español",
+        "french": "Francés",
+        "languageUpdated": "Idioma actualizado correctamente"
+    },
+    "accounts": {
+        "title": "Cuentas",
+        "addAccount": "Añadir Cuenta",
+        "accountName": "Nombre de la Cuenta",
+        "accountType": "Tipo de Cuenta",
+        "balance": "Saldo",
+        "noAccounts": "Aún no hay cuentas"
+    },
+    "transactions": {
+        "title": "Transacciones",
+        "addTransaction": "Añadir Transacción",
+        "income": "Ingreso",
+        "expense": "Gasto",
+        "transfer": "Transferencia",
+        "amount": "Cantidad",
+        "category": "Categoría",
+        "date": "Fecha",
+        "description": "Descripción",
+        "noTransactions": "Aún no hay transacciones",
+        "allTransactions": "Todas las Transacciones"
+    },
+    "wallets": {
+        "title": "Carteras",
+        "addWallet": "Añadir Cartera",
+        "walletName": "Nombre de la Cartera",
+        "shared": "Compartida",
+        "personal": "Personal",
+        "noWallets": "Aún no hay carteras"
+    },
+    "categories": {
+        "title": "Categorías",
+        "addCategory": "Añadir Categoría",
+        "categoryName": "Nombre de la Categoría",
+        "noCategories": "Aún no hay categorías"
+    },
+    "reports": {
+        "title": "Informes",
+        "overview": "Resumen",
+        "byCategory": "Por Categoría",
+        "byAccount": "Por Cuenta",
+        "period": "Período"
+    },
+    "recurring": {
+        "title": "Recurrentes",
+        "addRecurring": "Añadir Transacción Recurrente",
+        "frequency": "Frecuencia",
+        "nextDate": "Próxima Fecha",
+        "noRecurring": "No hay transacciones recurrentes"
+    }
+}

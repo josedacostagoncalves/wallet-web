@@ -1,6 +1,6 @@
 "use client";
 
-import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 
 type Props = {
   className?: string;
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function NewExpenseTrigger({ className, children }: Props) {
-  const { openNewExpense } = useMovementModals();
+  const { openNewExpense } = useTransactionModals();
 
   return (
     <button type="button" onClick={openNewExpense} className={className}>

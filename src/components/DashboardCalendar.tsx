@@ -1,10 +1,10 @@
 "use client";
 
-import { MovementTypeIcon } from "@/components/ActionIcons";
-import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import { useMemo, useState } from "react";
 
-export type CalendarMovement = {
+export type CalendarTransaction = {
   id: string;
   date: string;
   type: string;
@@ -30,25 +30,25 @@ export type CalendarRecurringNextRun = {
 };
 
 type Props = {
-  movements: CalendarMovement[];
+  transactions: CalendarTransaction[];
   recurringNextRuns?: CalendarRecurringNextRun[];
 };
 
 type DayIndicators = { income: boolean; expense: boolean; transfer: boolean; pending: boolean };
 
 function indicatorsForDay(
-  movements: CalendarMovement[],
+  transactions: CalendarTransaction[],
   recurringCount: number
 ): DayIndicators {
   let income = false;
   let expense = false;
   let transfer = false;
   let pending = false;
-  for (const m of movements) {
-    if (m.type === "income") income = true;
-    else if (m.type === "expense") expense = true;
-    else if (m.type === "transfer") transfer = true;
-    if (m.status === "pending") pending = true;
+  for (const t of transactions) {
+    if (t.type === "income") income = true;
+    else if (t.type === "expense") expense = true;
+    else if (t.type === "transfer") transfer = true;
+    if (t.status === "pending") pending = true;
   }
   if (recurringCount > 0) pending = true;
   return { income, expense, transfer, pending };
@@ -61,16 +61,16 @@ const MONTHS = [
 
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function movementsByDate(movements: CalendarMovement[]): Map<string, CalendarMovement[]> {
-  const m = new Map<string, CalendarMovement[]>();
-  for (const t of movements) {
+function transactionsByDate(transactions: CalendarTransaction[]): Map<string, CalendarTransaction[]> {
+  const m = new Map<string, CalendarTransaction[]>();
+  for (const t of transactions) {
     const d = t.date.slice(0, 10);
     if (!m.has(d)) m.set(d, []);
     m.get(d)!.push(t);
   }
   const arrays = Array.from(m.values());
   for (const arr of arrays) {
-    arr.sort((a: CalendarMovement, b: CalendarMovement) => {
+    arr.sort((a: CalendarTransaction, b: CalendarTransaction) => {
       const byType = a.type.localeCompare(b.type);
       if (byType !== 0) return byType;
       const da = a.description ?? "";
@@ -93,15 +93,15 @@ function recurringByDate(
   return m;
 }
 
-export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) {
-  const { openEditMovement, openEditRecurring } = useMovementModals();
+export function DashboardCalendar({ transactions, recurringNextRuns = [] }: Props) {
+  const { openEditTransaction, openEditRecurring } = useTransactionModals();
   const [view, setView] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
   });
   const [selected, setSelected] = useState<string | null>(null);
 
-  const byDate = useMemo(() => movementsByDate(movements), [movements]);
+  const byDate = useMemo(() => transactionsByDate(transactions), [transactions]);
   const recurringByDay = useMemo(
     () => recurringByDate(recurringNextRuns),
     [recurringNextRuns]
@@ -138,10 +138,10 @@ export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) 
     else setView({ year: view.year, month: view.month + 1 });
   };
 
-  const dayMovements = selected ? (byDate.get(selected) ?? []) : [];
+  const dayTransactions = selected ? (byDate.get(selected) ?? []) : [];
   const dayRecurring = selected ? (recurringByDay.get(selected) ?? []) : [];
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
-  const hasDayContent = dayMovements.length > 0 || dayRecurring.length > 0;
+  const hasDayContent = dayTransactions.length > 0 || dayRecurring.length > 0;
 
   return (
     <div className="flex flex-col gap-4 w-[360px] shrink-0">
@@ -216,21 +216,20 @@ export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) 
           </div>
           <div className="p-3 max-h-[280px] overflow-y-auto">
             {!hasDayContent ? (
-              <p className="text-xs text-slate-500">No movements or recurring next runs on this day.</p>
+              <p className="text-xs text-slate-500">No transactions or recurring next runs on this day.</p>
             ) : (
               <ul className="space-y-2">
-                {dayMovements.map((t) => (
-                  <li key={`m-${t.id}`} className="text-xs">
+                {dayTransactions.map((t) => (
+                  <li key={`t-${t.id}`} className="text-xs">
                     <button
                       type="button"
-                      onClick={() => openEditMovement(t.id)}
-                      className={`w-full text-left flex items-start gap-2 rounded-lg p-2 border ${
-                        t.status === "pending"
-                          ? "border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-300"
-                          : "border-slate-100 hover:bg-slate-50 hover:border-slate-200"
-                      }`}
+                      onClick={() => openEditTransaction(t.id)}
+                      className={`w-full text-left flex items-start gap-2 rounded-lg p-2 border ${t.status === "pending"
+                        ? "border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-300"
+                        : "border-slate-100 hover:bg-slate-50 hover:border-slate-200"
+                        }`}
                     >
-                      <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                      <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} className="mt-0.5" />
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                         <span className="font-medium text-slate-800 truncate">
                           {t.description || "—"}
@@ -240,13 +239,12 @@ export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) 
                             {t.status === "pending" ? "Pending" : null}
                           </span>
                           <span
-                            className={`font-mono shrink-0 ${
-                              t.type === "income"
-                                ? "text-green-600"
-                                : t.type === "expense"
-                                  ? "text-red-600"
-                                  : "text-slate-600"
-                            }`}
+                            className={`font-mono shrink-0 ${t.type === "income"
+                              ? "text-green-600"
+                              : t.type === "expense"
+                                ? "text-red-600"
+                                : "text-slate-600"
+                              }`}
                           >
                             {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
                             {t.amount.toLocaleString("pt-PT", {
@@ -267,7 +265,7 @@ export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) 
                       onClick={() => openEditRecurring(r.id)}
                       className="w-full text-left flex items-start gap-2 rounded-lg p-2 border border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-300"
                     >
-                      <MovementTypeIcon type={r.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                      <TransactionTypeIcon type={r.type as "income" | "expense" | "transfer"} className="mt-0.5" />
                       <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                         <span className="font-medium text-slate-800 truncate">
                           {r.description || "—"}
@@ -275,13 +273,12 @@ export function DashboardCalendar({ movements, recurringNextRuns = [] }: Props) 
                         <span className="flex justify-between items-center gap-2">
                           <span className="text-slate-500">Next run</span>
                           <span
-                            className={`font-mono shrink-0 ${
-                              r.type === "income"
-                                ? "text-green-600"
-                                : r.type === "expense"
-                                  ? "text-red-600"
-                                  : "text-slate-600"
-                            }`}
+                            className={`font-mono shrink-0 ${r.type === "income"
+                              ? "text-green-600"
+                              : r.type === "expense"
+                                ? "text-red-600"
+                                : "text-slate-600"
+                              }`}
                           >
                             {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
                             {r.amount.toLocaleString("pt-PT", {

@@ -1,0 +1,125 @@
+{
+    "common": {
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "delete": "Supprimer",
+        "edit": "Modifier",
+        "add": "Ajouter",
+        "search": "Rechercher",
+        "filter": "Filtrer",
+        "close": "Fermer",
+        "confirm": "Confirmer",
+        "yes": "Oui",
+        "no": "Non",
+        "loading": "Chargement...",
+        "error": "Erreur",
+        "success": "Succès",
+        "hello": "Bonjour"
+    },
+    "navigation": {
+        "home": "Accueil",
+        "newIncome": "Nouveau revenu",
+        "newExpense": "Nouvelle dépense",
+        "newTransfer": "Nouveau transfert",
+        "transactions": "Transactions",
+        "reports": "Rapports",
+        "statements": "Relevés",
+        "wallets": "Portefeuilles",
+        "accounts": "Comptes",
+        "categories": "Catégories",
+        "activityLog": "Journal d'activité",
+        "settings": "Paramètres",
+        "sidebarControl": "Contrôle de la barre latérale",
+        "expanded": "Étendue",
+        "collapsed": "Réduite",
+        "expandOnHover": "Étendre au survol",
+        "selectWallet": "Sélectionner un portefeuille",
+        "manageWallets": "Gérer les portefeuilles"
+    },
+    "auth": {
+        "login": "Connexion",
+        "signup": "S'inscrire",
+        "logout": "Déconnexion",
+        "email": "Email",
+        "password": "Mot de passe",
+        "forgotPassword": "Mot de passe oublié ?",
+        "dontHaveAccount": "Vous n'avez pas de compte ?",
+        "alreadyHaveAccount": "Vous avez déjà un compte ?"
+    },
+    "dashboard": {
+        "title": "Tableau de bord",
+        "welcome": "Bienvenue",
+        "currentBalance": "Solde actuel",
+        "totalIncome": "Revenus totaux",
+        "totalExpenses": "Dépenses totales",
+        "recentTransactions": "Transactions récentes"
+    },
+    "settings": {
+        "title": "Paramètres",
+        "profile": "Profil",
+        "theme": "Thème",
+        "language": "Langue",
+        "devices": "Appareils",
+        "notifications": "Notifications",
+        "security": "Sécurité",
+        "darkMode": "Mode sombre",
+        "lightMode": "Mode clair",
+        "systemMode": "Système par défaut"
+    },
+    "language": {
+        "english": "Anglais",
+        "portuguese": "Portugais",
+        "spanish": "Espagnol",
+        "french": "Français",
+        "languageUpdated": "Langue mise à jour avec succès"
+    },
+    "accounts": {
+        "title": "Comptes",
+        "addAccount": "Ajouter un compte",
+        "accountName": "Nom du compte",
+        "accountType": "Type de compte",
+        "balance": "Solde",
+        "noAccounts": "Pas encore de comptes"
+    },
+    "transactions": {
+        "title": "Transactions",
+        "addTransaction": "Ajouter une transaction",
+        "income": "Revenu",
+        "expense": "Dépense",
+        "transfer": "Transfert",
+        "amount": "Montant",
+        "category": "Catégorie",
+        "date": "Date",
+        "description": "Description",
+        "noTransactions": "Pas encore de transactions",
+        "allTransactions": "Toutes les transactions"
+    },
+    "wallets": {
+        "title": "Portefeuilles",
+        "addWallet": "Ajouter un portefeuille",
+        "walletName": "Nom du portefeuille",
+        "shared": "Partagé",
+        "personal": "Personnel",
+        "noWallets": "Pas encore de portefeuilles"
+    },
+    "categories": {
+        "title": "Catégories",
+        "addCategory": "Ajouter une catégorie",
+        "categoryName": "Nom de la catégorie",
+        "noCategories": "Pas encore de catégories"
+    },
+    "reports": {
+        "title": "Rapports",
+        "overview": "Aperçu",
+        "byCategory": "Par catégorie",
+        "byAccount": "Par compte",
+        "period": "Période"
+    },
+    "recurring": {
+        "title": "Récurrents",
+        "addRecurring": "Ajouter une transaction récurrente",
+        "frequency": "Fréquence",
+        "nextDate": "Prochaine date",
+        "noRecurring": "Pas de transactions récurrentes"
+    }
+}

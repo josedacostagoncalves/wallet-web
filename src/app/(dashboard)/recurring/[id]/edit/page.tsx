@@ -5,7 +5,7 @@ import {
   getAccounts,
   getCategories,
   getSubcategories,
-} from "@/app/actions/movements";
+} from "@/app/actions/transactions";
 import {
   getRecurringRule,
   updateRecurringRule,
@@ -23,7 +23,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type MovementType = "income" | "expense" | "transfer";
+type TransactionType = "income" | "expense" | "transfer";
 
 export default function EditRecurringPage() {
   const params = useParams();
@@ -246,7 +246,7 @@ export default function EditRecurringPage() {
   }
 
   async function handleDelete() {
-    if (!rule || !confirm("Delete this recurring rule? No new runs will be created. Existing movements are kept.")) return;
+    if (!rule || !confirm("Delete this recurring rule? No new runs will be created. Existing transactions are kept.")) return;
     setDeleting(true);
     setError(null);
     const res = await deleteRecurringRule(id);
@@ -273,7 +273,7 @@ export default function EditRecurringPage() {
     );
   }
 
-  const type = rule.type as MovementType;
+  const type = rule.type as TransactionType;
   const categoryOpts = categories;
   const needsExtraCategory =
     categoryId && !categoryOpts.some((c) => c.id === categoryId);
@@ -286,7 +286,7 @@ export default function EditRecurringPage() {
       <h1 className="text-2xl font-semibold">Edit recurring</h1>
       <p className="text-sm text-slate-600 dark:text-slate-400">
         Changes apply only to future runs. Existing pending or confirmed
-        movements are not modified.
+        transactions are not modified.
       </p>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
@@ -635,7 +635,7 @@ export default function EditRecurringPage() {
             </label>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 pl-6">
-            Uncheck to disable recurring. No new movements will be created until
+            Uncheck to disable recurring. No new transactions will be created until
             you turn it back on.
           </p>
         </div>

@@ -190,7 +190,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
                   onChange={(e) => setIsActive(e.target.checked)}
                 />
                 <label htmlFor="catIsActive" className="text-sm">
-                  Active (shown in movement form)
+                  Active (shown in transaction form)
                 </label>
               </div>
             )}

@@ -92,12 +92,12 @@ export async function updateCategory(
 }
 
 /**
- * Returns the number of movements that reference this category
+ * Returns the number of transactions that reference this category
  * (and its subcategories, if it is a parent category).
  */
 export async function getCategoryUsage(
   id: string
-): Promise<{ movementCount: number; childCount: number }> {
+): Promise<{ transactionCount: number; childCount: number }> {
   const supabase = await createClient();
 
   // Collect all category IDs to check (self + children)
@@ -108,24 +108,24 @@ export async function getCategoryUsage(
   const childIds = (children ?? []).map((c) => c.id);
   const allIds = [id, ...childIds];
 
-  // Count movements referencing any of those IDs
-  let movementCount = 0;
+  // Count transactions referencing any of those IDs
+  let transactionCount = 0;
   for (const catId of allIds) {
     const { count } = await supabase
       .from("transactions")
       .select("*", { count: "exact", head: true })
       .eq("category_id", catId);
-    movementCount += count ?? 0;
+    transactionCount += count ?? 0;
   }
 
-  return { movementCount, childCount: childIds.length };
+  return { transactionCount, childCount: childIds.length };
 }
 
 /**
  * Deletes a category (and its subcategories).
- * - If movements reference the category: deactivates instead of deleting
- *   so that confirmed movements maintain their category data.
- * - If no movements reference it: hard-deletes.
+ * - If transactions reference the category: deactivates instead of deleting
+ *   so that confirmed transactions maintain their category data.
+ * - If no transactions reference it: hard-deletes.
  */
 export async function deleteCategory(id: string): Promise<{ error?: string; deactivated?: boolean }> {
   const supabase = await createClient();
@@ -145,18 +145,18 @@ export async function deleteCategory(id: string): Promise<{ error?: string; deac
   const childIds = (children ?? []).map((c) => c.id);
   const allIds = [id, ...childIds];
 
-  // Count movements referencing this category or its subcategories
-  let movementCount = 0;
+  // Count transactions referencing this category or its subcategories
+  let transactionCount = 0;
   for (const catId of allIds) {
     const { count } = await supabase
       .from("transactions")
       .select("*", { count: "exact", head: true })
       .eq("category_id", catId);
-    movementCount += count ?? 0;
+    transactionCount += count ?? 0;
   }
 
-  if (movementCount > 0) {
-    // Deactivate instead of deleting to preserve movement data
+  if (transactionCount > 0) {
+    // Deactivate instead of deleting to preserve transaction data
     const { error: deactivateErr } = await supabase
       .from("categories")
       .update({ is_active: false })
@@ -168,12 +168,12 @@ export async function deleteCategory(id: string): Promise<{ error?: string; deac
       entity_type: "category",
       entity_id: id,
       wallet_id: existing.wallet_id,
-      payload: { name: existing.name, reason: "has_movements", movementCount },
+      payload: { name: existing.name, reason: "has_transactions", transactionCount },
     });
     return { deactivated: true };
   }
 
-  // No movements — safe to hard-delete
+  // No transactions — safe to hard-delete
   if (childIds.length > 0) {
     const { error: childErr } = await supabase
       .from("categories")

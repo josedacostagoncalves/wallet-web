@@ -4,10 +4,10 @@ import {
   getAccounts,
   getCategories,
   getSubcategories,
-  getMovement,
-  createMovement,
-  getRecentMovementsByCategory,
-} from "@/app/actions/movements";
+  getTransaction,
+  createTransaction,
+  getRecentTransactionsByCategory,
+} from "@/app/actions/transactions";
 import { CopyIcon } from "@/components/ActionIcons";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
@@ -20,20 +20,20 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-type MovementType = "income" | "expense" | "transfer";
+type TransactionType = "income" | "expense" | "transfer";
 
-export default function NewMovementPage() {
+export default function NewTransactionPage() {
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
   const copyId = searchParams.get("copy");
-  const typeParam = searchParams.get("type") as MovementType | null;
+  const typeParam = searchParams.get("type") as TransactionType | null;
 
   // Initialize state based on URL params
   const isValidType = typeParam && ["income", "expense", "transfer"].includes(typeParam);
   const [step, setStep] = useState<"type" | "form">(isValidType ? "form" : "type");
-  const [type, setType] = useState<MovementType | null>(isValidType ? typeParam : null);
+  const [type, setType] = useState<TransactionType | null>(isValidType ? typeParam : null);
   const [copyFrom, setCopyFrom] = useState<{
     category_id: string;
     parent_id: string | null;
@@ -93,10 +93,10 @@ export default function NewMovementPage() {
     if (!copyId || !currentWalletId) return;
     setLoadingCopy(true);
     setCopyError(null);
-    getMovement(copyId).then((m) => {
+    getTransaction(copyId).then((m) => {
       setLoadingCopy(false);
       if (!m) {
-        setCopyError("Could not load movement to copy.");
+        setCopyError("Could not load transaction to copy.");
         return;
       }
       const parentId = m.parent_id ?? null;
@@ -110,7 +110,7 @@ export default function NewMovementPage() {
         account_to_id: m.account_to_id,
         description: m.description,
       });
-      setType(m.type as MovementType);
+      setType(m.type as TransactionType);
       setStep("form");
       setDate(new Date().toISOString().slice(0, 10));
       setAmount(String(m.amount));
@@ -162,7 +162,7 @@ export default function NewMovementPage() {
       return;
     }
     setLoadingSimilar(true);
-    getRecentMovementsByCategory(
+    getRecentTransactionsByCategory(
       currentWalletId,
       type,
       categoryId,
@@ -172,7 +172,7 @@ export default function NewMovementPage() {
       .finally(() => setLoadingSimilar(false));
   }, [type, currentWalletId, categoryId, subcategoryId]);
 
-  function pickType(t: MovementType) {
+  function pickType(t: TransactionType) {
     setType(t);
     setStep("form");
     setError(null);
@@ -180,7 +180,7 @@ export default function NewMovementPage() {
 
   async function handleCopyFromSimilar(id: string) {
     setCopyingSimilarId(id);
-    const m = await getMovement(id);
+    const m = await getTransaction(id);
     setCopyingSimilarId(null);
     if (!m) return;
     const parentId = m.parent_id ?? null;
@@ -252,7 +252,7 @@ export default function NewMovementPage() {
         return;
       }
     }
-    const res = await createMovement({
+    const res = await createTransaction({
       wallet_id: currentWalletId,
       type,
       category_id: catId,
@@ -283,7 +283,7 @@ export default function NewMovementPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Movement added.");
+    showToast("Transaction added.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -291,7 +291,7 @@ export default function NewMovementPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">New movement</h1>
+        <h1 className="text-2xl font-semibold">New transaction</h1>
         <p className="text-slate-600 dark:text-slate-400">
           Select or create a wallet first.
         </p>
@@ -305,14 +305,14 @@ export default function NewMovementPage() {
   if (copyId && (loadingCopy || step === "type")) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">New movement</h1>
+        <h1 className="text-2xl font-semibold">New transaction</h1>
         <div className="w-full max-w-md space-y-4 animate-pulse">
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
         </div>
-        <p className="text-sm text-slate-500">Loading movement to copy…</p>
+        <p className="text-sm text-slate-500">Loading transaction to copy…</p>
       </div>
     );
   }
@@ -320,11 +320,11 @@ export default function NewMovementPage() {
   if (copyId && copyError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">New movement</h1>
+        <h1 className="text-2xl font-semibold">New transaction</h1>
         <p className="text-slate-600 dark:text-slate-400">{copyError}</p>
         <div className="flex gap-3">
           <Link
-            href="/movements/new"
+            href="/transactions/new"
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
           >
             Choose type
@@ -343,9 +343,9 @@ export default function NewMovementPage() {
   if (step === "type") {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">New movement</h1>
+        <h1 className="text-2xl font-semibold">New transaction</h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Choose the type of movement.
+          Choose the type of transaction.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
@@ -705,10 +705,10 @@ export default function NewMovementPage() {
                         </td>
                         <td
                           className={`py-2 pr-3 text-right font-mono ${type === "income"
-                              ? "text-green-600"
-                              : type === "expense"
-                                ? "text-red-600"
-                                : ""
+                            ? "text-green-600"
+                            : type === "expense"
+                              ? "text-red-600"
+                              : ""
                             }`}
                         >
                           {type === "income" ? "+" : type === "expense" ? "−" : ""}

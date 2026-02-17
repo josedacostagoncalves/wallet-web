@@ -111,7 +111,7 @@ export default function NewWalletPage() {
                 }
               >
                 <div className="text-sm font-semibold mb-1">Shared: Track</div>
-                <div className="text-xs text-slate-600">Register movements and account balances</div>
+                <div className="text-xs text-slate-600">Register transactions and account balances</div>
               </button>
 
               <button
@@ -125,7 +125,7 @@ export default function NewWalletPage() {
                 }
               >
                 <div className="text-sm font-semibold mb-1">Shared: Split</div>
-                <div className="text-xs text-slate-600">Register movements and split expenses among members</div>
+                <div className="text-xs text-slate-600">Register transactions and split expenses among members</div>
               </button>
 
               <button
@@ -139,7 +139,7 @@ export default function NewWalletPage() {
                 }
               >
                 <div className="text-sm font-semibold mb-1">Shared: Track and Split</div>
-                <div className="text-xs text-slate-600">Register movements and split expenses (based on income)</div>
+                <div className="text-xs text-slate-600">Register transactions and split expenses (based on income)</div>
               </button>
             </div>
           </div>

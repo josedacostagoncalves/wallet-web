@@ -1,6 +1,6 @@
 "use client";
 
-import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 
 type Props = {
   className?: string;
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function NewTransferTrigger({ className, children }: Props) {
-  const { openNewTransfer } = useMovementModals();
+  const { openNewTransfer } = useTransactionModals();
 
   return (
     <button type="button" onClick={openNewTransfer} className={className}>

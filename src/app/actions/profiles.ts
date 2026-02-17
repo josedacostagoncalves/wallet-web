@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 export type ThemeMode = "light" | "dark" | "system";
+export type LanguageCode = "en" | "pt" | "es" | "fr";
 
 export type Profile = {
   first_name: string | null;
@@ -11,6 +12,7 @@ export type Profile = {
   birth_date: string | null;
   country: string | null;
   theme: ThemeMode;
+  language: LanguageCode;
 };
 
 /**
@@ -23,7 +25,7 @@ export async function getOrEnsureProfile(
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("profiles")
-    .select("first_name, last_name, avatar_url, birth_date, country, theme")
+    .select("first_name, last_name, avatar_url, birth_date, country, theme, language")
     .eq("id", userId)
     .single();
 
@@ -35,6 +37,7 @@ export async function getOrEnsureProfile(
       birth_date: existing.birth_date ?? null,
       country: existing.country ?? null,
       theme: (existing.theme as ThemeMode) ?? "system",
+      language: (existing.language as LanguageCode) ?? "en",
     };
   }
 
@@ -42,7 +45,15 @@ export async function getOrEnsureProfile(
   const last_name = (metadata?.last_name ?? "")?.trim() || null;
   await supabase.from("profiles").insert({ id: userId, first_name, last_name });
 
-  return { first_name, last_name, avatar_url: null, birth_date: null, country: null, theme: "system" };
+  return {
+    first_name,
+    last_name,
+    avatar_url: null,
+    birth_date: null,
+    country: null,
+    theme: "system",
+    language: "en",
+  };
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -114,6 +125,24 @@ export async function saveTheme(theme: ThemeMode): Promise<{ error?: string }> {
   const { error } = await supabase
     .from("profiles")
     .update({ theme })
+    .eq("id", user.id);
+  if (error) return { error: error.message };
+  return {};
+}
+
+/**
+ * Save the user's language preference.
+ */
+export async function saveLanguage(language: LanguageCode): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ language })
     .eq("id", user.id);
   if (error) return { error: error.message };
   return {};

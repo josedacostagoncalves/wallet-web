@@ -1,0 +1,125 @@
+{
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "add": "Add",
+        "search": "Search",
+        "filter": "Filter",
+        "close": "Close",
+        "confirm": "Confirm",
+        "yes": "Yes",
+        "no": "No",
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "hello": "Hello"
+    },
+    "navigation": {
+        "home": "Home",
+        "newIncome": "New income",
+        "newExpense": "New expense",
+        "newTransfer": "New transfer",
+        "transactions": "Transactions",
+        "reports": "Reports",
+        "statements": "Statements",
+        "wallets": "Wallets",
+        "accounts": "Accounts",
+        "categories": "Categories",
+        "activityLog": "Activity log",
+        "settings": "Settings",
+        "sidebarControl": "Sidebar control",
+        "expanded": "Expanded",
+        "collapsed": "Collapsed",
+        "expandOnHover": "Expand on hover",
+        "selectWallet": "Select wallet",
+        "manageWallets": "Manage wallets"
+    },
+    "auth": {
+        "login": "Login",
+        "signup": "Sign Up",
+        "logout": "Log out",
+        "email": "Email",
+        "password": "Password",
+        "forgotPassword": "Forgot Password?",
+        "dontHaveAccount": "Don't have an account?",
+        "alreadyHaveAccount": "Already have an account?"
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "welcome": "Welcome",
+        "currentBalance": "Current Balance",
+        "totalIncome": "Total Income",
+        "totalExpenses": "Total Expenses",
+        "recentTransactions": "Recent Transactions"
+    },
+    "settings": {
+        "title": "Settings",
+        "profile": "Profile",
+        "theme": "Theme",
+        "language": "Language",
+        "devices": "Devices",
+        "notifications": "Notifications",
+        "security": "Security",
+        "darkMode": "Dark Mode",
+        "lightMode": "Light Mode",
+        "systemMode": "System Default"
+    },
+    "language": {
+        "english": "English",
+        "portuguese": "Portuguese",
+        "spanish": "Spanish",
+        "french": "French",
+        "languageUpdated": "Language updated successfully"
+    },
+    "accounts": {
+        "title": "Accounts",
+        "addAccount": "Add Account",
+        "accountName": "Account Name",
+        "accountType": "Account Type",
+        "balance": "Balance",
+        "noAccounts": "No accounts yet"
+    },
+    "transactions": {
+        "title": "Transactions",
+        "addTransaction": "Add Transaction",
+        "income": "Income",
+        "expense": "Expense",
+        "transfer": "Transfer",
+        "amount": "Amount",
+        "category": "Category",
+        "date": "Date",
+        "description": "Description",
+        "noTransactions": "No transactions yet",
+        "allTransactions": "All Transactions"
+    },
+    "wallets": {
+        "title": "Wallets",
+        "addWallet": "Add Wallet",
+        "walletName": "Wallet Name",
+        "shared": "Shared",
+        "personal": "Personal",
+        "noWallets": "No wallets yet"
+    },
+    "categories": {
+        "title": "Categories",
+        "addCategory": "Add Category",
+        "categoryName": "Category Name",
+        "noCategories": "No categories yet"
+    },
+    "reports": {
+        "title": "Reports",
+        "overview": "Overview",
+        "byCategory": "By Category",
+        "byAccount": "By Account",
+        "period": "Period"
+    },
+    "recurring": {
+        "title": "Recurring",
+        "addRecurring": "Add Recurring Transaction",
+        "frequency": "Frequency",
+        "nextDate": "Next Date",
+        "noRecurring": "No recurring transactions"
+    }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { getMovement } from "@/app/actions/movements";
+import { getTransaction } from "@/app/actions/transactions";
 import { getRecurringRule } from "@/app/actions/recurring";
 import {
   createContext,
@@ -11,53 +11,53 @@ import {
   type ReactNode,
 } from "react";
 
-export type MovementModalType = "income" | "expense" | "transfer" | "recurring-edit";
-export type MovementModalMode = "new" | "edit" | "copy";
+export type TransactionModalType = "income" | "expense" | "transfer" | "recurring-edit";
+export type TransactionModalMode = "new" | "edit" | "copy";
 
-type MovementModalsState = {
-  which: MovementModalType | null;
-  mode: MovementModalMode;
-  movementId: string | null;
-  copyFromMovementId: string | null;
+type TransactionModalsState = {
+  which: TransactionModalType | null;
+  mode: TransactionModalMode;
+  transactionId: string | null;
+  copyFromTransactionId: string | null;
   copyFromRecurringId: string | null;
   recurringEditId: string | null;
   opening: boolean;
 };
 
-const initialState: MovementModalsState = {
+const initialState: TransactionModalsState = {
   which: null,
   mode: "new",
-  movementId: null,
-  copyFromMovementId: null,
+  transactionId: null,
+  copyFromTransactionId: null,
   copyFromRecurringId: null,
   recurringEditId: null,
   opening: false,
 };
 
-type MovementModalsContextValue = {
-  state: MovementModalsState;
+type TransactionModalsContextValue = {
+  state: TransactionModalsState;
   openNewIncome: () => void;
   openNewExpense: () => void;
   openNewTransfer: () => void;
-  openEditMovement: (id: string) => void;
-  openCopyMovement: (id: string) => void;
+  openEditTransaction: (id: string) => void;
+  openCopyTransaction: (id: string) => void;
   openEditRecurring: (id: string) => void;
   openCopyRecurring: (id: string) => void;
   closeModals: () => void;
 };
 
-const MovementModalsContext = createContext<MovementModalsContextValue | null>(null);
+const TransactionModalsContext = createContext<TransactionModalsContextValue | null>(null);
 
-export function useMovementModals() {
-  const ctx = useContext(MovementModalsContext);
-  if (!ctx) throw new Error("useMovementModals must be used within MovementModalsProvider");
+export function useTransactionModals() {
+  const ctx = useContext(TransactionModalsContext);
+  if (!ctx) throw new Error("useTransactionModals must be used within TransactionModalsProvider");
   return ctx;
 }
 
 type Props = { children: ReactNode };
 
-export function MovementModalsProvider({ children }: Props) {
-  const [state, setState] = useState<MovementModalsState>(initialState);
+export function TransactionModalsProvider({ children }: Props) {
+  const [state, setState] = useState<TransactionModalsState>(initialState);
 
   const closeModals = useCallback(() => {
     setState(initialState);
@@ -87,9 +87,9 @@ export function MovementModalsProvider({ children }: Props) {
     });
   }, []);
 
-  const openEditMovement = useCallback(async (id: string) => {
+  const openEditTransaction = useCallback(async (id: string) => {
     setState((s) => ({ ...s, opening: true }));
-    const m = await getMovement(id);
+    const m = await getTransaction(id);
     setState((s) => ({ ...s, opening: false }));
     if (!m) return;
     const which = m.type as "income" | "expense" | "transfer";
@@ -97,13 +97,13 @@ export function MovementModalsProvider({ children }: Props) {
       ...initialState,
       which,
       mode: "edit",
-      movementId: id,
+      transactionId: id,
     });
   }, []);
 
-  const openCopyMovement = useCallback(async (id: string) => {
+  const openCopyTransaction = useCallback(async (id: string) => {
     setState((s) => ({ ...s, opening: true }));
-    const m = await getMovement(id);
+    const m = await getTransaction(id);
     setState((s) => ({ ...s, opening: false }));
     if (!m) return;
     const which = m.type as "income" | "expense" | "transfer";
@@ -111,7 +111,7 @@ export function MovementModalsProvider({ children }: Props) {
       ...initialState,
       which,
       mode: "copy",
-      copyFromMovementId: id,
+      copyFromTransactionId: id,
     });
   }, []);
 
@@ -144,8 +144,8 @@ export function MovementModalsProvider({ children }: Props) {
       openNewIncome,
       openNewExpense,
       openNewTransfer,
-      openEditMovement,
-      openCopyMovement,
+      openEditTransaction,
+      openCopyTransaction,
       openEditRecurring,
       openCopyRecurring,
       closeModals,
@@ -155,8 +155,8 @@ export function MovementModalsProvider({ children }: Props) {
       openNewIncome,
       openNewExpense,
       openNewTransfer,
-      openEditMovement,
-      openCopyMovement,
+      openEditTransaction,
+      openCopyTransaction,
       openEditRecurring,
       openCopyRecurring,
       closeModals,
@@ -164,8 +164,8 @@ export function MovementModalsProvider({ children }: Props) {
   );
 
   return (
-    <MovementModalsContext.Provider value={value}>
+    <TransactionModalsContext.Provider value={value}>
       {children}
-    </MovementModalsContext.Provider>
+    </TransactionModalsContext.Provider>
   );
 }

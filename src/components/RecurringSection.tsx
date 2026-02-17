@@ -1,15 +1,15 @@
 "use client";
 
 import { deleteRecurringRule } from "@/app/actions/recurring";
-import { CopyIcon, DeleteIcon, EditIcon, MovementTypeIcon } from "@/components/ActionIcons";
+import { CopyIcon, DeleteIcon, EditIcon, TransactionTypeIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import { useToast } from "@/contexts/ToastContext";
 import {
   formatCategorySubcategory,
   formatFromTo,
-} from "@/lib/movement-labels";
-import { movementRowBgClass } from "@/lib/movement-row-style";
+} from "@/lib/transaction-labels";
+import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -35,7 +35,7 @@ type Props = { recurring: RecurringRow[] };
 export function RecurringSection({ recurring }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
-  const { openEditRecurring, openCopyRecurring } = useMovementModals();
+  const { openEditRecurring, openCopyRecurring } = useTransactionModals();
   const [expanded, setExpanded] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
@@ -57,9 +57,9 @@ export function RecurringSection({ recurring }: Props) {
     <div className="rounded-xl border border-slate-200 overflow-hidden">
       {recurring.length === 0 ? (
         <div className="p-6 text-slate-500 text-xs">
-          No recurring movements.{" "}
-          <Link href="/movements/new" className="underline">
-            Add a movement
+          No recurring transactions.{" "}
+          <Link href="/transactions/new" className="underline">
+            Add a transaction
           </Link>{" "}
           and enable &quot;Make it recurring&quot;.
         </div>
@@ -122,10 +122,10 @@ export function RecurringSection({ recurring }: Props) {
                   {recurring.map((r) => (
                     <tr
                       key={r.id}
-                      className={`${movementRowBgClass(r.type)} ${!r.isActive || r.isStopped ? "opacity-60" : ""}`}
+                      className={`${transactionRowBgClass(r.type)} ${!r.isActive || r.isStopped ? "opacity-60" : ""}`}
                     >
                       <td className="px-4 py-3">
-                        <MovementTypeIcon type={r.type as "income" | "expense" | "transfer"} />
+                        <TransactionTypeIcon type={r.type as "income" | "expense" | "transfer"} />
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {r.isStopped ? (
@@ -149,13 +149,12 @@ export function RecurringSection({ recurring }: Props) {
                         {formatFromTo(r.accountFromName, r.accountToName)}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right font-mono ${
-                          r.type === "income"
-                            ? "text-green-600"
-                            : r.type === "expense"
-                              ? "text-red-600"
-                              : ""
-                        }`}
+                        className={`px-4 py-3 text-right font-mono ${r.type === "income"
+                          ? "text-green-600"
+                          : r.type === "expense"
+                            ? "text-red-600"
+                            : ""
+                          }`}
                       >
                         {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
                         {r.amount.toLocaleString("pt-PT", {
@@ -166,7 +165,7 @@ export function RecurringSection({ recurring }: Props) {
                       </td>
                       <td className="px-4 py-3 text-slate-600">{r.repeatLabel}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex flex-wrap items-center gap-1">
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
                           {r.isActive && (
                             <button
                               type="button"
@@ -213,7 +212,7 @@ export function RecurringSection({ recurring }: Props) {
           onClose={() => setDeleteDialogId(null)}
           onConfirm={() => handleDeleteConfirm(deleteDialogId)}
           title="Delete recurring rule"
-          message="Delete this recurring rule? No new runs will be created. Existing movements are kept."
+          message="Delete this recurring rule? No new runs will be created. Existing transactions are kept."
           confirmLabel="Delete"
           cancelLabel="Keep"
           variant="cancel"

@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { getOrEnsureProfile } from "@/app/actions/profiles";
 import { DevicesSection } from "@/components/DevicesSection";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { ProfileSettingsForm } from "@/components/ProfileSettingsForm";
 import { ThemeSelector } from "@/components/ThemeSelector";
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfileSettingsPage() {
+  const t = await getTranslations('settings');
   const supabase = await createClient();
   const {
     data: { user },
@@ -17,7 +20,7 @@ export default async function ProfileSettingsPage() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <h1 className="text-2xl font-semibold">{t('title')}</h1>
       <ProfileSettingsForm
         first_name={profile.first_name}
         last_name={profile.last_name}
@@ -28,6 +31,8 @@ export default async function ProfileSettingsPage() {
       />
       <hr className="border-slate-200 dark:border-slate-700" />
       <ThemeSelector />
+      <hr className="border-slate-200 dark:border-slate-700" />
+      <LanguageSelector language={profile.language} />
       <hr className="border-slate-200 dark:border-slate-700" />
       <DevicesSection />
     </div>

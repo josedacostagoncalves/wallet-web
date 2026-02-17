@@ -79,7 +79,7 @@ const TYPE_COLORS: Record<string, string> = {
 
 /* ─── Helpers ─── */
 
-function buildDeleteMessage(t: { name: string; childCount: number; movementCount: number }): string {
+function buildDeleteMessage(t: { name: string; childCount: number; transactionCount: number }): string {
   const parts: string[] = [];
 
   // What will be affected
@@ -89,10 +89,10 @@ function buildDeleteMessage(t: { name: string; childCount: number; movementCount
     parts.push(`"${t.name}"`);
   }
 
-  // Movement info
-  if (t.movementCount > 0) {
-    const mvLabel = t.movementCount === 1 ? "1 movement uses" : `${t.movementCount} movements use`;
-    return `${mvLabel} ${parts[0]}. It will be deactivated instead of deleted so confirmed movements maintain their data.`;
+  // Transaction info
+  if (t.transactionCount > 0) {
+    const txLabel = t.transactionCount === 1 ? "1 transaction uses" : `${t.transactionCount} transactions use`;
+    return `${txLabel} ${parts[0]}. It will be deactivated instead of deleted so confirmed transactions maintain their data.`;
   }
 
   return `Delete ${parts[0]}? This cannot be undone.`;
@@ -118,7 +118,7 @@ export default function CategoriesPage() {
     id: string;
     name: string;
     childCount: number;
-    movementCount: number;
+    transactionCount: number;
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [loadingUsage, setLoadingUsage] = useState(false);
@@ -191,7 +191,7 @@ export default function CategoriesPage() {
     setDeleteTarget({
       ...cat,
       childCount: usage.childCount,
-      movementCount: usage.movementCount,
+      transactionCount: usage.transactionCount,
     });
   }
 
@@ -203,7 +203,7 @@ export default function CategoriesPage() {
     if (res.error) {
       showToast(res.error, "error");
     } else if (res.deactivated) {
-      showToast("Category deactivated (movements preserved).");
+      showToast("Category deactivated (transactions preserved).");
       loadCategories();
     } else {
       showToast("Category deleted.");
@@ -286,9 +286,8 @@ export default function CategoriesPage() {
                             <div key={cat.id}>
                               {/* Category row */}
                               <div
-                                className={`flex items-center justify-between px-4 py-2.5 ${
-                                  !cat.is_active ? "opacity-50" : ""
-                                } ${hasSubs ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30" : ""}`}
+                                className={`flex items-center justify-between px-4 py-2.5 ${!cat.is_active ? "opacity-50" : ""
+                                  } ${hasSubs ? "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30" : ""}`}
                                 onClick={() => hasSubs && toggleCategory(cat.id)}
                               >
                                 <div className="flex items-center gap-2">
@@ -345,7 +344,7 @@ export default function CategoriesPage() {
                                       })
                                     }
                                     disabled={loadingUsage}
-                                    className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
+                                    className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                                     title="Delete"
                                   >
                                     <DeleteIcon className="w-3.5 h-3.5" />
@@ -359,9 +358,8 @@ export default function CategoriesPage() {
                                   {cat.children.map((sub) => (
                                     <div
                                       key={sub.id}
-                                      className={`flex items-center justify-between px-4 pl-10 py-2 ${
-                                        !sub.is_active ? "opacity-50" : ""
-                                      }`}
+                                      className={`flex items-center justify-between px-4 pl-10 py-2 ${!sub.is_active ? "opacity-50" : ""
+                                        }`}
                                     >
                                       <div className="flex items-center gap-2">
                                         <span className="text-sm">
@@ -395,7 +393,7 @@ export default function CategoriesPage() {
                                             })
                                           }
                                           disabled={loadingUsage}
-                                          className="text-slate-400 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50"
+                                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
                                           title="Delete"
                                         >
                                           <DeleteIcon className="w-3.5 h-3.5" />
@@ -439,7 +437,7 @@ export default function CategoriesPage() {
             ? buildDeleteMessage(deleteTarget)
             : ""
         }
-        confirmLabel={deleteTarget && deleteTarget.movementCount > 0 ? "Deactivate" : "Delete"}
+        confirmLabel={deleteTarget && deleteTarget.transactionCount > 0 ? "Deactivate" : "Delete"}
         cancelLabel="Cancel"
         variant="cancel"
         loading={deleting}

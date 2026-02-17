@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createMovement } from "@/app/actions/movements";
+import { createTransaction } from "@/app/actions/transactions";
 import {
   type RecurrenceType,
   nextOccurrenceOfWeekday,
@@ -218,12 +218,12 @@ export async function deleteRecurringRule(id: string): Promise<{ error?: string 
   return {};
 }
 
-/** Copy a recurring rule: create one new movement (pending) + new recurring rule. Changes apply only to the new rule. */
+/** Copy a recurring rule: create one new transaction (pending) + new recurring rule. Changes apply only to the new rule. */
 export async function copyRecurringRule(id: string): Promise<{ error?: string }> {
   const rule = await getRecurringRule(id);
   if (!rule) return { error: "Recurring rule not found" };
 
-  return createMovement({
+  return createTransaction({
     wallet_id: rule.wallet_id,
     type: rule.type,
     category_id: rule.category_id,

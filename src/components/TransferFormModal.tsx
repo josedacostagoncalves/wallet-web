@@ -4,14 +4,14 @@ import {
   getAccounts,
   getCategories,
   getSubcategories,
-  getMovement,
-  getRecentMovementsByType,
-  getRecentMovementsByCategory,
-  createMovement,
-  updateMovement,
-  confirmMovement,
-  deleteMovement,
-} from "@/app/actions/movements";
+  getTransaction,
+  getRecentTransactionsByType,
+  getRecentTransactionsByCategory,
+  createTransaction,
+  updateTransaction,
+  confirmTransaction,
+  deleteTransaction,
+} from "@/app/actions/transactions";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
@@ -28,14 +28,14 @@ import {
 } from "@/lib/recurrence";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MovementModalMode } from "@/contexts/MovementModalsContext";
+import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  mode?: MovementModalMode;
-  movementId?: string;
-  copyFromMovementId?: string;
+  mode?: TransactionModalMode;
+  transactionId?: string;
+  copyFromTransactionId?: string;
   copyFromRecurringId?: string;
 };
 
@@ -46,8 +46,8 @@ export function TransferFormModal({
   open,
   onClose,
   mode = "new",
-  movementId,
-  copyFromMovementId,
+  transactionId,
+  copyFromTransactionId,
   copyFromRecurringId,
 }: Props) {
   const router = useRouter();
@@ -104,8 +104,8 @@ export function TransferFormModal({
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountFromId: string; accountToId: string; holdBalance: boolean } | null>(null);
   const autoSelectedMember = useRef(false);
-  const isEdit = mode === "edit" && !!movementId;
-  const isCopy = mode === "copy";
+  const isEdit = mode === "edit" && !!transactionId;
+  const isCopy = mode === "copy" && !!copyFromTransactionId;
 
   useEffect(() => {
     if (!open || !currentWalletId) {
@@ -118,9 +118,9 @@ export function TransferFormModal({
 
   useEffect(() => {
     if (!open || !currentWalletId) return;
-    if (isEdit && movementId) {
+    if (isEdit && transactionId) {
       setLoadingData(true);
-      getMovement(movementId).then((m) => {
+      getTransaction(transactionId).then((m) => {
         setLoadingData(false);
         if (!m) return;
         setStatus(m.status);
@@ -145,9 +145,9 @@ export function TransferFormModal({
       });
       return;
     }
-    if (isCopy && copyFromMovementId) {
+    if (isCopy && copyFromTransactionId) {
       setLoadingData(true);
-      getMovement(copyFromMovementId).then((m) => {
+      getTransaction(copyFromTransactionId).then((m) => {
         setLoadingData(false);
         if (!m) return;
         const parentId = m.parent_id ?? null;
@@ -214,7 +214,7 @@ export function TransferFormModal({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
-  }, [open, currentWalletId, isEdit, isCopy, movementId, copyFromMovementId, copyFromRecurringId]);
+  }, [open, currentWalletId, isEdit, isCopy, transactionId, copyFromTransactionId, copyFromRecurringId]);
 
   useEffect(() => {
     if (!categoryId) {
@@ -238,11 +238,11 @@ export function TransferFormModal({
     }
     setLoadingSimilar(true);
     if (!categoryId) {
-      getRecentMovementsByType(currentWalletId, "transfer", 20)
+      getRecentTransactionsByType(currentWalletId, "transfer", 20)
         .then(setRecentSimilar)
         .finally(() => setLoadingSimilar(false));
     } else {
-      getRecentMovementsByCategory(
+      getRecentTransactionsByCategory(
         currentWalletId,
         "transfer",
         categoryId,
@@ -256,7 +256,7 @@ export function TransferFormModal({
 
   async function handleCopyFromSimilar(id: string) {
     setCopyingSimilarId(id);
-    const m = await getMovement(id);
+    const m = await getTransaction(id);
     setCopyingSimilarId(null);
     if (!m) return;
     const parentId = m.parent_id ?? null;
@@ -295,9 +295,32 @@ export function TransferFormModal({
 
   useEffect(() => {
     if (!open) return;
-    if (mode === "new" && !movementId && !copyFromMovementId && !copyFromRecurringId) {
+    if (mode === "new" && !transactionId && !copyFromTransactionId && !copyFromRecurringId) {
       resetForm();
     }
+
+    if (currentWalletId) {
+      getWalletSplitInfo(currentWalletId).then((result) => {
+        const sharedOption = result.shared_option ?? null;
+        const members = result.members ?? [];
+        setWalletSharedOption(sharedOption);
+        setWalletSplitType(result.split_type ?? null);
+        setWalletMembers(members);
+
+        if (!autoSelectedMember.current && (sharedOption === "split" || sharedOption === "track_and_split") && members.length > 0) {
+          autoSelectedMember.current = true;
+          getCurrentUserId().then((userResult) => {
+            if (userResult.userId) {
+              const currentMember = members.find((m) => m.user_id === userResult.userId);
+              if (currentMember) {
+                setPaidByMemberId(currentMember.id);
+              }
+            }
+          });
+        }
+      });
+    }
+
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !loading && !loadingData) onClose();
     };
@@ -308,7 +331,7 @@ export function TransferFormModal({
       document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
-  }, [open, onClose, loading, loadingData, resetForm, mode, movementId, copyFromMovementId, copyFromRecurringId]);
+  }, [open, onClose, loading, loadingData, resetForm, mode, transactionId, copyFromTransactionId, copyFromRecurringId, currentWalletId]);
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -363,9 +386,9 @@ export function TransferFormModal({
       (recurrenceType === "monthly_nth_work_day" ||
         recurrenceType === "monthly_nth_last_work_day");
 
-    if (isEdit && movementId) {
+    if (isEdit && transactionId) {
       const useRecurring = status === "confirmed" && isRecurring;
-      const res = await updateMovement(movementId, {
+      const res = await updateTransaction(transactionId, {
         type: "transfer",
         category_id: catId,
         date,
@@ -392,14 +415,14 @@ export function TransferFormModal({
         showToast(res.error, "error");
         return;
       }
-      showToast("Movement updated.");
+      showToast("Transaction updated.");
       onClose();
       router.push("/dashboard");
       router.refresh();
       return;
     }
 
-    const res = await createMovement({
+    const res = await createTransaction({
       wallet_id: currentWalletId,
       type: "transfer",
       category_id: catId,
@@ -430,14 +453,14 @@ export function TransferFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast("Movement added.");
+    showToast("Transaction added.");
     onClose();
     router.push("/dashboard");
     router.refresh();
   }
 
   async function handleConfirm() {
-    if (!currentWalletId || !movementId) return;
+    if (!currentWalletId || !transactionId) return;
     setError(null);
     const err = validate();
     if (err) {
@@ -449,7 +472,7 @@ export function TransferFormModal({
     setLoading(true);
     const num = parseFloat(amount.replace(",", "."));
     const catId = subcategoryId || categoryId;
-    const up = await updateMovement(movementId, {
+    const up = await updateTransaction(transactionId, {
       type: "transfer",
       category_id: catId,
       date,
@@ -466,7 +489,7 @@ export function TransferFormModal({
       showToast(up.error, "error");
       return;
     }
-    const cr = await confirmMovement(movementId);
+    const cr = await confirmTransaction(transactionId);
     setLoading(false);
     setDialog(null);
     if (cr.error) {
@@ -474,23 +497,23 @@ export function TransferFormModal({
       showToast(cr.error, "error");
       return;
     }
-    showToast("Movement confirmed.");
+    showToast("Transaction confirmed.");
     onClose();
     router.push("/dashboard");
     router.refresh();
   }
 
   async function handleDelete() {
-    if (!movementId) return;
+    if (!transactionId) return;
     setLoading(true);
-    const res = await deleteMovement(movementId);
+    const res = await deleteTransaction(transactionId);
     setLoading(false);
     setDialog(null);
     if (res.error) {
       showToast(res.error, "error");
       return;
     }
-    showToast(status === "pending" ? "Pending movement cancelled." : "Movement deleted.");
+    showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
     onClose();
     router.push("/dashboard");
     router.refresh();
@@ -1008,8 +1031,8 @@ export function TransferFormModal({
         open={dialog === "confirm"}
         onClose={() => setDialog(null)}
         onConfirm={handleConfirm}
-        title="Confirm movement"
-        message="Confirm this pending movement? It will be applied and balances updated."
+        title="Confirm transaction"
+        message="Confirm this pending transaction? It will be applied and balances updated."
         confirmLabel="Confirm"
         cancelLabel="Go back"
         variant="confirm"
@@ -1019,8 +1042,8 @@ export function TransferFormModal({
         open={dialog === "cancel"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Cancel pending movement"
-        message="Cancel this pending movement? It will be deleted."
+        title="Cancel pending transaction"
+        message="Cancel this pending transaction? It will be deleted."
         confirmLabel="Yes, cancel"
         cancelLabel="Keep"
         variant="cancel"
@@ -1030,8 +1053,8 @@ export function TransferFormModal({
         open={dialog === "delete"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Delete movement"
-        message="Delete this movement? Balances will be updated."
+        title="Delete transaction"
+        message="Delete this transaction? Balances will be updated."
         confirmLabel="Delete"
         cancelLabel="Keep"
         variant="cancel"

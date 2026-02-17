@@ -153,7 +153,7 @@ export default function EditAccountPage() {
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
           />
-          <label htmlFor="isActive">Active (shown in movement form)</label>
+          <label htmlFor="isActive">Active (shown in transaction form)</label>
         </div>
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex gap-3">

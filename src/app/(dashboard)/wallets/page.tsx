@@ -152,8 +152,8 @@ function WalletDetailsPopup({
             <div className="font-medium">{details.accountCount}</div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Movements</div>
-            <div className="font-medium">{details.movementCount}</div>
+            <div className="text-slate-500">Transactions</div>
+            <div className="font-medium">{details.transactionCount}</div>
           </div>
         </div>
 
@@ -281,7 +281,7 @@ export default function WalletsPage() {
     }
     if (!usage.hasData) {
       setDeleteMsg(
-        `Delete wallet "${w.name}"? This wallet has no accounts or movements and will be permanently deleted.`
+        `Delete wallet "${w.name}"? This wallet has no accounts or transactions and will be permanently deleted.`
       );
     } else {
       const parts: string[] = [];
@@ -289,9 +289,9 @@ export default function WalletsPage() {
         parts.push(
           `${usage.accountCount} account${usage.accountCount > 1 ? "s" : ""}`
         );
-      if (usage.movementCount > 0)
+      if (usage.transactionCount > 0)
         parts.push(
-          `${usage.movementCount} movement${usage.movementCount > 1 ? "s" : ""}`
+          `${usage.transactionCount} transaction${usage.transactionCount > 1 ? "s" : ""}`
         );
       setDeleteMsg(
         `Delete wallet "${w.name}"? It contains ${parts.join(" and ")}. All data will be kept for 30 days — you can undo this action during that period.`
@@ -465,7 +465,7 @@ export default function WalletsPage() {
                           </Link>
                           <button
                             onClick={() => handleDeleteClick(w)}
-                            className="text-slate-500 hover:text-red-600 dark:hover:text-red-400"
+                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                             title="Delete"
                           >
                             <DeleteIcon className="w-4 h-4" />

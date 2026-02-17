@@ -2,12 +2,12 @@
 
 import {
   getAccountBalanceSeries,
-  getMovementsByAccount,
+  getTransactionsByAccount,
   type AccountBalancePoint,
-  type MovementByAccountRow,
-} from "@/app/actions/movements";
-import { MovementTypeIcon } from "@/components/ActionIcons";
-import { MovementRowActions } from "@/components/MovementRowActions";
+  type TransactionByAccountRow,
+} from "@/app/actions/transactions";
+import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   accountTypeIcon,
   accountTypeLabel,
@@ -16,8 +16,8 @@ import {
 import {
   formatCategorySubcategory,
   formatFromTo,
-} from "@/lib/movement-labels";
-import { movementRowBgClass } from "@/lib/movement-row-style";
+} from "@/lib/transaction-labels";
+import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -71,12 +71,12 @@ type Props = {
   onReorder?: (accountIds: string[]) => void;
   showInitialBalance?: boolean;
   showPlafond?: boolean;
-  /** Net pending amount per account (only for pending movements that already updated balances, i.e. hold_balance=false) */
+  /** Net pending amount per account (only for pending transactions that already updated balances, i.e. hold_balance=false) */
   pendingAmounts?: Record<string, number>;
 };
 
-type MovementsState = {
-  movements: MovementByAccountRow[];
+type TransactionsState = {
+  transactions: TransactionByAccountRow[];
   full: boolean;
   loading: boolean;
 };
@@ -124,7 +124,7 @@ export function AccountsSection({
   pendingAmounts = {},
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [movementsByAccount, setMovementsByAccount] = useState<Record<string, MovementsState>>({});
+  const [transactionsByAccount, setTransactionsByAccount] = useState<Record<string, TransactionsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [chartAccountId, setChartAccountId] = useState<string | null>(null);
   const [chartRange, setChartRange] = useState<RangeKey>("30d");
@@ -133,9 +133,9 @@ export function AccountsSection({
   const [balanceSeries, setBalanceSeries] = useState<AccountBalancePoint[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceOldest, setBalanceOldest] = useState<string | null>(null);
-  const [modalMovements, setModalMovements] = useState<MovementByAccountRow[]>([]);
-  const [modalMovementsFull, setModalMovementsFull] = useState(false);
-  const [modalMovementsLoading, setModalMovementsLoading] = useState(false);
+  const [modalTransactions, setModalTransactions] = useState<TransactionByAccountRow[]>([]);
+  const [modalTransactionsFull, setModalTransactionsFull] = useState(false);
+  const [modalTransactionsLoading, setModalTransactionsLoading] = useState(false);
   const [showModalTransactions, setShowModalTransactions] = useState(false);
   const [modalFilter, setModalFilter] = useState<"day" | "period" | "all">("period");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -187,18 +187,18 @@ export function AccountsSection({
     if (orderEditing) setExpandedId(null);
   }, [orderEditing]);
 
-  const loadModalMovements = useCallback(
+  const loadModalTransactions = useCallback(
     async (accountId: string, full: boolean, fromDate?: string, toDate?: string) => {
       if (!currentWalletId) return;
-      setModalMovementsLoading(true);
-      const list = await getMovementsByAccount(currentWalletId, accountId, {
+      setModalTransactionsLoading(true);
+      const list = await getTransactionsByAccount(currentWalletId, accountId, {
         limit: full ? 0 : 5,
         fromDate,
         toDate,
       });
-      setModalMovements(list);
-      setModalMovementsFull(full);
-      setModalMovementsLoading(false);
+      setModalTransactions(list);
+      setModalTransactionsFull(full);
+      setModalTransactionsLoading(false);
     },
     [currentWalletId]
   );
@@ -214,9 +214,9 @@ export function AccountsSection({
       setShowModalTransactions(false);
       setModalFilter("period");
       setSelectedDay(null);
-      setModalMovements([]);
-      setModalMovementsFull(false);
-      setModalMovementsLoading(false);
+      setModalTransactions([]);
+      setModalTransactionsFull(false);
+      setModalTransactionsLoading(false);
     },
     []
   );
@@ -241,9 +241,9 @@ export function AccountsSection({
       setModalFilter(filter);
       setSelectedDay(filter === "day" ? day ?? null : null);
       setShowModalTransactions(true);
-      await loadModalMovements(chartAccountId, full, fromDate, toDate);
+      await loadModalTransactions(chartAccountId, full, fromDate, toDate);
     },
-    [chartAccountId, loadModalMovements, resolveRangeDates]
+    [chartAccountId, loadModalTransactions, resolveRangeDates]
   );
 
   useEffect(() => {
@@ -264,24 +264,24 @@ export function AccountsSection({
       .finally(() => setBalanceLoading(false));
   }, [chartAccountId, currentWalletId, resolveRangeDates]);
 
-  async function loadMovements(accountId: string, limit: number) {
+  async function loadTransactions(accountId: string, limit: number) {
     if (!currentWalletId) return;
-    setMovementsByAccount((prev) => ({
+    setTransactionsByAccount((prev) => ({
       ...prev,
       [accountId]: {
         ...prev[accountId],
         loading: true,
-        movements: prev[accountId]?.movements ?? [],
+        transactions: prev[accountId]?.transactions ?? [],
         full: limit === 0,
       },
     }));
-    const list = await getMovementsByAccount(currentWalletId, accountId, {
+    const list = await getTransactionsByAccount(currentWalletId, accountId, {
       limit: limit || undefined,
     });
-    setMovementsByAccount((prev) => ({
+    setTransactionsByAccount((prev) => ({
       ...prev,
       [accountId]: {
-        movements: list,
+        transactions: list,
         full: limit === 0,
         loading: false,
       },
@@ -294,20 +294,20 @@ export function AccountsSection({
       return;
     }
     setExpandedId(accountId);
-    const state = movementsByAccount[accountId];
-    if (!state?.movements?.length && !state?.loading) {
-      loadMovements(accountId, 5);
+    const state = transactionsByAccount[accountId];
+    if (!state?.transactions?.length && !state?.loading) {
+      loadTransactions(accountId, 5);
     }
   }
 
   function handleSeeAll(accountId: string, e: React.MouseEvent) {
     e.stopPropagation();
-    const state = movementsByAccount[accountId];
+    const state = transactionsByAccount[accountId];
     if (state?.full) {
-      loadMovements(accountId, 5);
+      loadTransactions(accountId, 5);
       return;
     }
-    loadMovements(accountId, 0);
+    loadTransactions(accountId, 0);
   }
 
   const handleDragStart = useCallback(
@@ -386,10 +386,10 @@ export function AccountsSection({
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {accounts.map((a) => {
-              const state = movementsByAccount[a.id];
+              const state = transactionsByAccount[a.id];
               const isExpanded = expandedId === a.id;
               const loading = state?.loading ?? false;
-              const movements = state?.movements ?? [];
+              const transactions = state?.transactions ?? [];
               const full = state?.full ?? false;
 
               return (
@@ -515,14 +515,14 @@ export function AccountsSection({
                     )}
                   </tr>
                   {isExpanded && (
-                    <tr key={`${a.id}-movements`} className="bg-slate-50/50 dark:bg-slate-900/50">
+                    <tr key={`${a.id}-transactions`} className="bg-slate-50/50 dark:bg-slate-900/50">
                       <td colSpan={(showInitialBalance ? 5 : 4) + (orderEditing ? 1 : 0) + (!orderEditing ? 1 : 0)} className="px-4 py-3">
                         <div className="pl-6 space-y-2">
-                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Recent movements</h3>
-                          {loading && !movements.length ? (
+                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Recent transactions</h3>
+                          {loading && !transactions.length ? (
                             <p className="text-xs text-slate-500 dark:text-slate-400">Loading...</p>
-                          ) : movements.length === 0 ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">No movements for this account.</p>
+                          ) : transactions.length === 0 ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">No transactions for this account.</p>
                           ) : (
                             <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
                               <table className="w-full text-xs">
@@ -536,10 +536,10 @@ export function AccountsSection({
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                  {movements.map((m) => (
-                                    <tr key={m.id} className={movementRowBgClass(m.type)}>
+                                  {transactions.map((m) => (
+                                    <tr key={m.id} className={transactionRowBgClass(m.type)}>
                                       <td className="px-3 py-2">
-                                        <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                                        <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} />
                                       </td>
                                       <td className="px-3 py-2">{m.date}</td>
                                       <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
@@ -559,7 +559,7 @@ export function AccountsSection({
                                         €
                                       </td>
                                       <td className="px-3 py-2">
-                                        <MovementRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadMovements(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
+                                        <TransactionRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadTransactions(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
                                       </td>
                                     </tr>
                                   ))}
@@ -567,7 +567,7 @@ export function AccountsSection({
                               </table>
                             </div>
                           )}
-                          {!loading && movements.length > 0 && (
+                          {!loading && transactions.length > 0 && (
                             <div className="flex gap-2 pt-2">
                               <button
                                 type="button"
@@ -587,8 +587,15 @@ export function AccountsSection({
               );
             })}
             <tr className="bg-slate-50 dark:bg-slate-900/50 font-medium">
-              <td className="px-4 py-3 w-8" />
-              <td className="px-4 py-3">Total</td>
+              {orderEditing && <td className="px-4 py-3 w-8" />}
+              <td className="px-4 py-3">
+                <span className="inline-flex items-center gap-2 min-w-0">
+                  <span className="text-base leading-none opacity-0" aria-hidden>
+                    {accountTypeIcon("bank_account")}
+                  </span>
+                  <span>Total</span>
+                </span>
+              </td>
               {showInitialBalance && (
                 <td className="px-4 py-3 text-right font-mono">
                   {fmt(totalInitialBalance, hideBalances)} €
@@ -760,9 +767,9 @@ export function AccountsSection({
                           setShowModalTransactions(false);
                           setSelectedDay(null);
                           setModalFilter("period");
-                          setModalMovements([]);
-                          setModalMovementsFull(false);
-                          setModalMovementsLoading(false);
+                          setModalTransactions([]);
+                          setModalTransactionsFull(false);
+                          setModalTransactionsLoading(false);
                         }}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                       >
@@ -776,9 +783,9 @@ export function AccountsSection({
                   <p className="text-xs text-slate-500">
                     Select a day in the chart or use the buttons to show transactions.
                   </p>
-                ) : modalMovementsLoading ? (
+                ) : modalTransactionsLoading ? (
                   <p className="text-xs text-slate-500">Loading…</p>
-                ) : modalMovements.length === 0 ? (
+                ) : modalTransactions.length === 0 ? (
                   <p className="text-xs text-slate-500">No transactions for this account.</p>
                 ) : (
                   <>
@@ -790,12 +797,12 @@ export function AccountsSection({
                           applyModalFilter(
                             modalFilter,
                             selectedDay ?? undefined,
-                            !modalMovementsFull
+                            !modalTransactionsFull
                           );
                         }}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                       >
-                        {modalMovementsFull ? "Show less" : "Show all transactions"}
+                        {modalTransactionsFull ? "Show less" : "Show all transactions"}
                       </button>
                     </div>
                     <div className="rounded-lg border border-slate-200 overflow-x-auto">
@@ -809,10 +816,10 @@ export function AccountsSection({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {modalMovements.map((m) => (
-                            <tr key={m.id} className={movementRowBgClass(m.type)}>
+                          {modalTransactions.map((m) => (
+                            <tr key={m.id} className={transactionRowBgClass(m.type)}>
                               <td className="px-4 py-2">
-                                <MovementTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                                <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} />
                               </td>
                               <td className="px-4 py-2">{m.date}</td>
                               <td className="px-4 py-2 text-slate-700 max-w-[260px] truncate">

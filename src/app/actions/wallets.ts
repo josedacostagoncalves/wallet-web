@@ -244,32 +244,32 @@ export async function getWalletMembers(walletId: string): Promise<{ members?: Ar
 }
 
 /**
- * Check whether a wallet has any accounts or movements.
+ * Check whether a wallet has any accounts or transactions.
  */
 export async function getWalletUsage(
   walletId: string
-): Promise<{ hasData: boolean; accountCount: number; movementCount: number; error?: string }> {
+): Promise<{ hasData: boolean; accountCount: number; transactionCount: number; error?: string }> {
   const supabase = await createClient();
   const { count: acctCount, error: e1 } = await supabase
     .from("accounts")
     .select("id", { count: "exact", head: true })
     .eq("wallet_id", walletId);
-  if (e1) return { hasData: false, accountCount: 0, movementCount: 0, error: e1.message };
+  if (e1) return { hasData: false, accountCount: 0, transactionCount: 0, error: e1.message };
 
   const { count: txCount, error: e2 } = await supabase
     .from("transactions")
     .select("id", { count: "exact", head: true })
     .eq("wallet_id", walletId);
-  if (e2) return { hasData: false, accountCount: 0, movementCount: 0, error: e2.message };
+  if (e2) return { hasData: false, accountCount: 0, transactionCount: 0, error: e2.message };
 
   const ac = acctCount ?? 0;
   const tc = txCount ?? 0;
-  return { hasData: ac > 0 || tc > 0, accountCount: ac, movementCount: tc };
+  return { hasData: ac > 0 || tc > 0, accountCount: ac, transactionCount: tc };
 }
 
 /**
  * Soft-delete a wallet.
- * - If the wallet has no data (accounts/movements), hard-delete immediately.
+ * - If the wallet has no data (accounts/transactions), hard-delete immediately.
  * - If it has data, mark deleted_at + delete_after (30 days), keeping data for undo.
  */
 export async function softDeleteWallet(
@@ -376,7 +376,7 @@ export type WalletDetails = {
   owner: WalletDetailMember | null;
   created_at: string;
   accountCount: number;
-  movementCount: number;
+  transactionCount: number;
   members: WalletDetailMember[];
   is_shared: boolean;
 };
@@ -431,7 +431,7 @@ export async function getWalletDetails(
 
   const owner = members.find((m) => m.role === "owner") ?? null;
 
-  // Count accounts and movements
+  // Count accounts and transactions
   const { count: acctCount } = await supabase
     .from("accounts")
     .select("id", { count: "exact", head: true })
@@ -446,7 +446,7 @@ export async function getWalletDetails(
       owner,
       created_at: wallet.created_at,
       accountCount: acctCount ?? 0,
-      movementCount: txCount ?? 0,
+      transactionCount: txCount ?? 0,
       members,
       is_shared: wallet.is_shared,
     },

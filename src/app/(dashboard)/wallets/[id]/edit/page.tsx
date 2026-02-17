@@ -249,9 +249,9 @@ export default function EditWalletPage() {
               <label className="block text-sm font-medium mb-3">Sharing Type *</label>
               <div className="space-y-2">
                 {[
-                  { key: 'track', label: 'Shared: Track', desc: 'Register movements and account balances' },
-                  { key: 'split', label: 'Shared: Split', desc: 'Register movements and split expenses among members' },
-                  { key: 'track_and_split', label: 'Shared: Track and Split', desc: 'Register movements and split expenses (based on income)' },
+                  { key: 'track', label: 'Shared: Track', desc: 'Register transactions and account balances' },
+                  { key: 'split', label: 'Shared: Split', desc: 'Register transactions and split expenses among members' },
+                  { key: 'track_and_split', label: 'Shared: Track and Split', desc: 'Register transactions and split expenses (based on income)' },
                 ].map((opt) => (
                   <label key={opt.key} className="flex items-start gap-3 p-3 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-white dark:hover:bg-slate-700/50" style={{ backgroundColor: sharedOption === opt.key ? 'rgba(51, 65, 85, 0.05)' : undefined }}>
                     <input

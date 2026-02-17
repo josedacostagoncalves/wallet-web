@@ -1,25 +1,25 @@
 type IconProps = { className?: string; "aria-hidden"?: boolean };
 
-export type MovementType = "income" | "expense" | "transfer";
+export type TransactionType = "income" | "expense" | "transfer";
 
-const TYPE_COLORS: Record<MovementType, string> = {
+const TYPE_COLORS: Record<TransactionType, string> = {
   income: "text-green-600",
   expense: "text-red-600",
   transfer: "text-blue-600",
 };
 
-const TYPE_LABELS: Record<MovementType, string> = {
+const TYPE_LABELS: Record<TransactionType, string> = {
   income: "Income",
   expense: "Expense",
   transfer: "Transfer",
 };
 
-export function MovementTypeIcon({
+export function TransactionTypeIcon({
   type,
   className = "",
   "aria-hidden": ariaHidden,
-}: IconProps & { type: MovementType }) {
-  const t = type as MovementType;
+}: IconProps & { type: TransactionType }) {
+  const t = type as TransactionType;
   const color = TYPE_COLORS[t] ?? "text-slate-500";
   const label = TYPE_LABELS[t] ?? type;
   return (

@@ -1,14 +1,14 @@
 "use client";
 
-import { useMovementModals } from "@/contexts/MovementModalsContext";
+import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import { ExpenseFormModal } from "@/components/ExpenseFormModal";
 import { IncomeFormModal } from "@/components/IncomeFormModal";
 import { RecurringEditModal } from "@/components/RecurringEditModal";
 import { TransferFormModal } from "@/components/TransferFormModal";
 
-export function MovementModals() {
-  const { state, closeModals } = useMovementModals();
-  const { which, mode, movementId, copyFromMovementId, copyFromRecurringId, recurringEditId, opening } = state;
+export function TransactionModals() {
+  const { state, closeModals } = useTransactionModals();
+  const { which, mode, transactionId, copyFromTransactionId, copyFromRecurringId, recurringEditId, opening } = state;
 
   return (
     <>
@@ -29,8 +29,8 @@ export function MovementModals() {
           open
           onClose={closeModals}
           mode={mode}
-          movementId={movementId ?? undefined}
-          copyFromMovementId={copyFromMovementId ?? undefined}
+          transactionId={transactionId ?? undefined}
+          copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
         />
       )}
@@ -40,8 +40,8 @@ export function MovementModals() {
           open
           onClose={closeModals}
           mode={mode}
-          movementId={movementId ?? undefined}
-          copyFromMovementId={copyFromMovementId ?? undefined}
+          transactionId={transactionId ?? undefined}
+          copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
         />
       )}
@@ -51,8 +51,8 @@ export function MovementModals() {
           open
           onClose={closeModals}
           mode={mode}
-          movementId={movementId ?? undefined}
-          copyFromMovementId={copyFromMovementId ?? undefined}
+          transactionId={transactionId ?? undefined}
+          copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
         />
       )}

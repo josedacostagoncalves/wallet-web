@@ -206,7 +206,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 onChange={(e) => setIsActive(e.target.checked)}
               />
               <label htmlFor="isActiveModal" className="text-sm">
-                Active (shown in movement form)
+                Active (shown in transaction form)
               </label>
             </div>
             {error && (

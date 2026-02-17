@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  getMovement,
+  getTransaction,
   getAccounts,
   getCategories,
   getSubcategories,
-  updateMovement,
-  deleteMovement,
-  confirmMovement,
-} from "@/app/actions/movements";
+  updateTransaction,
+  deleteTransaction,
+  confirmTransaction,
+} from "@/app/actions/transactions";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
@@ -21,9 +21,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type MovementType = "income" | "expense" | "transfer";
+type TransactionType = "income" | "expense" | "transfer";
 
-export default function EditMovementPage() {
+export default function EditTransactionPage() {
   const params = useParams();
   const id = String(params.id);
   const { currentWalletId } = useWallet();
@@ -34,7 +34,7 @@ export default function EditMovementPage() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
-  const [type, setType] = useState<MovementType | null>(null);
+  const [type, setType] = useState<TransactionType | null>(null);
   const [categoryId, setCategoryId] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
   const [date, setDate] = useState("");
@@ -61,11 +61,11 @@ export default function EditMovementPage() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   useEffect(() => {
-    getMovement(id).then((m) => {
+    getTransaction(id).then((m) => {
       setLoading(false);
       if (!m) return;
       setStatus(m.status);
-      setType(m.type as MovementType);
+      setType(m.type as TransactionType);
       setDate(m.date);
       setAmount(String(m.amount));
       setAccountFromId(m.account_from_id ?? "");
@@ -150,7 +150,7 @@ export default function EditMovementPage() {
       isRecurring &&
       (recurrenceType === "monthly_nth_work_day" ||
         recurrenceType === "monthly_nth_last_work_day");
-    const res = await updateMovement(id, {
+    const res = await updateTransaction(id, {
       type,
       category_id: catId,
       date,
@@ -183,7 +183,7 @@ export default function EditMovementPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Movement updated.");
+    showToast("Transaction updated.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -201,7 +201,7 @@ export default function EditMovementPage() {
     setConfirming(true);
     const num = parseFloat(amount.replace(",", "."));
     const catId = subcategoryId || categoryId;
-    const res = await updateMovement(id, {
+    const res = await updateTransaction(id, {
       type,
       category_id: catId,
       date,
@@ -218,7 +218,7 @@ export default function EditMovementPage() {
       showToast(res.error, "error");
       return;
     }
-    const confirmRes = await confirmMovement(id);
+    const confirmRes = await confirmTransaction(id);
     setConfirming(false);
     if (confirmRes.error) {
       setError(confirmRes.error);
@@ -227,23 +227,23 @@ export default function EditMovementPage() {
       return;
     }
     setConfirmDialogOpen(false);
-    showToast("Movement confirmed.");
+    showToast("Transaction confirmed.");
     router.push("/dashboard");
     router.refresh();
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this movement? Balances will be updated.")) return;
+    if (!confirm("Delete this transaction? Balances will be updated.")) return;
     setError(null);
     setDeleting(true);
-    const res = await deleteMovement(id);
+    const res = await deleteTransaction(id);
     setDeleting(false);
     if (res.error) {
       setError(res.error);
       showToast(res.error, "error");
       return;
     }
-    showToast("Movement deleted.");
+    showToast("Transaction deleted.");
     router.push("/dashboard");
     router.refresh();
   }
@@ -251,7 +251,7 @@ export default function EditMovementPage() {
   async function handleCancelPending() {
     setDeleting(true);
     setError(null);
-    const res = await deleteMovement(id);
+    const res = await deleteTransaction(id);
     setDeleting(false);
     if (res.error) {
       setError(res.error);
@@ -259,7 +259,7 @@ export default function EditMovementPage() {
       showToast(res.error, "error");
     } else {
       setCancelDialogOpen(false);
-      showToast("Pending movement cancelled.");
+      showToast("Pending transaction canceled.");
       router.push("/dashboard");
       router.refresh();
     }
@@ -269,7 +269,7 @@ export default function EditMovementPage() {
   if (!type) {
     return (
       <div className="space-y-4">
-        <p className="text-slate-500">Movement not found.</p>
+        <p className="text-slate-500">Transaction not found.</p>
         <Link href="/dashboard" className="underline">← Transactions</Link>
       </div>
     );
@@ -285,7 +285,7 @@ export default function EditMovementPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">
-        {status === "pending" ? "Edit pending movement" : "Edit movement"}
+        {status === "pending" ? "Edit pending transaction" : "Edit transaction"}
       </h1>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
@@ -553,8 +553,8 @@ export default function EditMovementPage() {
                 open={confirmDialogOpen}
                 onClose={() => setConfirmDialogOpen(false)}
                 onConfirm={handleConfirmClick}
-                title="Confirm movement"
-                message="Confirm this pending movement? It will be applied and balances updated."
+                title="Confirm transaction"
+                message="Confirm this pending transaction? It will be applied and balances updated."
                 confirmLabel="Confirm"
                 cancelLabel="Go back"
                 variant="confirm"
@@ -564,8 +564,8 @@ export default function EditMovementPage() {
                 open={cancelDialogOpen}
                 onClose={() => setCancelDialogOpen(false)}
                 onConfirm={handleCancelPending}
-                title="Cancel pending movement"
-                message="Cancel this pending movement? It will be deleted."
+                title="Cancel pending transaction"
+                message="Cancel this pending transaction? It will be deleted."
                 confirmLabel="Yes, cancel"
                 cancelLabel="Keep"
                 variant="cancel"

@@ -1,11 +1,11 @@
 "use client";
 
-import { MovementTypeIcon } from "@/components/ActionIcons";
-import { MovementRowActions } from "@/components/MovementRowActions";
+import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
   formatFromTo,
-} from "@/lib/movement-labels";
+} from "@/lib/transaction-labels";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -68,7 +68,7 @@ export function PendingSection({ pending }: Props) {
       {expanded && (
         <div className="overflow-x-auto border-t border-slate-200">
           {pending.length === 0 ? (
-            <div className="p-6 text-xs text-slate-500">No pending movements.</div>
+            <div className="p-6 text-xs text-slate-500">No pending transactions.</div>
           ) : (
             <table className="w-full text-xs min-w-[640px]">
               <thead className="bg-slate-100">
@@ -88,7 +88,7 @@ export function PendingSection({ pending }: Props) {
                 {pending.map((p) => (
                   <tr key={p.id} className={`hover:bg-slate-50/50 ${p.holdBalance ? "bg-amber-100" : "bg-amber-50"}`}>
                     <td className="px-4 py-3">
-                      <MovementTypeIcon type={p.type as "income" | "expense" | "transfer"} />
+                      <TransactionTypeIcon type={p.type as "income" | "expense" | "transfer"} />
                     </td>
                     <td className="px-4 py-3 text-slate-600">{p.date}</td>
                     <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
@@ -101,13 +101,12 @@ export function PendingSection({ pending }: Props) {
                       {formatFromTo(p.accountFromName, p.accountToName)}
                     </td>
                     <td
-                      className={`px-4 py-3 text-right font-mono ${
-                        p.type === "income"
-                          ? "text-green-600"
-                          : p.type === "expense"
-                            ? "text-red-600"
-                            : ""
-                      }`}
+                      className={`px-4 py-3 text-right font-mono ${p.type === "income"
+                        ? "text-green-600"
+                        : p.type === "expense"
+                          ? "text-red-600"
+                          : ""
+                        }`}
                     >
                       {p.type === "income" ? "+" : p.type === "expense" ? "−" : ""}
                       {p.amount.toLocaleString("pt-PT", {
@@ -117,7 +116,7 @@ export function PendingSection({ pending }: Props) {
                       €
                     </td>
                     <td className="px-4 py-3">
-                      <MovementRowActions
+                      <TransactionRowActions
                         id={p.id}
                         status="pending"
                         holdBalance={p.holdBalance}

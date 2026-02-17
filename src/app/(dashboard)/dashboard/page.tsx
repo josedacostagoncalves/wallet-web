@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { ensureRecurringGenerated } from "@/app/actions/movements";
-import { AllMovementsSection } from "@/components/AllMovementsSection";
+import { ensureRecurringGenerated } from "@/app/actions/transactions";
+import { AllTransactionsSection } from "@/components/AllTransactionsSection";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
 import { workDayDateInMonth } from "@/lib/recurrence";
@@ -247,7 +247,7 @@ export default async function DashboardPage() {
             <PendingSection pending={pending} />
           </section>
           <section>
-            <AllMovementsSection confirmed={confirmed} isSplitOnly={isSplitOnlyWallet} />
+            <AllTransactionsSection confirmed={confirmed} isSplitOnly={isSplitOnlyWallet} />
           </section>
         </div>
       )}

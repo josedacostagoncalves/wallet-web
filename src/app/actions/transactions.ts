@@ -103,7 +103,7 @@ export type RecentSimilarRow = {
   amount: number;
 };
 
-export type MovementByAccountRow = {
+export type TransactionByAccountRow = {
   id: string;
   date: string;
   type: string;
@@ -122,11 +122,11 @@ export type AccountBalancePoint = {
   balance: number;
 };
 
-export async function getMovementsByAccount(
+export async function getTransactionsByAccount(
   walletId: string,
   accountId: string,
   options?: { limit?: number; fromDate?: string; toDate?: string }
-): Promise<MovementByAccountRow[]> {
+): Promise<TransactionByAccountRow[]> {
   const supabase = await createClient();
   let q = supabase
     .from("transactions")
@@ -284,9 +284,9 @@ export async function getAccountBalanceSeries(
   return { series, oldestDate };
 }
 
-export async function getRecentMovementsByType(
+export async function getRecentTransactionsByType(
   walletId: string,
-  movementType: "income" | "expense" | "transfer",
+  transactionType: "income" | "expense" | "transfer",
   limit = 20
 ): Promise<RecentSimilarRow[]> {
   const supabase = await createClient();
@@ -294,7 +294,7 @@ export async function getRecentMovementsByType(
     .from("transactions")
     .select("id, date, description, amount")
     .eq("wallet_id", walletId)
-    .eq("type", movementType)
+    .eq("type", transactionType)
     .order("date", { ascending: false })
     .limit(limit);
   return (data ?? []).map((t) => ({
@@ -305,9 +305,9 @@ export async function getRecentMovementsByType(
   }));
 }
 
-export async function getRecentMovementsByCategory(
+export async function getRecentTransactionsByCategory(
   walletId: string,
-  movementType: "income" | "expense" | "transfer",
+  transactionType: "income" | "expense" | "transfer",
   categoryId: string,
   subcategoryId?: string | null,
   limit = 20
@@ -327,7 +327,7 @@ export async function getRecentMovementsByCategory(
     .from("transactions")
     .select("id, date, description, amount")
     .eq("wallet_id", walletId)
-    .eq("type", movementType)
+    .eq("type", transactionType)
     .in("category_id", categoryIds)
     .order("date", { ascending: false })
     .limit(limit);
@@ -339,7 +339,7 @@ export async function getRecentMovementsByCategory(
   }));
 }
 
-export async function createMovement(params: {
+export async function createTransaction(params: {
   wallet_id: string;
   type: "income" | "expense" | "transfer";
   category_id: string;
@@ -449,8 +449,8 @@ export async function createMovement(params: {
     ruleId = rule.id;
   }
 
-  // hold_balance is only meaningful for pending movements.
-  // For confirmed movements, balances are always updated.
+  // hold_balance is only meaningful for pending transactions.
+  // For confirmed transactions, balances are always updated.
   const effectiveHold = status === "pending" ? hold_balance : false;
 
   const { data: t, error: insertErr } = await supabase
@@ -533,7 +533,7 @@ function applyEffect(
   return d;
 }
 
-export async function getMovement(id: string) {
+export async function getTransaction(id: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("transactions")
@@ -560,7 +560,7 @@ export async function getMovement(id: string) {
   };
 }
 
-export async function updateMovement(
+export async function updateTransaction(
   id: string,
   params: {
     type: "income" | "expense" | "transfer";
@@ -760,7 +760,7 @@ export async function updateMovement(
   return {};
 }
 
-export async function deleteMovement(id: string): Promise<{ error?: string }> {
+export async function deleteTransaction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: t } = await supabase
@@ -798,7 +798,7 @@ export async function deleteMovement(id: string): Promise<{ error?: string }> {
   return {};
 }
 
-export async function confirmMovement(id: string): Promise<{ error?: string }> {
+export async function confirmTransaction(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -811,7 +811,7 @@ export async function confirmMovement(id: string): Promise<{ error?: string }> {
     .eq("id", id)
     .single();
   if (!t) return { error: "Transaction not found" };
-  if (t.status !== "pending") return { error: "Movement is not pending" };
+  if (t.status !== "pending") return { error: "Transaction is not pending" };
 
   // Only update balances if they were held (not already applied)
   if (t.hold_balance) {
@@ -890,7 +890,7 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
       continue;
     }
 
-    // Create exactly ONE pending movement for this recurring rule
+    // Create exactly ONE pending transaction for this recurring rule
     const { error: insErr } = await supabase.from("transactions").insert({
       wallet_id: r.wallet_id,
       type: r.type,
@@ -957,17 +957,17 @@ export type BalancePreviewRow = {
 
 /**
  * Returns the affected accounts with current and projected balances
- * for confirming, cancelling (pending), or deleting (confirmed) a movement.
+ * for confirming, cancelling (pending), or deleting (confirmed) a transaction.
  */
 export async function getBalancePreview(
-  movementId: string,
+  transactionId: string,
   action: "confirm" | "cancel"
 ): Promise<BalancePreviewRow[]> {
   const supabase = await createClient();
   const { data: t } = await supabase
     .from("transactions")
     .select("type, amount, account_from_id, account_to_id, status, hold_balance")
-    .eq("id", movementId)
+    .eq("id", transactionId)
     .single();
   if (!t) return [];
 
@@ -979,7 +979,7 @@ export async function getBalancePreview(
   const deltas: { id: string; delta: number }[] = [];
 
   if (isPending && action === "confirm" && holdBalance) {
-    // Confirming a held pending movement → apply balance changes
+    // Confirming a held pending transaction → apply balance changes
     if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: amount });
     if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: -amount });
     if (t.type === "transfer") {
@@ -987,7 +987,7 @@ export async function getBalancePreview(
       if (t.account_to_id) deltas.push({ id: t.account_to_id, delta: amount });
     }
   } else if (isPending && action === "cancel" && !holdBalance) {
-    // Cancelling a non-held pending movement → reverse balance changes
+    // Cancelling a non-held pending transaction → reverse balance changes
     if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
     if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
     if (t.type === "transfer") {
@@ -995,7 +995,7 @@ export async function getBalancePreview(
       if (t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
     }
   } else if (!isPending && action === "cancel") {
-    // Deleting a confirmed movement → reverse balance changes
+    // Deleting a confirmed transaction → reverse balance changes
     if (t.type === "income" && t.account_to_id) deltas.push({ id: t.account_to_id, delta: -amount });
     if (t.type === "expense" && t.account_from_id) deltas.push({ id: t.account_from_id, delta: amount });
     if (t.type === "transfer") {

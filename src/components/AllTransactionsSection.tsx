@@ -1,12 +1,12 @@
 "use client";
 
-import { MovementTypeIcon } from "@/components/ActionIcons";
-import { MovementRowActions } from "@/components/MovementRowActions";
+import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
   formatFromTo,
-} from "@/lib/movement-labels";
-import { movementRowBgClass } from "@/lib/movement-row-style";
+} from "@/lib/transaction-labels";
+import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -70,7 +70,7 @@ function matchSearch(t: ConfirmedRow, q: string): boolean {
 }
 
 function filterValue(t: ConfirmedRow): number {
-  return t.type === "expense" ? Math.abs(t.amount) : t.amount;
+  return Math.abs(t.amount);
 }
 
 function matchFilter(t: ConfirmedRow, f: FilterState): boolean {
@@ -92,13 +92,25 @@ function matchFilter(t: ConfirmedRow, f: FilterState): boolean {
 
 function FilterIcon({ className = "" }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
     </svg>
   );
 }
 
-export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
+export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -216,9 +228,9 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
         onClick={() => setExpanded((x) => !x)}
         className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
         aria-expanded={expanded}
-        aria-label={expanded ? "Collapse all movements" : "Expand all movements"}
+        aria-label={expanded ? "Collapse all transactions" : "Expand all transactions"}
       >
-        <span className="text-lg font-medium text-slate-800">All movements</span>
+        <span className="text-lg font-medium text-slate-800">All transactions</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -240,18 +252,18 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
           {confirmed.length > 0 && (
             <div className="px-4 py-2 border-t border-slate-200 bg-slate-50/80">
               <div className="flex gap-2 items-center">
-                <label htmlFor="all-movements-search" className="sr-only">
-                  Search movements
+                <label htmlFor="all-transactions-search" className="sr-only">
+                  Search transactions
                 </label>
                 <div className="relative flex-1 min-w-0">
                   <input
-                    id="all-movements-search"
+                    id="all-transactions-search"
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search movements…"
+                    placeholder="Search transactions…"
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pl-9 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                    aria-label="Search movements"
+                    aria-label="Search transactions"
                   />
                   <span
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -287,7 +299,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                       }`}
                     aria-expanded={filterOpen}
                     aria-haspopup="dialog"
-                    aria-label="Filter movements"
+                    aria-label="Filter transactions"
                   >
                     <FilterIcon />
                     Filter
@@ -309,7 +321,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                     <div
                       ref={popoverRef}
                       role="dialog"
-                      aria-label="Filter movements"
+                      aria-label="Filter transactions"
                       className="fixed z-[200] w-80 max-h-[min(400px,calc(100vh-32px))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
                       style={{ top: popoverStyle.top, left: popoverStyle.left }}
                     >
@@ -473,14 +485,14 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
           <div className="overflow-x-auto border-t border-slate-200">
             {confirmed.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
-                No movements yet.{" "}
-                <Link href="/movements/new" className="underline">
-                  Add one
+                No transactions yet.{" "}
+                <Link href="/transactions/new" className="underline">
+                  Add a transaction
                 </Link>
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
-                No movements match your {[search.trim() && "search", hasActiveFilter && "filters"].filter(Boolean).join(" or ")}.
+                No transactions match your {[search.trim() && "search", hasActiveFilter && "filters"].filter(Boolean).join(" or ")}.
                 {(search.trim() || hasActiveFilter) && (
                   <span className="ml-1">
                     {search.trim() && (
@@ -524,9 +536,9 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filtered.map((t) => (
-                    <tr key={t.id} className={movementRowBgClass(t.type)}>
+                    <tr key={t.id} className={transactionRowBgClass(t.type)}>
                       <td className="px-4 py-2">
-                        <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} />
+                        <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} />
                       </td>
                       <td className="px-4 py-2 text-slate-600">{t.date}</td>
                       <td className="px-4 py-2 text-slate-700 max-w-[180px] truncate">
@@ -578,7 +590,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                         €
                       </td>
                       <td className="px-4 py-2">
-                        <MovementRowActions id={t.id} status="confirmed" />
+                        <TransactionRowActions id={t.id} status="confirmed" />
                       </td>
                     </tr>
                   ))}

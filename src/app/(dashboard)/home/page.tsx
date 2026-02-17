@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { ensureRecurringGenerated } from "@/app/actions/movements";
+import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { getWalletSettlements } from "@/app/actions/wallets";
 import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
 import { SettlementsSection } from "@/components/SettlementsSection";
@@ -66,13 +66,13 @@ export default async function HomePage() {
     // Get last update date for each account from transactions
     const lastUpdates: Record<string, string | null> = {};
     if (accountIds.length > 0) {
-      const { data: movementsFrom } = await supabase
+      const { data: transactionsFrom } = await supabase
         .from("transactions")
         .select("account_from_id, date")
         .in("account_from_id", accountIds)
         .order("date", { ascending: false });
 
-      const { data: movementsTo } = await supabase
+      const { data: transactionsTo } = await supabase
         .from("transactions")
         .select("account_to_id, date")
         .in("account_to_id", accountIds)
@@ -80,10 +80,10 @@ export default async function HomePage() {
 
       // Combine and find latest date for each account
       for (const accId of accountIds) {
-        const fromDates = (movementsFrom ?? [])
+        const fromDates = (transactionsFrom ?? [])
           .filter((m) => m.account_from_id === accId)
           .map((m) => m.date);
-        const toDates = (movementsTo ?? [])
+        const toDates = (transactionsTo ?? [])
           .filter((m) => m.account_to_id === accId)
           .map((m) => m.date);
         const allDates = [...fromDates, ...toDates].sort().reverse();
@@ -91,7 +91,7 @@ export default async function HomePage() {
       }
     }
 
-    // Fetch pending movements that did NOT hold balance (already applied to current_balance)
+    // Fetch pending transactions that did NOT hold balance (already applied to current_balance)
     if (accountIds.length > 0) {
       const { data: pendingTx } = await supabase
         .from("transactions")

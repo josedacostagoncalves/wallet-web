@@ -5,7 +5,7 @@ import {
   getAccounts,
   getCategories,
   getSubcategories,
-} from "@/app/actions/movements";
+} from "@/app/actions/transactions";
 import {
   getRecurringRule,
   updateRecurringRule,
@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = { open: boolean; onClose: () => void; ruleId: string };
-type MovementType = "income" | "expense" | "transfer";
+type TransactionType = "income" | "expense" | "transfer";
 
 const inputClass =
   "w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
@@ -355,7 +355,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
     );
   }
 
-  const type = rule.type as MovementType;
+  const type = rule.type as TransactionType;
   const categoryOpts = categories;
   const needsExtraCategory =
     categoryId && !categoryOpts.some((c) => c.id === categoryId);
@@ -389,7 +389,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
             Changes apply only to future runs. Existing pending or confirmed
-            movements are not modified.
+            transactions are not modified.
           </p>
         </div>
         <form
@@ -599,8 +599,8 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         setWeekday(
                           rule
                             ? new Date(
-                                rule.next_run_date + "T12:00:00Z"
-                              ).getUTCDay()
+                              rule.next_run_date + "T12:00:00Z"
+                            ).getUTCDay()
                             : 1
                         );
                       } else if (v === "monthly") {
@@ -608,10 +608,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         setDayOfMonth(
                           rule
                             ? String(
-                                new Date(
-                                  rule.next_run_date + "T12:00:00Z"
-                                ).getUTCDate()
-                              )
+                              new Date(
+                                rule.next_run_date + "T12:00:00Z"
+                              ).getUTCDate()
+                            )
                             : "1"
                         );
                       } else {
@@ -666,23 +666,23 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 )}
                 {(recurrenceType === "monthly_nth_work_day" ||
                   recurrenceType === "monthly_nth_last_work_day") && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1">
-                      {recurrenceType === "monthly_nth_last_work_day"
-                        ? "Nth last work day (e.g. 3 = 3rd last)"
-                        : "Nth work day (e.g. 3 = 3rd work day of month)"}
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={workDayIndex}
-                      onChange={(e) => setWorkDayIndex(e.target.value)}
-                      placeholder="e.g. 3"
-                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                    />
-                  </div>
-                )}
+                    <div>
+                      <label className="block text-sm font-medium mb-1">
+                        {recurrenceType === "monthly_nth_last_work_day"
+                          ? "Nth last work day (e.g. 3 = 3rd last)"
+                          : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={workDayIndex}
+                        onChange={(e) => setWorkDayIndex(e.target.value)}
+                        placeholder="e.g. 3"
+                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      />
+                    </div>
+                  )}
                 {recurrenceType === "weekly" && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
@@ -773,7 +773,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 </label>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 pl-6">
-                Uncheck to disable recurring. No new movements will be created
+                Uncheck to disable recurring. No new transactions will be created
                 until you turn it back on.
               </p>
             </div>
@@ -814,7 +814,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleDelete}
         title="Delete recurring rule"
-        message="Delete this recurring rule? No new runs will be created. Existing movements are kept."
+        message="Delete this recurring rule? No new runs will be created. Existing transactions are kept."
         confirmLabel="Delete"
         cancelLabel="Keep"
         variant="cancel"

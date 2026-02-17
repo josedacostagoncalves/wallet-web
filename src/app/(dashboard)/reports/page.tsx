@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { ensureRecurringGenerated } from "@/app/actions/movements";
+import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { ExpenseChart } from "@/components/ExpenseChart";
 import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { ReportsWidgets } from "@/components/ReportsWidgets";
@@ -44,7 +44,7 @@ export default async function ReportsPage() {
     net: number;
   };
 
-  type CalendarMovement = {
+  type CalendarTransaction = {
     id: string;
     date: string;
     type: string;
@@ -69,7 +69,7 @@ export default async function ReportsPage() {
     accountToName: string;
   };
 
-  let calendarMovements: CalendarMovement[] = [];
+  let calendarTransactions: CalendarTransaction[] = [];
   let recurringNextRuns: CalendarRecurringNextRun[] = [];
 
   if (currentWalletId) {
@@ -135,7 +135,7 @@ export default async function ReportsPage() {
     const monthIndex = new Map(monthItems.map((m) => [m.key, m]));
 
     // Process transactions for calendar
-    calendarMovements = txRows.map((t) => {
+    calendarTransactions = txRows.map((t) => {
       const cat = t.category as CategoryRow | null;
       const parentCat = cat?.parent_id ? cats?.find((c) => c.id === cat.parent_id) : null;
       const categoryLabel = parentCat?.name ?? cat?.name ?? "—";
@@ -274,7 +274,7 @@ export default async function ReportsPage() {
               {/* Calendar */}
               <div className="flex-1">
                 <DashboardCalendar
-                  movements={calendarMovements}
+                  transactions={calendarTransactions}
                   recurringNextRuns={recurringNextRuns}
                 />
               </div>

@@ -2,11 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { getOrEnsureProfile } from "@/app/actions/profiles";
-import { MovementModalsProvider } from "@/contexts/MovementModalsContext";
+import { TransactionModalsProvider } from "@/contexts/TransactionModalsContext";
 import { ThemeProvider, ThemeScript } from "@/contexts/ThemeContext";
 import { WalletProvider } from "@/contexts/WalletContext";
 import { Header } from "@/components/Header";
-import { MovementModals } from "@/components/MovementModals";
+import { TransactionModals } from "@/components/TransactionModals";
 import { SidebarNav } from "@/components/SidebarNav";
 
 export default async function DashboardLayout({
@@ -40,16 +40,16 @@ export default async function DashboardLayout({
     <ThemeProvider initialTheme={theme}>
       <ThemeScript theme={theme} />
       <WalletProvider currentWalletId={currentWalletId} wallets={list} user={user} firstName={firstName}>
-        <MovementModalsProvider>
+        <TransactionModalsProvider>
           <Header />
           <div className="flex w-full">
             <SidebarNav />
             <main className="flex-1 py-6">
-              <div className="max-w-6xl w-full mx-auto px-3">{children}</div>
+              <div className="max-w-[1200px] w-full mx-auto px-3">{children}</div>
             </main>
           </div>
-          <MovementModals />
-        </MovementModalsProvider>
+          <TransactionModals />
+        </TransactionModalsProvider>
       </WalletProvider>
     </ThemeProvider>
   );

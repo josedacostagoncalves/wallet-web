@@ -289,7 +289,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         );
     }
 
-    const tableWidth = 160 + (dateColumns.length + 1) * 96;
     const monthlyTotals = dateColumns.reduce<Record<string, number>>((acc, col) => {
         acc[col.key] = data.reduce((sum, row) => sum + (row.monthlyBreakdown?.[col.key] ?? 0), 0);
         return acc;
@@ -358,25 +357,24 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                 </div>
             )}
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
-                <table className="text-xs bg-white dark:bg-slate-950 border-collapse" style={{ width: `${tableWidth}px`, tableLayout: "fixed", borderCollapse: "collapse" }}>
+                <table className="w-full text-xs bg-white dark:bg-slate-950 border-collapse">
                     <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 sticky top-0">
-                        <tr style={{ display: "table-row" }}>
+                        <tr>
                             {orderEditing && (
-                                <th className="px-3 py-3 w-10" style={{ width: "40px", boxSizing: "border-box" }} />
+                                <th className="px-3 py-3 w-10" />
                             )}
-                            <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300" style={{ width: "160px", boxSizing: "border-box" }}>
+                            <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300 min-w-[120px]">
                                 Category
                             </th>
                             {dateColumns.map((col) => (
                                 <th
                                     key={col.key}
-                                    className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300"
-                                    style={{ width: "96px", boxSizing: "border-box" }}
+                                    className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300 min-w-[65px]"
                                 >
                                     {col.label}
                                 </th>
                             ))}
-                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300" style={{ width: "96px", boxSizing: "border-box" }}>
+                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300 min-w-[65px]">
                                 Total
                             </th>
                         </tr>
@@ -421,7 +419,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 </div>
                                             </td>
                                         )}
-                                        <td className="px-3 py-3 text-left font-medium text-slate-900 dark:text-slate-100" style={{ width: "160px", boxSizing: "border-box" }}>
+                                        <td className="px-3 py-3 text-left font-medium text-slate-900 dark:text-slate-100 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 {!orderEditing && hasSubcategories && (
                                                     <svg
@@ -454,7 +452,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                             : "text-red-600 dark:text-red-400"
                                                         : "text-slate-500 dark:text-slate-400"
                                                         }`}
-                                                    style={{ width: "96px", boxSizing: "border-box" }}
                                                 >
                                                     {renderValueCell(value, col.key, col.label, row)}
                                                 </td>
@@ -465,7 +462,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 ? "text-green-600 dark:text-green-400"
                                                 : "text-red-600 dark:text-red-400"
                                                 }`}
-                                            style={{ width: "96px", boxSizing: "border-box" }}
                                         >
                                             {formatCurrency(row.total)}
                                         </td>
@@ -477,7 +473,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 key={`${row.category}-${subcategory.subcategory}`}
                                                 className="bg-slate-50 dark:bg-slate-900/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors"
                                             >
-                                                <td className="px-3 py-2 text-left text-slate-700 dark:text-slate-300 pl-12" style={{ width: "160px", boxSizing: "border-box" }}>
+                                                <td className="px-3 py-2 text-left text-slate-700 dark:text-slate-300 pl-12 min-w-0">
                                                     {subcategory.subcategory || "(No subcategory)"}
                                                 </td>
                                                 {dateColumns.map((col) => {
@@ -491,7 +487,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                                     : "text-red-600 dark:text-red-400"
                                                                 : "text-slate-500 dark:text-slate-400"
                                                                 }`}
-                                                            style={{ width: "96px", boxSizing: "border-box" }}
                                                         >
                                                             {renderValueCell(value, col.key, col.label, subcategory)}
                                                         </td>
@@ -502,7 +497,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                         ? "text-green-600 dark:text-green-400"
                                                         : "text-red-600 dark:text-red-400"
                                                         }`}
-                                                    style={{ width: "96px", boxSizing: "border-box" }}
                                                 >
                                                     {formatCurrency(subcategory.total)}
                                                 </td>
@@ -514,7 +508,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     </tbody>
                     <tfoot className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                         <tr>
-                            <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100" style={{ width: "160px", boxSizing: "border-box" }}>
+                            <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100 min-w-[120px]">
                                 Total
                             </td>
                             {dateColumns.map((col) => {
@@ -528,7 +522,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 : "text-red-600 dark:text-red-400"
                                             : "text-slate-500 dark:text-slate-400"
                                             }`}
-                                        style={{ width: "96px", boxSizing: "border-box" }}
                                     >
                                         {value > 0 ? formatCurrency(value) : "—"}
                                     </td>
@@ -539,7 +532,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     ? "text-green-700 dark:text-green-300"
                                     : "text-red-700 dark:text-red-300"
                                     }`}
-                                style={{ width: "96px", boxSizing: "border-box" }}
                             >
                                 {formatCurrency(grandTotal)}
                             </td>
