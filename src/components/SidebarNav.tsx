@@ -118,6 +118,14 @@ export function SidebarNav() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 3v18h18" /><path d="M7 15v3" /><path d="M12 11v7" /><path d="M17 7v11" /></svg>
                         <span className={`truncate transition-all ${labelClass}`}>Reports</span>
                     </Link>
+                    <Link
+                        href="/statements"
+                        className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
+                        title="Statements"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M9 11H3v2h6v-2zm0-4H3v2h6V7zm6 0v2h6V7h-6zm0 4v2h6v-2h-6zM9 3H3v2h6V3zm6 0v2h6V3h-6z" /><path d="M3 3h18v18H3z" /></svg>
+                        <span className={`truncate transition-all ${labelClass}`}>Statements</span>
+                    </Link>
 
                     <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
 
