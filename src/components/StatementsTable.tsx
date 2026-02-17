@@ -301,7 +301,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
             <div className="flex items-center justify-between gap-3 mb-3">
                 <h2 className="text-lg font-medium text-slate-900 dark:text-white">{title}</h2>
                 <div className="flex items-center gap-2">
-                    {orderEditing ? (
+                    {orderEditing && (
                         <>
                             <button
                                 type="button"
@@ -319,12 +319,13 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 Cancel
                             </button>
                         </>
-                    ) : (
+                    )}
+                    {!orderEditing && (
                         <button
                             type="button"
                             onClick={startReorder}
                             disabled={!currentWalletId}
-                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50"
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
                             aria-label="Reorder categories"
                             title="Reorder categories"
                         >
