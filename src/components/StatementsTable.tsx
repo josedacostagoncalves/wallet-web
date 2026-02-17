@@ -1,6 +1,11 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import {
+    getStatementsTableOrder,
+    saveStatementsTableOrder,
+    type StatementsTableOrderKey,
+} from "@/app/actions/preferences";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 type CategoryData = {
     category: string;
@@ -18,10 +23,49 @@ type Props = {
     data: CategoryData[];
     type: "income" | "expense";
     dateRange: { start: string; end: string } | null;
+    currentWalletId: string | null;
+    tableKey: StatementsTableOrderKey;
+    title: string;
 };
 
-export function StatementsTable({ data, type, dateRange }: Props) {
+function sortByOrder<T extends { category: string }>(items: T[], order: string[]): T[] {
+    if (!order.length) return [...items];
+    const rank = (category: string) => {
+        const i = order.indexOf(category);
+        return i === -1 ? 1e9 : i;
+    };
+    return [...items].sort((a, b) => rank(a.category) - rank(b.category));
+}
+
+function DragHandleIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-slate-400"
+            aria-hidden
+        >
+            <line x1="8" y1="6" x2="8" y2="18" />
+            <line x1="12" y1="6" x2="12" y2="18" />
+            <line x1="16" y1="6" x2="16" y2="18" />
+        </svg>
+    );
+}
+
+export function StatementsTable({ data, type, dateRange, currentWalletId, tableKey, title }: Props) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    const [orderEditing, setOrderEditing] = useState(false);
+    const [editOrder, setEditOrder] = useState<string[] | null>(null);
+    const [savedOrder, setSavedOrder] = useState<string[]>([]);
+    const [savingOrder, setSavingOrder] = useState(false);
+    const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
     const [hoverPreview, setHoverPreview] = useState<{
         title: string;
         monthLabel: string;
@@ -79,6 +123,122 @@ export function StatementsTable({ data, type, dateRange }: Props) {
         });
     };
 
+    useEffect(() => {
+        if (!currentWalletId) {
+            setSavedOrder([]);
+            setOrderEditing(false);
+            setEditOrder(null);
+            return;
+        }
+        let cancelled = false;
+        getStatementsTableOrder(currentWalletId, tableKey).then((order) => {
+            if (!cancelled) {
+                setSavedOrder(order);
+                if (!orderEditing) setEditOrder(null);
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- load preferences when wallet/table changes
+    }, [currentWalletId, tableKey]);
+
+    useEffect(() => {
+        setOrderEditing(false);
+        setEditOrder(null);
+    }, [currentWalletId, tableKey]);
+
+    const startReorder = useCallback(() => {
+        const currentCategories = data.map((row) => row.category);
+        const ids = savedOrder.length
+            ? savedOrder.filter((id) => currentCategories.includes(id))
+            : currentCategories;
+        const extra = currentCategories.filter((id) => !ids.includes(id));
+        setEditOrder([...ids, ...extra]);
+        setOrderEditing(true);
+    }, [savedOrder, data]);
+
+    const saveOrderClick = useCallback(async () => {
+        if (editOrder && currentWalletId) {
+            setSavingOrder(true);
+            await saveStatementsTableOrder(currentWalletId, tableKey, editOrder);
+            setSavedOrder(editOrder);
+            setSavingOrder(false);
+        }
+        setOrderEditing(false);
+        setEditOrder(null);
+    }, [currentWalletId, tableKey, editOrder]);
+
+    const cancelReorder = useCallback(() => {
+        setOrderEditing(false);
+        setEditOrder(null);
+        setDragOverCategory(null);
+    }, []);
+
+    const activeOrder = orderEditing && editOrder ? editOrder : savedOrder;
+    const orderedData = useMemo(() => sortByOrder(data, activeOrder), [data, activeOrder]);
+
+    const handleDragStart = useCallback((e: React.DragEvent, category: string) => {
+        if (!orderEditing) return;
+        e.dataTransfer.setData("text/plain", category);
+        e.dataTransfer.effectAllowed = "move";
+    }, [orderEditing]);
+
+    const handleDragOver = useCallback((e: React.DragEvent, category: string) => {
+        if (!orderEditing) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDragOverCategory(category);
+    }, [orderEditing]);
+
+    const handleDragLeave = useCallback(() => {
+        setDragOverCategory(null);
+    }, []);
+
+    const handleDrop = useCallback((e: React.DragEvent, dropTargetCategory: string) => {
+        if (!orderEditing) return;
+        e.preventDefault();
+        setDragOverCategory(null);
+        const draggedCategory = e.dataTransfer.getData("text/plain");
+        if (!draggedCategory || draggedCategory === dropTargetCategory) return;
+
+        const ids = orderedData.map((row) => row.category);
+        const from = ids.indexOf(draggedCategory);
+        const to = ids.indexOf(dropTargetCategory);
+        if (from === -1 || to === -1) return;
+
+        const next = [...ids];
+        next.splice(from, 1);
+        next.splice(next.indexOf(dropTargetCategory), 0, draggedCategory);
+        setEditOrder(next);
+    }, [orderEditing, orderedData]);
+
+    const handleDragEnd = useCallback(() => {
+        setDragOverCategory(null);
+    }, []);
+
+    const getPreviewPosition = (rect: DOMRect) => {
+        const tooltipWidth = 320;
+        const viewportPadding = 12;
+        const sideOffset = 10;
+
+        const preferredRight = rect.right + sideOffset;
+        const maxLeft = window.innerWidth - tooltipWidth - viewportPadding;
+
+        let x = preferredRight;
+        if (x > maxLeft) {
+            x = rect.left - tooltipWidth - sideOffset;
+        }
+        x = Math.max(viewportPadding, Math.min(x, maxLeft));
+
+        const y = Math.max(
+            viewportPadding,
+            Math.min(rect.top, window.innerHeight - viewportPadding)
+        );
+
+        return { x, y };
+    };
+
     const renderValueCell = (
         value: number,
         monthKey: string,
@@ -105,8 +265,7 @@ export function StatementsTable({ data, type, dateRange }: Props) {
                 className={textClass}
                 onMouseEnter={(event) => {
                     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-                    const x = rect.left + rect.width / 2;
-                    const y = rect.top;
+                    const { x, y } = getPreviewPosition(rect);
                     setHoverPreview({
                         title: row.subcategory || row.category,
                         monthLabel,
@@ -139,9 +298,44 @@ export function StatementsTable({ data, type, dateRange }: Props) {
 
     return (
         <div className="relative" onMouseLeave={() => setHoverPreview(null)}>
+            <div className="flex items-center justify-between gap-3 mb-3">
+                <h2 className="text-lg font-medium text-slate-900 dark:text-white">{title}</h2>
+                <div className="flex items-center gap-2">
+                    {orderEditing ? (
+                        <>
+                            <button
+                                type="button"
+                                onClick={saveOrderClick}
+                                disabled={savingOrder}
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-50"
+                            >
+                                {savingOrder ? "Saving…" : "Save order"}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={cancelReorder}
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                            >
+                                Cancel
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={startReorder}
+                            disabled={!currentWalletId}
+                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors disabled:opacity-50"
+                            aria-label="Reorder categories"
+                            title="Reorder categories"
+                        >
+                            <DragHandleIcon />
+                        </button>
+                    )}
+                </div>
+            </div>
             {hoverPreview && (
                 <div
-                    className="pointer-events-none fixed z-40 w-80 -translate-x-1/2 -translate-y-2 rounded-md border border-slate-200 bg-white p-3 text-left shadow-lg dark:border-slate-700 dark:bg-slate-900"
+                    className="pointer-events-none fixed z-40 w-80 rounded-md border border-slate-200 bg-white p-3 text-left shadow-lg dark:border-slate-700 dark:bg-slate-900"
                     style={{ left: hoverPreview.x, top: hoverPreview.y }}
                 >
                     <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400">
@@ -166,6 +360,9 @@ export function StatementsTable({ data, type, dateRange }: Props) {
                 <table className="text-xs bg-white dark:bg-slate-950 border-collapse" style={{ width: `${tableWidth}px`, tableLayout: "fixed", borderCollapse: "collapse" }}>
                     <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 sticky top-0">
                         <tr style={{ display: "table-row" }}>
+                            {orderEditing && (
+                                <th className="px-3 py-3 w-10" style={{ width: "40px", boxSizing: "border-box" }} />
+                            )}
                             <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300" style={{ width: "160px", boxSizing: "border-box" }}>
                                 Category
                             </th>
@@ -184,7 +381,7 @@ export function StatementsTable({ data, type, dateRange }: Props) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                        {data.map((row) => {
+                        {orderedData.map((row) => {
                             const isExpanded = expandedCategories.has(row.category);
                             const hasSubcategories =
                                 row.subcategories && row.subcategories.length > 0;
@@ -195,14 +392,37 @@ export function StatementsTable({ data, type, dateRange }: Props) {
                                         className={`${type === "income"
                                             ? "hover:bg-green-50 dark:hover:bg-green-900/10"
                                             : "hover:bg-red-50 dark:hover:bg-red-900/10"
-                                            } transition-colors ${hasSubcategories ? "cursor-pointer" : ""}`}
+                                            } transition-colors ${orderEditing
+                                                ? dragOverCategory === row.category
+                                                    ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 ring-inset"
+                                                    : ""
+                                                : hasSubcategories
+                                                    ? "cursor-pointer"
+                                                    : ""
+                                            }`}
                                         onClick={() =>
-                                            hasSubcategories && toggleCategory(row.category)
+                                            !orderEditing && hasSubcategories && toggleCategory(row.category)
                                         }
+                                        onDragOver={orderEditing ? (e) => handleDragOver(e, row.category) : undefined}
+                                        onDragLeave={orderEditing ? handleDragLeave : undefined}
+                                        onDrop={orderEditing ? (e) => handleDrop(e, row.category) : undefined}
+                                        onDragEnd={orderEditing ? handleDragEnd : undefined}
                                     >
+                                        {orderEditing && (
+                                            <td className="px-3 py-3" style={{ width: "40px", boxSizing: "border-box" }} onClick={(e) => e.stopPropagation()}>
+                                                <div
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, row.category)}
+                                                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 cursor-grab active:cursor-grabbing inline-flex touch-none"
+                                                    aria-label="Drag to reorder"
+                                                >
+                                                    <DragHandleIcon />
+                                                </div>
+                                            </td>
+                                        )}
                                         <td className="px-3 py-3 text-left font-medium text-slate-900 dark:text-slate-100" style={{ width: "160px", boxSizing: "border-box" }}>
                                             <div className="flex items-center gap-2">
-                                                {hasSubcategories && (
+                                                {!orderEditing && hasSubcategories && (
                                                     <svg
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         width="16"

@@ -141,21 +141,25 @@ export default function StatementsPage() {
                 <div className="space-y-8">
                     {/* Income Table */}
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                            Income
-                        </h2>
-                        <StatementsTable data={incomeData} type="income" dateRange={dateRange} />
+                        <StatementsTable
+                            data={incomeData}
+                            type="income"
+                            tableKey="income"
+                            currentWalletId={currentWalletId}
+                            dateRange={dateRange}
+                            title="Income"
+                        />
                     </div>
 
                     {/* Expenses Table */}
                     <div>
-                        <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                            Expenses
-                        </h2>
                         <StatementsTable
                             data={expenseData}
                             type="expense"
+                            tableKey="expense"
+                            currentWalletId={currentWalletId}
                             dateRange={dateRange}
+                            title="Expenses"
                         />
                     </div>
                 </div>

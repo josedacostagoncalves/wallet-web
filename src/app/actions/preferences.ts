@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const ACCOUNT_ORDER_KEY = "account_order";
 const BALANCE_DISPLAY_KEY = "balance_display_options";
+const STATEMENTS_ORDER_PREFIX = "statements_order_";
 
 /**
  * Load the saved account order for the current user + wallet.
@@ -197,5 +198,68 @@ export async function saveAccountsTableDisplayOptions(
     );
 
   if (err) return { error: err.message };
+  return {};
+}
+
+/* ---------- Statements table order ---------- */
+
+export type StatementsTableOrderKey = "income" | "expense";
+
+function statementsOrderKey(tableKey: StatementsTableOrderKey) {
+  return `${STATEMENTS_ORDER_PREFIX}${tableKey}`;
+}
+
+export async function getStatementsTableOrder(
+  walletId: string,
+  tableKey: StatementsTableOrderKey
+): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("user_preferences")
+    .select("value")
+    .eq("user_id", user.id)
+    .eq("wallet_id", walletId)
+    .eq("key", statementsOrderKey(tableKey))
+    .maybeSingle();
+
+  if (!data) return [];
+
+  const val = data.value;
+  if (Array.isArray(val)) {
+    return val.filter((x: unknown) => typeof x === "string") as string[];
+  }
+  return [];
+}
+
+export async function saveStatementsTableOrder(
+  walletId: string,
+  tableKey: StatementsTableOrderKey,
+  order: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      {
+        user_id: user.id,
+        wallet_id: walletId,
+        key: statementsOrderKey(tableKey),
+        value: order,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,wallet_id,key" }
+    );
+
+  if (error) return { error: error.message };
   return {};
 }
