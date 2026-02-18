@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 const ACCOUNT_ORDER_KEY = "account_order";
 const BALANCE_DISPLAY_KEY = "balance_display_options";
 const STATEMENTS_ORDER_PREFIX = "statements_order_";
+const STATEMENTS_HIDE_KEY = "statements_hide_balances";
 
 /**
  * Load the saved account order for the current user + wallet.
@@ -133,6 +134,56 @@ export async function saveBalanceDisplayOptions(
   return {};
 }
 
+/* ─── Statements table hide balances ─── */
+
+export async function getStatementsHideBalances(
+  walletId: string
+): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("user_preferences")
+    .select("value")
+    .eq("user_id", user.id)
+    .eq("wallet_id", walletId)
+    .eq("key", STATEMENTS_HIDE_KEY)
+    .maybeSingle();
+
+  if (!data) return false;
+  return data.value === true;
+}
+
+export async function saveStatementsHideBalances(
+  walletId: string,
+  hideBalances: boolean
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      {
+        user_id: user.id,
+        wallet_id: walletId,
+        key: STATEMENTS_HIDE_KEY,
+        value: hideBalances,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,wallet_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  return {};
+}
+
 /* ─── Accounts table display options ─── */
 
 const ACCOUNTS_DISPLAY_KEY = "accounts_table_display";
@@ -212,12 +263,12 @@ function statementsOrderKey(tableKey: StatementsTableOrderKey) {
 export async function getStatementsTableOrder(
   walletId: string,
   tableKey: StatementsTableOrderKey
-): Promise<string[]> {
+): Promise<string[] | { categories: string[]; subcategories: Record<string, string[]> }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return [];
+  if (!user) return { categories: [], subcategories: {} };
 
   const { data } = await supabase
     .from("user_preferences")
@@ -227,19 +278,23 @@ export async function getStatementsTableOrder(
     .eq("key", statementsOrderKey(tableKey))
     .maybeSingle();
 
-  if (!data) return [];
+  if (!data) return { categories: [], subcategories: {} };
 
   const val = data.value;
+  // Support both old array format and new nested format
   if (Array.isArray(val)) {
     return val.filter((x: unknown) => typeof x === "string") as string[];
   }
-  return [];
+  if (val && typeof val === "object" && "categories" in val && "subcategories" in val) {
+    return val as { categories: string[]; subcategories: Record<string, string[]> };
+  }
+  return { categories: [], subcategories: {} };
 }
 
 export async function saveStatementsTableOrder(
   walletId: string,
   tableKey: StatementsTableOrderKey,
-  order: string[]
+  order: { categories: string[]; subcategories: Record<string, string[]> }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {

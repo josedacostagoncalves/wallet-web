@@ -1,32 +1,50 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { getStatementsByCategory } from "@/app/actions/statements";
+import { getStatementsByCategory, getAvailableYears } from "@/app/actions/statements";
 import { StatementsTable } from "@/components/StatementsTable";
 
 export default function StatementsPage() {
+    const t = useTranslations("statements");
     const [currentWalletId, setCurrentWalletId] = useState<string | null>(null);
     const [incomeData, setIncomeData] = useState<any[]>([]);
     const [expenseData, setExpenseData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
+    const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
 
-    // Initialize wallet and set current year as default date range
+    // Initialize wallet and fetch available years
     useEffect(() => {
         async function init() {
             const cookie = await getWalletCookie();
             setCurrentWalletId(cookie);
 
-            // Default to current year
-            const now = new Date();
-            const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-            const yearEnd = new Date(now.getFullYear(), 11, 31).toISOString().slice(0, 10);
-            setDateRange({ start: yearStart, end: yearEnd });
+            if (cookie) {
+                const years = await getAvailableYears(cookie);
+                setAvailableYears(years);
+
+                // Set selected year to current year if available, otherwise first available
+                const currentYear = new Date().getFullYear();
+                if (years.includes(currentYear)) {
+                    setSelectedYear(currentYear);
+                } else if (years.length > 0) {
+                    setSelectedYear(years[0]);
+                }
+            }
         }
         init();
     }, []);
+
+    // Update date range when selected year changes
+    useEffect(() => {
+        const yearStart = new Date(selectedYear, 0, 1).toISOString().slice(0, 10);
+        const yearEnd = new Date(selectedYear, 11, 31).toISOString().slice(0, 10);
+        setDateRange({ start: yearStart, end: yearEnd });
+    }, [selectedYear]);
 
     // Fetch data when wallet or date range changes
     useEffect(() => {
@@ -39,7 +57,7 @@ export default function StatementsPage() {
             setLoading(true);
             try {
                 if (!currentWalletId || !dateRange) {
-                    throw new Error("Wallet or date range not loaded");
+                    throw new Error(t("errorLoading"));
                 }
                 const data = await getStatementsByCategory(
                     currentWalletId,
@@ -51,7 +69,7 @@ export default function StatementsPage() {
                 setError(null);
             } catch (err) {
                 setError(
-                    err instanceof Error ? err.message : "Failed to load statements"
+                    err instanceof Error ? err.message : t("errorFailed")
                 );
                 setIncomeData([]);
                 setExpenseData([]);
@@ -61,109 +79,80 @@ export default function StatementsPage() {
         }
 
         loadData();
-    }, [currentWalletId, dateRange]);
+    }, [currentWalletId, dateRange, t]);
 
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    Statements
+                    {t("title")}
                 </h1>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    View income and expenses organized by category
+                    {t("description")}
                 </p>
             </div>
 
-            {/* Date Range Selector */}
+            {/* Year Selector */}
             <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Period:
+                    {t("year")}:
                 </label>
                 <select
-                    value={dateRange ? `${dateRange.start}|${dateRange.end}` : ""}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        if (!value) return;
-
-                        if (value === "fullYear") {
-                            const now = new Date();
-                            const yearStart = new Date(now.getFullYear(), 0, 1)
-                                .toISOString()
-                                .slice(0, 10);
-                            const yearEnd = new Date(now.getFullYear(), 11, 31)
-                                .toISOString()
-                                .slice(0, 10);
-                            setDateRange({ start: yearStart, end: yearEnd });
-                        } else {
-                            const [start, end] = value.split("|");
-                            setDateRange({ start, end });
-                        }
-                    }}
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
                     className="px-3 py-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
                 >
-                    <option value="">Select period...</option>
-                    {/* Monthly options for current year */}
-                    {Array.from({ length: 12 }, (_, i) => {
-                        const date = new Date(new Date().getFullYear(), i, 1);
-                        const monthStart = new Date(date.getFullYear(), date.getMonth(), 1)
-                            .toISOString()
-                            .slice(0, 10);
-                        const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0)
-                            .toISOString()
-                            .slice(0, 10);
-                        const monthLabel = date.toLocaleDateString("pt-PT", {
-                            month: "long",
-                            year: "numeric",
-                        });
-                        return (
-                            <option key={i} value={`${monthStart}|${monthEnd}`}>
-                                {monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}
-                            </option>
-                        );
-                    })}
-                    <option value="fullYear">Full Year</option>
+                    {availableYears.map((year) => (
+                        <option key={year} value={year}>
+                            {year}
+                        </option>
+                    ))}
                 </select>
             </div>
 
             {/* Error Message */}
-            {error && (
-                <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
-                    {error}
-                </div>
-            )}
+            {
+                error && (
+                    <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+                        {error}
+                    </div>
+                )
+            }
 
             {/* Loading State */}
-            {loading ? (
-                <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-                    Loading statements...
-                </div>
-            ) : (
-                <div className="space-y-8">
-                    {/* Income Table */}
-                    <div>
-                        <StatementsTable
-                            data={incomeData}
-                            type="income"
-                            tableKey="income"
-                            currentWalletId={currentWalletId}
-                            dateRange={dateRange}
-                            title="Income"
-                        />
+            {
+                loading ? (
+                    <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                        {t("loading")}
                     </div>
+                ) : (
+                    <div className="space-y-8">
+                        {/* Income Table */}
+                        <div>
+                            <StatementsTable
+                                data={incomeData}
+                                type="income"
+                                tableKey="income"
+                                currentWalletId={currentWalletId}
+                                dateRange={dateRange}
+                                title={t("income")}
+                            />
+                        </div>
 
-                    {/* Expenses Table */}
-                    <div>
-                        <StatementsTable
-                            data={expenseData}
-                            type="expense"
-                            tableKey="expense"
-                            currentWalletId={currentWalletId}
-                            dateRange={dateRange}
-                            title="Expenses"
-                        />
+                        {/* Expenses Table */}
+                        <div>
+                            <StatementsTable
+                                data={expenseData}
+                                type="expense"
+                                tableKey="expense"
+                                currentWalletId={currentWalletId}
+                                dateRange={dateRange}
+                                title={t("expenses")}
+                            />
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

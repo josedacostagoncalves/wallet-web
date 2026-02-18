@@ -191,3 +191,30 @@ export async function getStatementsByCategory(
         expenses: formatStatements(expenseMap),
     };
 }
+export async function getAvailableYears(walletId: string): Promise<number[]> {
+    const supabase = await createClient();
+
+    // Fetch all transactions to get distinct years
+    const { data: transactions, error } = await supabase
+        .from("transactions")
+        .select("date")
+        .eq("wallet_id", walletId)
+        .eq("status", "confirmed")
+        .in("type", ["income", "expense"])
+        .order("date", { ascending: true });
+
+    if (error || !transactions) {
+        console.error("Error fetching transactions for years:", error);
+        return [new Date().getFullYear()];
+    }
+
+    // Extract unique years from transactions
+    const yearsSet = new Set<number>();
+    transactions.forEach((transaction) => {
+        const year = new Date(transaction.date).getFullYear();
+        yearsSet.add(year);
+    });
+
+    // Return sorted years in descending order
+    return Array.from(yearsSet).sort((a, b) => b - a);
+}

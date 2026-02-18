@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
     CartesianGrid,
     Line,
@@ -28,6 +29,8 @@ type ReportsWidgetsProps = {
     pendingVsConfirmed: { pending: number; confirmed: number };
     categories: { name: string; value: number }[];
     defaultPeriodMonths: number;
+    selectedMonth?: { year: number; month: number };
+    onMonthChange?: (year: number, month: number) => void;
 };
 
 type WidgetKey =
@@ -88,9 +91,43 @@ export function ReportsWidgets({
     pendingVsConfirmed,
     categories,
     defaultPeriodMonths,
+    selectedMonth,
 }: ReportsWidgetsProps) {
+    const t = useTranslations("reports.widgets");
     const [activeWidget, setActiveWidget] = useState<WidgetKey | null>(null);
     const [periodMonths, setPeriodMonths] = useState(defaultPeriodMonths);
+
+    // Calculate values for selected month
+    const selectedMonthData = useMemo(() => {
+        if (!selectedMonth) {
+            return {
+                income: incomeTotal,
+                expense: expenseTotal,
+                net: netTotal,
+                monthLabel: "This Month",
+            };
+        }
+
+        const monthKey = `${selectedMonth.year}-${String(selectedMonth.month + 1).padStart(2, '0')}`;
+        const monthData = monthlySeries.find(m => m.key === monthKey);
+
+        if (!monthData) {
+            return {
+                income: 0,
+                expense: 0,
+                net: 0,
+                monthLabel: new Date(selectedMonth.year, selectedMonth.month).toLocaleString("en-US", { month: "long", year: "numeric" }),
+            };
+        }
+
+        const monthLabel = new Date(selectedMonth.year, selectedMonth.month).toLocaleString("en-US", { month: "long", year: "numeric" });
+        return {
+            income: monthData.income,
+            expense: monthData.expense,
+            net: monthData.net,
+            monthLabel,
+        };
+    }, [selectedMonth, monthlySeries, incomeTotal, expenseTotal, netTotal]);
 
     const topCategories = useMemo(
         () => [...categories].sort((a, b) => b.value - a.value).slice(0, 5),
@@ -105,59 +142,59 @@ export function ReportsWidgets({
     const modalTitle = useMemo(() => {
         switch (activeWidget) {
             case "income":
-                return "Income trend";
+                return t("incomeTrend");
             case "expenses":
-                return "Expense trend";
+                return t("expenseTrend");
             case "net":
-                return "Net savings trend";
+                return t("netSavingsTrend");
             case "avgDaily":
-                return "Average daily spend";
+                return t("averageDailySpend");
             case "pending":
-                return "Pending vs confirmed";
+                return t("pendingVsConfirmedTrend");
             case "categories":
-                return "Top categories";
+                return t("topCategoriesTrend");
             default:
                 return "";
         }
-    }, [activeWidget]);
+    }, [activeWidget, t]);
 
     return (
         <>
             <div className="grid grid-cols-2 gap-4">
                 <WidgetCard
-                    title="Income (This Month)"
-                    value={`+${formatCurrency(incomeTotal)} €`}
+                    title={`${t("income")} (${selectedMonthData.monthLabel})`}
+                    value={`+${formatCurrency(selectedMonthData.income)} €`}
                     accent="text-green-600"
                     onClick={() => setActiveWidget("income")}
                 />
                 <WidgetCard
-                    title="Expenses (This Month)"
-                    value={`−${formatCurrency(expenseTotal)} €`}
+                    title={`${t("expenses")} (${selectedMonthData.monthLabel})`}
+                    value={`−${formatCurrency(selectedMonthData.expense)} €`}
                     accent="text-red-600"
                     onClick={() => setActiveWidget("expenses")}
                 />
                 <WidgetCard
-                    title="Net Savings"
-                    value={`${netTotal >= 0 ? "+" : "−"}${formatCurrency(Math.abs(netTotal))} €`}
-                    accent={netTotal >= 0 ? "text-emerald-600" : "text-rose-600"}
+                    title={t("netSavings")}
+                    value={`${selectedMonthData.net >= 0 ? "+" : "−"}${formatCurrency(Math.abs(selectedMonthData.net))} €`}
+                    accent={selectedMonthData.net >= 0 ? "text-emerald-600" : "text-rose-600"}
                     className="col-span-2"
                     onClick={() => setActiveWidget("net")}
                 />
                 <WidgetCard
-                    title="Avg Daily Spend"
+                    title={t("avgDailySpend")}
                     value={`${formatCurrency(avgDailySpend.current)} €`}
                     accent="text-slate-700"
                     onClick={() => setActiveWidget("avgDaily")}
                 />
                 <WidgetCard
-                    title="Pending vs Confirmed"
+                    title={t("pendingVsConfirmed")}
                     value={`${formatCurrency(pendingVsConfirmed.pending)} €`}
                     accent="text-amber-600"
                     onClick={() => setActiveWidget("pending")}
                 />
                 <WidgetCard
-                    title="Top Categories"
-                    value={`${topCategories.length} categories`}
+                    title={t("topCategories")}
+                    value={`${topCategories.length} ${t("categories")}`}
                     accent="text-slate-700"
                     className="col-span-2"
                     onClick={() => setActiveWidget("categories")}
@@ -183,7 +220,7 @@ export function ReportsWidgets({
                                 onClick={() => setActiveWidget(null)}
                                 className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                             >
-                                Close
+                                {t("close")}
                             </button>
                         </div>
 
@@ -204,7 +241,7 @@ export function ReportsWidgets({
                                                         : "border-slate-200 dark:border-slate-700 text-slate-600")
                                                 }
                                             >
-                                                Last {m} months
+                                                {t("lastMonths", { months: m })}
                                             </button>
                                         ))}
                                     </div>
@@ -237,17 +274,17 @@ export function ReportsWidgets({
                         {activeWidget === "avgDaily" && (
                             <div className="space-y-2">
                                 <p className="text-sm text-slate-600">
-                                    Month-to-date average compared with last month.
+                                    {t("monthToDateAverage")}
                                 </p>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                        <p className="text-xs text-slate-500 mb-1">This month</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t("thisMonth")}</p>
                                         <p className="text-lg font-semibold">
                                             {formatCurrency(avgDailySpend.current)} €
                                         </p>
                                     </div>
                                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                        <p className="text-xs text-slate-500 mb-1">Last month</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t("lastMonth")}</p>
                                         <p className="text-lg font-semibold">
                                             {formatCurrency(avgDailySpend.previous)} €
                                         </p>
@@ -259,17 +296,17 @@ export function ReportsWidgets({
                         {activeWidget === "pending" && (
                             <div className="space-y-3">
                                 <p className="text-sm text-slate-600">
-                                    This month totals by status.
+                                    {t("monthTotalsByStatus")}
                                 </p>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                        <p className="text-xs text-slate-500 mb-1">Confirmed</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t("confirmed")}</p>
                                         <p className="text-lg font-semibold">
                                             {formatCurrency(pendingVsConfirmed.confirmed)} €
                                         </p>
                                     </div>
                                     <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-                                        <p className="text-xs text-slate-500 mb-1">Pending</p>
+                                        <p className="text-xs text-slate-500 mb-1">{t("pending")}</p>
                                         <p className="text-lg font-semibold">
                                             {formatCurrency(pendingVsConfirmed.pending)} €
                                         </p>
@@ -282,7 +319,7 @@ export function ReportsWidgets({
                             <div className="space-y-3">
                                 {topCategories.length === 0 ? (
                                     <p className="text-sm text-slate-600">
-                                        No expenses in the selected month.
+                                        {t("noExpenses")}
                                     </p>
                                 ) : (
                                     <ul className="space-y-2">

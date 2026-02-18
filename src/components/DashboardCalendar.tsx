@@ -2,6 +2,7 @@
 
 import { TransactionTypeIcon } from "@/components/ActionIcons";
 import { useTransactionModals } from "@/contexts/TransactionModalsContext";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 export type CalendarTransaction = {
@@ -32,6 +33,7 @@ export type CalendarRecurringNextRun = {
 type Props = {
   transactions: CalendarTransaction[];
   recurringNextRuns?: CalendarRecurringNextRun[];
+  onMonthChange?: (year: number, month: number) => void;
 };
 
 type DayIndicators = { income: boolean; expense: boolean; transfer: boolean; pending: boolean };
@@ -53,13 +55,6 @@ function indicatorsForDay(
   if (recurringCount > 0) pending = true;
   return { income, expense, transfer, pending };
 }
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function transactionsByDate(transactions: CalendarTransaction[]): Map<string, CalendarTransaction[]> {
   const m = new Map<string, CalendarTransaction[]>();
@@ -93,13 +88,40 @@ function recurringByDate(
   return m;
 }
 
-export function DashboardCalendar({ transactions, recurringNextRuns = [] }: Props) {
+export function DashboardCalendar({ transactions, recurringNextRuns = [], onMonthChange }: Props) {
+  const t = useTranslations("calendar");
   const { openEditTransaction, openEditRecurring } = useTransactionModals();
   const [view, setView] = useState(() => {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
   });
   const [selected, setSelected] = useState<string | null>(null);
+
+  // Build month and day names from translations
+  const MONTHS = useMemo(() => [
+    t("january"),
+    t("february"),
+    t("march"),
+    t("april"),
+    t("may"),
+    t("june"),
+    t("july"),
+    t("august"),
+    t("september"),
+    t("october"),
+    t("november"),
+    t("december"),
+  ], [t]);
+
+  const DOW = useMemo(() => [
+    t("sunday"),
+    t("monday"),
+    t("tuesday"),
+    t("wednesday"),
+    t("thursday"),
+    t("friday"),
+    t("saturday"),
+  ], [t]);
 
   const byDate = useMemo(() => transactionsByDate(transactions), [transactions]);
   const recurringByDay = useMemo(
@@ -130,12 +152,18 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [] }: Prop
   }, [view.year, view.month]);
 
   const prev = () => {
-    if (view.month === 0) setView({ year: view.year - 1, month: 11 });
-    else setView({ year: view.year, month: view.month - 1 });
+    const newView = view.month === 0
+      ? { year: view.year - 1, month: 11 }
+      : { year: view.year, month: view.month - 1 };
+    setView(newView);
+    onMonthChange?.(newView.year, newView.month);
   };
   const next = () => {
-    if (view.month === 11) setView({ year: view.year + 1, month: 0 });
-    else setView({ year: view.year, month: view.month + 1 });
+    const newView = view.month === 11
+      ? { year: view.year + 1, month: 0 }
+      : { year: view.year, month: view.month + 1 };
+    setView(newView);
+    onMonthChange?.(newView.year, newView.month);
   };
 
   const dayTransactions = selected ? (byDate.get(selected) ?? []) : [];
@@ -151,7 +179,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [] }: Prop
             type="button"
             onClick={prev}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
-            aria-label="Previous month"
+            aria-label={t("previousMonth")}
           >
             ◀
           </button>
@@ -162,7 +190,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [] }: Prop
             type="button"
             onClick={next}
             className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
-            aria-label="Next month"
+            aria-label={t("nextMonth")}
           >
             ▶
           </button>
