@@ -8,6 +8,7 @@ import {
 } from "@/lib/transaction-labels";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type PendingRow = {
   id: string;
@@ -26,6 +27,7 @@ type Props = { pending: PendingRow[] };
 
 export function PendingSection({ pending }: Props) {
   const router = useRouter();
+  const t = useTranslations("transactions.pending");
   const hasAny = pending.length > 0;
   const [expanded, setExpanded] = useState(hasAny);
   const prevHasAny = useRef(hasAny);
@@ -46,9 +48,9 @@ export function PendingSection({ pending }: Props) {
         onClick={() => setExpanded((x) => !x)}
         className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
         aria-expanded={expanded}
-        aria-label={expanded ? "Collapse pending" : "Expand pending"}
+        aria-label={expanded ? t("collapse") : t("expand")}
       >
-        <span className="text-lg font-medium text-slate-800">Pending</span>
+        <span className="text-lg font-medium text-slate-800">{t("title")}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -68,19 +70,19 @@ export function PendingSection({ pending }: Props) {
       {expanded && (
         <div className="overflow-x-auto border-t border-slate-200">
           {pending.length === 0 ? (
-            <div className="p-6 text-xs text-slate-500">No pending transactions.</div>
+            <div className="p-6 text-xs text-slate-500">{t("empty")}</div>
           ) : (
             <table className="w-full text-xs min-w-[640px]">
               <thead className="bg-slate-100">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">Type</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Date</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">Description</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.date")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.description")}</th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600">
-                    Category :: Subcategory
+                    {t("table.categorySubcategory")}
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">From → To</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">Amount</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.fromTo")}</th>
+                  <th className="px-4 py-3 text-right font-medium text-slate-600">{t("table.amount")}</th>
                   <th className="px-4 py-3 w-24" />
                 </tr>
               </thead>

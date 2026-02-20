@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 type Settlement = {
     member_id: string;
@@ -16,12 +16,13 @@ type Props = {
 };
 
 export function SettlementsSection({ settlements, splitType }: Props) {
+    const t = useTranslations("home.settlements");
     if (!settlements || settlements.length === 0) {
         return (
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
-                <h3 className="text-lg font-semibold mb-4">Settlement Balances</h3>
+                <h3 className="text-lg font-semibold mb-4">{t("title")}</h3>
                 <p className="text-slate-600 dark:text-slate-400">
-                    No settlements yet. Create an expense to see how it&apos;s split among members.
+                    {t("empty")}
                 </p>
             </div>
         );
@@ -35,7 +36,7 @@ export function SettlementsSection({ settlements, splitType }: Props) {
 
     return (
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
-            <h3 className="text-lg font-semibold mb-4">Settlement Balances</h3>
+            <h3 className="text-lg font-semibold mb-4">{t("title")}</h3>
 
             <div className="space-y-3">
                 {sorted.map((settlement) => {
@@ -48,10 +49,10 @@ export function SettlementsSection({ settlements, splitType }: Props) {
 
                     const balanceLabel =
                         settlement.balance > 0
-                            ? "is owed"
+                            ? t("isOwed")
                             : settlement.balance < 0
-                                ? "owes"
-                                : "settled";
+                                ? t("owes")
+                                : t("settled");
 
                     return (
                         <div
@@ -63,11 +64,11 @@ export function SettlementsSection({ settlements, splitType }: Props) {
                                     {settlement.email}
                                 </p>
                                 <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                    <p>Paid: {(settlement.total_paid / 100).toLocaleString()} €</p>
-                                    <p>Share: {(settlement.total_share / 100).toLocaleString()} €</p>
+                                    <p>{t("paid")}: {(settlement.total_paid / 100).toLocaleString()} €</p>
+                                    <p>{t("share")}: {(settlement.total_share / 100).toLocaleString()} €</p>
                                     {isByIncome && (
                                         <p className="mt-1 text-xs">
-                                            (Income-based split)
+                                            ({t("incomeBasedSplit")})
                                         </p>
                                     )}
                                 </div>
@@ -89,9 +90,9 @@ export function SettlementsSection({ settlements, splitType }: Props) {
 
             <div className="mt-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                 <p className="text-sm text-blue-800 dark:text-blue-400">
-                    <span className="font-medium">Positive balance:</span> This member has paid more than their share and is owed money.
+                    <span className="font-medium">{t("positiveBalance")}:</span> {t("positiveHelp")}
                     <br />
-                    <span className="font-medium">Negative balance:</span> This member has paid less than their share and owes money.
+                    <span className="font-medium">{t("negativeBalance")}:</span> {t("negativeHelp")}
                 </p>
             </div>
         </div>

@@ -6,6 +6,7 @@ import { UserIcon } from "@/components/UserIcon";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type Props = {
   first_name: string | null;
@@ -47,6 +48,8 @@ export function ProfileSettingsForm({
 }: Props) {
   const router = useRouter();
   const { showToast } = useToast();
+  const t = useTranslations("settings");
+  const tCommon = useTranslations("common");
 
   /* ---------- State for the card (reflects latest saved values) ---------- */
   const [savedFirstName, setSavedFirstName] = useState(first_name);
@@ -121,7 +124,7 @@ export function ProfileSettingsForm({
     setSavedBirthDate(editBirthDate || null);
     setSavedCountry(editCountry || null);
     if (photoPreview) setSavedAvatarUrl(photoPreview);
-    showToast("Profile saved successfully.", "success");
+    showToast(t("profileSection.toastSaved"), "success");
     closeModal();
     router.refresh();
   }
@@ -133,14 +136,14 @@ export function ProfileSettingsForm({
     <>
       {/* ---- Profile card ---- */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Profile</h2>
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">{t("profileSection.title")}</h2>
         <div className="flex items-center gap-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 max-w-md">
           {/* Avatar */}
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
             {displayUrl ? (
               <img
                 src={displayUrl}
-                alt="Avatar"
+                alt={t("profileSection.avatarAlt")}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -165,7 +168,7 @@ export function ProfileSettingsForm({
             className="flex items-center gap-1.5 shrink-0 rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
           >
             <PencilIcon />
-            Edit profile
+            {t("profileSection.editButton")}
           </button>
         </div>
       </div>
@@ -186,7 +189,7 @@ export function ProfileSettingsForm({
             <div className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-5 border-b border-slate-200 dark:border-slate-700">
                 <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                  Edit profile
+                  {t("profileSection.editTitle")}
                 </h2>
               </div>
 
@@ -197,7 +200,7 @@ export function ProfileSettingsForm({
                     {(photoPreview ?? savedAvatarUrl) ? (
                       <img
                         src={photoPreview ?? savedAvatarUrl ?? ""}
-                        alt="Avatar"
+                        alt={t("profileSection.avatarAlt")}
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -218,10 +221,10 @@ export function ProfileSettingsForm({
                       onClick={() => fileInputRef.current?.click()}
                       className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
                     >
-                      {savedAvatarUrl || photoPreview ? "Change photo" : "Add photo"}
+                      {savedAvatarUrl || photoPreview ? t("profileSection.photoChange") : t("profileSection.photoAdd")}
                     </button>
                     <span className="text-xs text-slate-500">
-                      JPEG, PNG, WebP or GIF. Max 2 MB.
+                      {t("profileSection.photoHint")}
                     </span>
                   </div>
                 </div>
@@ -229,7 +232,7 @@ export function ProfileSettingsForm({
                 {/* First name */}
                 <div>
                   <label htmlFor="modal_first_name" className="block text-sm font-medium mb-1">
-                    First name
+                    {t("profileSection.fields.firstName")}
                   </label>
                   <input
                     id="modal_first_name"
@@ -244,7 +247,7 @@ export function ProfileSettingsForm({
                 {/* Last name */}
                 <div>
                   <label htmlFor="modal_last_name" className="block text-sm font-medium mb-1">
-                    Last name
+                    {t("profileSection.fields.lastName")}
                   </label>
                   <input
                     id="modal_last_name"
@@ -259,7 +262,7 @@ export function ProfileSettingsForm({
                 {/* Email (read-only) */}
                 <div>
                   <label htmlFor="modal_email" className="block text-sm font-medium mb-1">
-                    Email
+                    {t("profileSection.fields.email")}
                   </label>
                   <input
                     id="modal_email"
@@ -273,7 +276,7 @@ export function ProfileSettingsForm({
                 {/* Birth date */}
                 <div>
                   <label htmlFor="modal_birth_date" className="block text-sm font-medium mb-1">
-                    Birth date
+                    {t("profileSection.fields.birthDate")}
                   </label>
                   <input
                     id="modal_birth_date"
@@ -288,7 +291,7 @@ export function ProfileSettingsForm({
                 {/* Country */}
                 <div>
                   <label htmlFor="modal_country" className="block text-sm font-medium mb-1">
-                    Country
+                    {t("profileSection.fields.country")}
                   </label>
                   <input
                     id="modal_country"
@@ -296,7 +299,7 @@ export function ProfileSettingsForm({
                     type="text"
                     value={editCountry}
                     onChange={(e) => setEditCountry(e.target.value)}
-                    placeholder="e.g. Portugal"
+                    placeholder={t("profileSection.countryPlaceholder")}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                   />
                 </div>
@@ -312,14 +315,14 @@ export function ProfileSettingsForm({
                     onClick={closeModal}
                     className="rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800"
                   >
-                    Cancel
+                    {tCommon("cancel")}
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
                     className="rounded-lg bg-slate-800 dark:bg-slate-200 dark:text-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
                   >
-                    {loading ? "Saving…" : "Save"}
+                    {loading ? t("profileSection.saving") : tCommon("save")}
                   </button>
                 </div>
               </form>

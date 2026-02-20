@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/preferences";
 import { AccountsSection } from "@/components/AccountsSection";
 import type { AccountType } from "@/lib/account-types";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -29,6 +30,7 @@ type Props = {
   totalInitialBalance: number;
   totalBalance: number;
   currentWalletId: string | null;
+  walletName?: string | null;
   pendingAmounts?: Record<string, number>;
 };
 
@@ -133,8 +135,10 @@ export function CurrentBalancesSection({
   totalInitialBalance,
   totalBalance,
   currentWalletId,
+  walletName,
   pendingAmounts = {},
 }: Props) {
+  const t = useTranslations("home.currentBalances");
   const [hideBalances, setHideBalances] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [orderEditing, setOrderEditing] = useState(false);
@@ -276,15 +280,18 @@ export function CurrentBalancesSection({
   return (
     <section>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-medium">Current balances</h2>
+        <div>
+          <h2 className="text-lg font-medium">{walletName || t("title")}</h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{t("subtitle")}</p>
+        </div>
         {mounted && (
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleHide}
               className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-              aria-label={hideBalances ? "Show balances" : "Hide balances"}
-              title={hideBalances ? "Show balances" : "Hide balances"}
+              aria-label={hideBalances ? t("showBalances") : t("hideBalances")}
+              title={hideBalances ? t("showBalances") : t("hideBalances")}
             >
               <EyeIcon hidden={hideBalances} />
             </button>
@@ -296,14 +303,14 @@ export function CurrentBalancesSection({
                   disabled={savingOrder}
                   className="px-3 py-1.5 text-sm font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-50"
                 >
-                  {savingOrder ? "Saving…" : "Save order"}
+                  {savingOrder ? t("saving") : t("saveOrder")}
                 </button>
                 <button
                   type="button"
                   onClick={cancelReorder}
                   className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
                 >
-                  Cancel
+                  {t("cancel")}
                 </button>
               </>
             ) : (
@@ -311,8 +318,8 @@ export function CurrentBalancesSection({
                 type="button"
                 onClick={startReorder}
                 className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                aria-label="Reorder accounts"
-                title="Reorder accounts"
+                aria-label={t("reorderAccounts")}
+                title={t("reorderAccounts")}
               >
                 <DragHandleIcon />
               </button>
@@ -321,13 +328,12 @@ export function CurrentBalancesSection({
               ref={optionsBtnRef}
               type="button"
               onClick={toggleOptions}
-              className={`p-2 rounded-lg border transition-colors ${
-                optionsOpen
-                  ? "border-slate-400 bg-slate-100 text-slate-800"
-                  : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
-              }`}
-              aria-label="Display options"
-              title="Display options"
+              className={`p-2 rounded-lg border transition-colors ${optionsOpen
+                ? "border-slate-400 bg-slate-100 text-slate-800"
+                : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
+                }`}
+              aria-label={t("displayOptions")}
+              title={t("displayOptions")}
             >
               <OptionsIcon />
             </button>
@@ -360,7 +366,7 @@ export function CurrentBalancesSection({
             style={{ top: popPos.top, left: popPos.left, transform: "translateX(-100%)" }}
           >
             <h3 className="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">
-              Display options
+              {t("displayOptions")}
             </h3>
             <label className="flex items-center gap-3 cursor-pointer py-1.5">
               <input
@@ -370,7 +376,7 @@ export function CurrentBalancesSection({
                 className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
               />
               <span className="text-sm text-slate-700 dark:text-slate-200">
-                Show initial balance
+                {t("showInitialBalance")}
               </span>
             </label>
             <label className="flex items-center gap-3 cursor-pointer py-1.5">
@@ -381,7 +387,7 @@ export function CurrentBalancesSection({
                 className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
               />
               <span className="text-sm text-slate-700 dark:text-slate-200">
-                Show plafond info
+                {t("showPlafondInfo")}
               </span>
             </label>
           </div>,

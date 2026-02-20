@@ -19,6 +19,7 @@ import {
 } from "@/lib/transaction-labels";
 import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -45,13 +46,13 @@ const MASK = "••••••";
 
 type RangeKey = "30d" | "3m" | "6m" | "1y" | "all" | "custom";
 
-const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
-  { key: "30d", label: "Last 30 days" },
-  { key: "3m", label: "Last 3 months" },
-  { key: "6m", label: "Last 6 months" },
-  { key: "1y", label: "Last year" },
-  { key: "all", label: "All" },
-  { key: "custom", label: "Custom" },
+const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
+  { key: "30d", labelKey: "last30Days" },
+  { key: "3m", labelKey: "last3Months" },
+  { key: "6m", labelKey: "last6Months" },
+  { key: "1y", labelKey: "lastYear" },
+  { key: "all", labelKey: "all" },
+  { key: "custom", labelKey: "custom" },
 ];
 
 function formatCurrency(value: number) {
@@ -123,6 +124,7 @@ export function AccountsSection({
   showPlafond = true,
   pendingAmounts = {},
 }: Props) {
+  const t = useTranslations("home.accountsTable");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [transactionsByAccount, setTransactionsByAccount] = useState<Record<string, TransactionsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -359,9 +361,9 @@ export function AccountsSection({
   if (accounts.length === 0) {
     return (
       <div className="p-6 text-xs text-slate-500">
-        No accounts yet. Create one from{" "}
+        {t("noAccounts")} {" "}
         <Link href="/accounts" className="underline">
-          Accounts
+          {t("accountsPage")}
         </Link>
         .
       </div>
@@ -375,12 +377,12 @@ export function AccountsSection({
           <thead className="bg-slate-50 dark:bg-slate-900">
             <tr className="border-b border-slate-200 dark:border-slate-800">
               {orderEditing && <th className="px-4 py-3 w-8" />}
-              <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Account</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">{t("account")}</th>
               {showInitialBalance && (
-                <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Initial balance</th>
+                <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">{t("initialBalance")}</th>
               )}
-              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Current balance</th>
-              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">Last update</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">{t("currentBalance")}</th>
+              <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">{t("lastUpdate")}</th>
               {!orderEditing && <th className="px-4 py-3 w-16" />}
             </tr>
           </thead>
@@ -412,7 +414,7 @@ export function AccountsSection({
                           draggable
                           onDragStart={(e) => handleDragStart(e, a.id)}
                           className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 cursor-grab active:cursor-grabbing inline-flex touch-none"
-                          aria-label="Drag to reorder"
+                          aria-label={t("dragToReorder")}
                         >
                           <DragHandleIcon />
                         </div>
@@ -435,27 +437,29 @@ export function AccountsSection({
                       </td>
                     )}
                     <td className="px-4 py-3 text-right font-mono">
-                      <span className={a.current_balance < 0 ? "text-red-600" : ""}>
-                        {fmt(a.current_balance, hideBalances)} €
-                      </span>
+                      <div className="flex items-center justify-end gap-2">
+                        {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans truncate">
+                            {hideBalances
+                              ? MASK
+                              : t("plafondInfo", { available: `${fmt(a.plafond + a.current_balance, false)} €`, total: `${fmt(a.plafond, false)} €` })}
+                          </span>
+                        )}
+                        <span className={`min-w-[72px] text-right ${a.current_balance < 0 ? "text-red-600" : ""}`}>
+                          {fmt(a.current_balance, hideBalances)} €
+                        </span>
+                      </div>
                       {(() => {
                         const pending = pendingAmounts?.[a.id];
                         if (pending != null && pending !== 0) {
                           return (
                             <span className="block text-xs text-amber-600 dark:text-amber-400 font-sans mt-0.5">
-                              {hideBalances ? MASK : `${fmt(pending, false)} € pending`}
+                              {hideBalances ? MASK : `${fmt(pending, false)} € ${t("pending")}`}
                             </span>
                           );
                         }
                         return null;
                       })()}
-                      {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
-                        <span className="block text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5">
-                          {hideBalances
-                            ? MASK
-                            : `${fmt(a.plafond + a.current_balance, false)} € available of ${fmt(a.plafond, false)} €`}
-                        </span>
-                      )}
                     </td>
                     <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">
                       {a.last_update
@@ -469,7 +473,7 @@ export function AccountsSection({
                             type="button"
                             onClick={() => openChart(a.id)}
                             className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500"
-                            aria-label="View balance evolution"
+                            aria-label={t("viewBalanceEvolution")}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -492,7 +496,7 @@ export function AccountsSection({
                             onClick={() => toggleExpand(a.id)}
                             className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500"
                             aria-expanded={isExpanded}
-                            aria-label={isExpanded ? "Collapse" : "Expand"}
+                            aria-label={isExpanded ? t("collapse") : t("expand")}
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
@@ -518,20 +522,21 @@ export function AccountsSection({
                     <tr key={`${a.id}-transactions`} className="bg-slate-50/50 dark:bg-slate-900/50">
                       <td colSpan={(showInitialBalance ? 5 : 4) + (orderEditing ? 1 : 0) + (!orderEditing ? 1 : 0)} className="px-4 py-3">
                         <div className="pl-6 space-y-2">
-                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Recent transactions</h3>
+                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">{t("recentTransactions")}</h3>
                           {loading && !transactions.length ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">Loading...</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("loading")}</p>
                           ) : transactions.length === 0 ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">No transactions for this account.</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("noTransactionsForAccount")}</p>
                           ) : (
                             <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
                               <table className="w-full text-xs">
                                 <thead className="bg-slate-100 dark:bg-slate-800">
                                   <tr>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">Type</th>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Date</th>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Description</th>
-                                    <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">Amount</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("type")}</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("date")}</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("description")}</th>
+                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("categorySubcategory")}</th>
+                                    <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("amount")}</th>
                                     <th className="px-3 py-2 w-20" />
                                   </tr>
                                 </thead>
@@ -543,20 +548,50 @@ export function AccountsSection({
                                       </td>
                                       <td className="px-3 py-2">{m.date}</td>
                                       <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
-                                        {m.description || "—"}
+                                        <span className="block truncate">{m.description || "—"}</span>
+                                        {m.type === "transfer" && (
+                                          <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                                            {m.accountFromId === a.id
+                                              ? t("transferredTo", { account: m.accountToName })
+                                              : t("transferredFrom", { account: m.accountFromName })}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 max-w-[180px] truncate">
+                                        {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
                                       </td>
                                       <td
                                         className={`px-3 py-2 text-right font-mono ${m.type === "income"
                                           ? "text-green-600 dark:text-green-400"
                                           : m.type === "expense"
                                             ? "text-red-600 dark:text-red-400"
-                                            : ""
+                                            : m.type === "transfer"
+                                              ? m.accountFromId === a.id
+                                                ? "text-red-600 dark:text-red-400"
+                                                : m.accountToId === a.id
+                                                  ? "text-green-600 dark:text-green-400"
+                                                  : ""
+                                              : ""
                                           }`}
                                       >
                                         {hideBalances
                                           ? MASK
-                                          : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${formatCurrency(m.amount)}`}{" "}
+                                          : `${m.type === "income"
+                                            ? "+"
+                                            : m.type === "expense"
+                                              ? "−"
+                                              : m.type === "transfer"
+                                                ? m.accountFromId === a.id
+                                                  ? "−"
+                                                  : m.accountToId === a.id
+                                                    ? "+"
+                                                    : ""
+                                                : ""
+                                          }${formatCurrency(m.amount)}`} {" "}
                                         €
+                                        <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-sans mt-0.5">
+                                          {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
+                                        </span>
                                       </td>
                                       <td className="px-3 py-2">
                                         <TransactionRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadTransactions(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
@@ -575,7 +610,7 @@ export function AccountsSection({
                                 disabled={loading}
                                 className="text-xs px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
                               >
-                                {full ? "Show less" : "See all"}
+                                {full ? t("showLess") : t("seeAll")}
                               </button>
                             </div>
                           )}
@@ -593,7 +628,7 @@ export function AccountsSection({
                   <span className="text-base leading-none opacity-0" aria-hidden>
                     {accountTypeIcon("bank_account")}
                   </span>
-                  <span>Total</span>
+                  <span>{t("total")}</span>
                 </span>
               </td>
               {showInitialBalance && (
@@ -605,6 +640,7 @@ export function AccountsSection({
                 {fmt(totalBalance, hideBalances)} €
               </td>
               <td className="px-4 py-3" />
+              {!orderEditing && <td className="px-4 py-3 w-16" />}
             </tr>
           </tbody>
         </table>
@@ -624,7 +660,7 @@ export function AccountsSection({
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold">Account evolution</h3>
+                  <h3 className="text-lg font-semibold">{t("accountEvolution")}</h3>
                   {chartAccount && (
                     <p className="text-sm text-slate-500">{chartAccount.name}</p>
                   )}
@@ -634,7 +670,7 @@ export function AccountsSection({
                   onClick={() => setChartAccountId(null)}
                   className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
-                  Close
+                  {t("close")}
                 </button>
               </div>
 
@@ -651,7 +687,7 @@ export function AccountsSection({
                         : "border-slate-200 dark:border-slate-700 text-slate-600")
                     }
                   >
-                    {opt.label}
+                    {t(`ranges.${opt.labelKey}`)}
                   </button>
                 ))}
                 {chartRange === "custom" && (
@@ -662,7 +698,7 @@ export function AccountsSection({
                       onChange={(e) => setCustomFrom(e.target.value)}
                       className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs"
                     />
-                    <span className="text-xs text-slate-500">to</span>
+                    <span className="text-xs text-slate-500">{t("to")}</span>
                     <input
                       type="date"
                       value={customTo}
@@ -673,7 +709,7 @@ export function AccountsSection({
                 )}
                 {chartRange === "all" && balanceOldest && (
                   <span className="text-xs text-slate-500">
-                    From {new Date(balanceOldest).toLocaleDateString("pt-PT")}
+                    {t("fromDate", { date: new Date(balanceOldest).toLocaleDateString("pt-PT") })}
                   </span>
                 )}
               </div>
@@ -681,11 +717,11 @@ export function AccountsSection({
               <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
                 {balanceLoading ? (
                   <div className="h-64 flex items-center justify-center text-slate-500">
-                    Loading evolution…
+                    {t("loadingEvolution")}
                   </div>
                 ) : balanceSeries.length === 0 ? (
                   <div className="h-64 flex items-center justify-center text-slate-500">
-                    No balance data for this period.
+                    {t("noBalanceData")}
                   </div>
                 ) : (
                   <div className="h-64 w-full">
@@ -730,19 +766,19 @@ export function AccountsSection({
               <div className="mt-6 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-700">Transactions</h4>
+                    <h4 className="text-sm font-semibold text-slate-700">{t("transactions")}</h4>
                     {modalFilter === "day" && selectedDay && (
                       <p className="text-xs text-slate-500">
-                        Day: {new Date(selectedDay).toLocaleDateString("pt-PT")}
+                        {t("day", { date: new Date(selectedDay).toLocaleDateString("pt-PT") })}
                       </p>
                     )}
                     {modalFilter === "period" && showModalTransactions && activePeriod && (
                       <p className="text-xs text-slate-500">
-                        Period: {activePeriod.from ?? "—"} to {activePeriod.to ?? "—"}
+                        {t("period", { from: activePeriod.from ?? "—", to: activePeriod.to ?? "—" })}
                       </p>
                     )}
                     {modalFilter === "all" && showModalTransactions && (
-                      <p className="text-xs text-slate-500">All transactions</p>
+                      <p className="text-xs text-slate-500">{t("allTransactions")}</p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -751,14 +787,14 @@ export function AccountsSection({
                       onClick={() => applyModalFilter("period")}
                       className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                     >
-                      Show period
+                      {t("showPeriod")}
                     </button>
                     <button
                       type="button"
                       onClick={() => applyModalFilter("all")}
                       className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                     >
-                      Show all
+                      {t("showAll")}
                     </button>
                     {showModalTransactions && (
                       <button
@@ -773,7 +809,7 @@ export function AccountsSection({
                         }}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                       >
-                        Clear/Collapse
+                        {t("clearCollapse")}
                       </button>
                     )}
                   </div>
@@ -781,12 +817,12 @@ export function AccountsSection({
 
                 {!showModalTransactions ? (
                   <p className="text-xs text-slate-500">
-                    Select a day in the chart or use the buttons to show transactions.
+                    {t("selectDayHint")}
                   </p>
                 ) : modalTransactionsLoading ? (
-                  <p className="text-xs text-slate-500">Loading…</p>
+                  <p className="text-xs text-slate-500">{t("loading")}</p>
                 ) : modalTransactions.length === 0 ? (
-                  <p className="text-xs text-slate-500">No transactions for this account.</p>
+                  <p className="text-xs text-slate-500">{t("noTransactionsForAccount")}</p>
                 ) : (
                   <>
                     <div className="flex items-center justify-end">
@@ -802,17 +838,18 @@ export function AccountsSection({
                         }}
                         className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                       >
-                        {modalTransactionsFull ? "Show less" : "Show all transactions"}
+                        {modalTransactionsFull ? t("showLess") : t("showAllTransactions")}
                       </button>
                     </div>
                     <div className="rounded-lg border border-slate-200 overflow-x-auto">
                       <table className="w-full text-xs min-w-[640px]">
                         <thead className="bg-slate-100">
                           <tr>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">Type</th>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600">Date</th>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600">Description</th>
-                            <th className="px-4 py-2 text-right font-medium text-slate-600">Amount</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">{t("type")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("date")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("description")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("categorySubcategory")}</th>
+                            <th className="px-4 py-2 text-right font-medium text-slate-600">{t("amount")}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -823,19 +860,49 @@ export function AccountsSection({
                               </td>
                               <td className="px-4 py-2">{m.date}</td>
                               <td className="px-4 py-2 text-slate-700 max-w-[260px] truncate">
-                                {m.description || "—"}
+                                <span className="block truncate">{m.description || "—"}</span>
+                                {m.type === "transfer" && (
+                                  <span className="block text-[11px] text-slate-500 truncate">
+                                    {m.accountFromId === chartAccountId
+                                      ? t("transferredTo", { account: m.accountToName })
+                                      : t("transferredFrom", { account: m.accountFromName })}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-slate-600 max-w-[220px] truncate">
+                                {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
                               </td>
                               <td
                                 className={`px-4 py-2 text-right font-mono ${m.type === "income"
                                   ? "text-green-600"
                                   : m.type === "expense"
                                     ? "text-red-600"
-                                    : ""}`}
+                                    : m.type === "transfer"
+                                      ? m.accountFromId === chartAccountId
+                                        ? "text-red-600"
+                                        : m.accountToId === chartAccountId
+                                          ? "text-green-600"
+                                          : ""
+                                      : ""}`}
                               >
                                 {hideBalances
                                   ? MASK
-                                  : `${m.type === "income" ? "+" : m.type === "expense" ? "−" : ""}${formatCurrency(m.amount)}`} {" "}
+                                  : `${m.type === "income"
+                                    ? "+"
+                                    : m.type === "expense"
+                                      ? "−"
+                                      : m.type === "transfer"
+                                        ? m.accountFromId === chartAccountId
+                                          ? "−"
+                                          : m.accountToId === chartAccountId
+                                            ? "+"
+                                            : ""
+                                        : ""
+                                  }${formatCurrency(m.amount)}`} {" "}
                                 €
+                                <span className="block text-[11px] text-slate-500 font-sans mt-0.5">
+                                  {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
+                                </span>
                               </td>
                             </tr>
                           ))}

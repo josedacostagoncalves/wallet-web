@@ -6,8 +6,10 @@ import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
 import { SettlementsSection } from "@/components/SettlementsSection";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export default async function HomePage() {
+  const t = await getTranslations("home");
   const supabase = await createClient();
   const cookie = await getWalletCookie();
 
@@ -33,6 +35,7 @@ export default async function HomePage() {
   let pendingAmounts: Record<string, number> = {};
   let walletSharedOption: string | null = null;
   let walletSplitType: string | null = null;
+  let walletName: string | null = null;
   let settlements: any[] = [];
 
   if (currentWalletId) {
@@ -41,11 +44,12 @@ export default async function HomePage() {
     // Fetch wallet shared_option and split type
     const { data: walletData } = await supabase
       .from("wallets")
-      .select("shared_option, split_type")
+      .select("shared_option, split_type, name")
       .eq("id", currentWalletId)
       .single();
     walletSharedOption = walletData?.shared_option ?? null;
     walletSplitType = walletData?.split_type ?? null;
+    walletName = walletData?.name ?? null;
 
     // Fetch settlements if wallet is split type
     if (walletSharedOption === "split" || walletSharedOption === "track_and_split") {
@@ -130,18 +134,21 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Home</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">{t("subtitle")}</p>
+      </div>
 
       {!currentWalletId ? (
         <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center">
           <p className="text-slate-600 dark:text-slate-400 mb-4">
-            Create a wallet to start tracking your finances.
+            {t("emptyMessage")}
           </p>
           <Link
             href="/wallets"
             className="inline-block px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
           >
-            Create wallet
+            {t("createWallet")}
           </Link>
         </div>
       ) : (
@@ -152,6 +159,7 @@ export default async function HomePage() {
               totalInitialBalance={totalInitialBalance}
               totalBalance={totalBalance}
               currentWalletId={currentWalletId}
+              walletName={walletName}
               pendingAmounts={pendingAmounts}
             />
           )}

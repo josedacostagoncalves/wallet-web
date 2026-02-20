@@ -30,6 +30,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
+import { useTranslations } from "next-intl";
 
 type Props = {
   open: boolean;
@@ -52,6 +53,7 @@ export function IncomeFormModal({
   copyFromRecurringId,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("transactions.form");
   const { showToast } = useToast();
   const { currentWalletId } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -335,24 +337,24 @@ export function IncomeFormModal({
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) return "Amount must be a positive number";
+    if (isNaN(num) || num <= 0) return t("validation.amountPositive");
     const catId = subcategoryId || categoryId;
-    if (!catId) return "Please select a category";
-    if (!description.trim()) return "Description is required";
+    if (!catId) return t("validation.categoryRequired");
+    if (!description.trim()) return t("validation.descriptionRequired");
 
     // Account required for 'track' and 'track_and_split' wallets, not for 'split'
-    if (!isSplitOnly && !accountToId) return "Account (receive) is required";
+    if (!isSplitOnly && !accountToId) return t("validation.accountToRequired");
 
     // Member required for 'split' and 'track_and_split' wallets
-    if (isSplitWallet && !paidByMemberId) return "Please select a member who received";
+    if (isSplitWallet && !paidByMemberId) return t("validation.memberReceivedRequired");
 
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
+      if (isNaN(x) || x < 1) return t("validation.intervalMonthsValid");
     }
     if (isRecurring && recurrenceType === "interval_days") {
       const x = parseInt(intervalDays, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of days (1 or more)";
+      if (isNaN(x) || x < 1) return t("validation.intervalDaysValid");
     }
     const isWorkDay =
       isRecurring &&
@@ -360,7 +362,7 @@ export function IncomeFormModal({
         recurrenceType === "monthly_nth_last_work_day");
     if (isWorkDay) {
       const x = parseInt(workDayIndex, 10);
-      if (isNaN(x) || x < 1 || x > 31) return "Work day index must be 1–31";
+      if (isNaN(x) || x < 1 || x > 31) return t("validation.workDayIndexValid");
     }
     return null;
   }
@@ -411,7 +413,7 @@ export function IncomeFormModal({
         showToast(res.error, "error");
         return;
       }
-      showToast("Transaction updated.");
+      showToast(t("toasts.transactionUpdated"));
       onClose();
       router.push("/dashboard");
       router.refresh();
@@ -449,7 +451,7 @@ export function IncomeFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast("Transaction added.");
+    showToast(t("toasts.transactionAdded"));
     onClose();
     router.push("/dashboard");
     router.refresh();
@@ -493,7 +495,7 @@ export function IncomeFormModal({
       showToast(cr.error, "error");
       return;
     }
-    showToast("Transaction confirmed.");
+    showToast(t("toasts.transactionConfirmed"));
     onClose();
     router.push("/dashboard");
     router.refresh();
@@ -532,14 +534,14 @@ export function IncomeFormModal({
         />
         <div className="relative rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl p-6 max-w-sm">
           <p className="text-slate-600 dark:text-slate-400 mb-4">
-            Select or create a wallet first.
+            {t("noWallet")}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
           >
-            Close
+            {t("close")}
           </button>
         </div>
       </div>
@@ -567,9 +569,9 @@ export function IncomeFormModal({
           <h2 id="income-modal-title" className="text-xl font-semibold text-slate-900 dark:text-slate-100">
             {isEdit
               ? status === "pending"
-                ? "Edit pending income"
-                : "Edit income"
-              : "New income"}
+                ? t("editPendingIncome")
+                : t("editIncome")
+              : t("newIncome")}
           </h2>
         </div>
         <form
@@ -577,7 +579,7 @@ export function IncomeFormModal({
           className="flex flex-col min-h-0 flex-1 overflow-y-auto"
         >
           {loadingData && (
-            <div className="px-6 py-4 text-sm text-slate-500">Loading…</div>
+            <div className="px-6 py-4 text-sm text-slate-500">{t("loading")}</div>
           )}
           <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
@@ -790,7 +792,7 @@ export function IncomeFormModal({
                             if (!e.target.checked) setHoldBalance(true);
                           }}
                         />
-                        <span className="text-sm font-medium">Save as pending</span>
+                        <span className="text-sm font-medium">{t("options.saveAsPending")}</span>
                       </label>
                       {saveAsPending && (
                         <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
@@ -800,7 +802,7 @@ export function IncomeFormModal({
                             onChange={(e) => setHoldBalance(e.target.checked)}
                           />
                           <span className="text-xs text-slate-600 dark:text-slate-400">
-                            Do not update balances until confirm
+                            {t("options.holdBalance")}
                           </span>
                         </label>
                       )}
@@ -812,12 +814,12 @@ export function IncomeFormModal({
                       checked={isRecurring}
                       onChange={(e) => setIsRecurring(e.target.checked)}
                     />
-                    <span className="text-sm font-medium">Make it recurring</span>
+                    <span className="text-sm font-medium">{t("options.makeRecurring")}</span>
                   </label>
                   {isRecurring && (
                     <div className="space-y-3 pl-6">
                       <div>
-                        <label className="block text-sm font-medium mb-1">Schedule</label>
+                        <label className="block text-sm font-medium mb-1">{t("options.schedule")}</label>
                         <select
                           value={recurrenceType}
                           onChange={(e) => {
@@ -841,26 +843,26 @@ export function IncomeFormModal({
                       </div>
                       {recurrenceType === "interval_days" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                          <label className="block text-sm font-medium mb-1">{t("options.intervalDays")}</label>
                           <input
                             type="number"
                             min={1}
                             value={intervalDays}
                             onChange={(e) => setIntervalDays(e.target.value)}
-                            placeholder="e.g. 14"
+                            placeholder={t("options.intervalDaysPlaceholder")}
                             className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                           />
                         </div>
                       )}
                       {recurrenceType === "interval_months" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                          <label className="block text-sm font-medium mb-1">{t("options.intervalMonths")}</label>
                           <input
                             type="number"
                             min={1}
                             value={intervalMonths}
                             onChange={(e) => setIntervalMonths(e.target.value)}
-                            placeholder="e.g. 3"
+                            placeholder={t("options.intervalMonthsPlaceholder")}
                             className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                           />
                         </div>
@@ -870,8 +872,8 @@ export function IncomeFormModal({
                           <div>
                             <label className="block text-sm font-medium mb-1">
                               {recurrenceType === "monthly_nth_last_work_day"
-                                ? "Nth last work day (e.g. 3)"
-                                : "Nth work day (e.g. 3)"}
+                                ? t("options.nthLastWorkDay")
+                                : t("options.nthWorkDay")}
                             </label>
                             <input
                               type="number"
@@ -879,7 +881,7 @@ export function IncomeFormModal({
                               max={31}
                               value={workDayIndex}
                               onChange={(e) => setWorkDayIndex(e.target.value)}
-                              placeholder="e.g. 3"
+                              placeholder={t("options.workDayPlaceholder")}
                               className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                             />
                           </div>
@@ -896,26 +898,26 @@ export function IncomeFormModal({
               <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   {!categoryId
-                    ? "Similar income"
+                    ? t("similar.income")
                     : subcategoryId
-                      ? "Similar income (subcategory)"
-                      : "Similar income (category)"}
+                      ? t("similar.incomeSubcategory")
+                      : t("similar.incomeCategory")}
                 </h3>
               </div>
               <div className="p-4 min-h-[140px] max-h-[480px] overflow-y-auto">
                 {loadingSimilar ? (
-                  <p className="text-xs text-slate-500">Loading…</p>
+                  <p className="text-xs text-slate-500">{t("similar.loading")}</p>
                 ) : recentSimilar.length === 0 ? (
                   <p className="text-xs text-slate-500">
-                    {!categoryId ? "No income yet" : "No similar transactions"}
+                    {!categoryId ? t("similar.noIncome") : t("similar.noSimilar")}
                   </p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-left text-slate-500">
-                        <th className="pb-2 pr-3 font-medium">Date</th>
-                        <th className="pb-2 pr-3 font-medium min-w-0">Description</th>
-                        <th className="pb-2 pr-3 font-medium text-right">Amount</th>
+                        <th className="pb-2 pr-3 font-medium">{t("similar.tableDate")}</th>
+                        <th className="pb-2 pr-3 font-medium min-w-0">{t("similar.tableDescription")}</th>
+                        <th className="pb-2 pr-3 font-medium text-right">{t("similar.tableAmount")}</th>
                         <th className="pb-2 font-medium w-10"></th>
                       </tr>
                     </thead>
@@ -935,8 +937,8 @@ export function IncomeFormModal({
                               onClick={() => handleCopyFromSimilar(r.id)}
                               disabled={!!copyingSimilarId}
                               className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                              title={copyingSimilarId === r.id ? "Copying…" : "Copy"}
-                              aria-label={copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                              title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                              aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
                             >
                               <CopyIcon aria-hidden />
                             </button>
@@ -956,7 +958,7 @@ export function IncomeFormModal({
               disabled={loading || loadingData}
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
-              Cancel
+              {t("buttons.cancel")}
             </button>
             {isEdit && status === "pending" && (
               <>
@@ -966,7 +968,7 @@ export function IncomeFormModal({
                   disabled={loading || loadingData}
                   className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
                 >
-                  {loading ? "Confirming…" : "Confirm"}
+                  {loading ? t("buttons.confirming") : t("buttons.confirm")}
                 </button>
                 <button
                   type="button"
@@ -974,7 +976,7 @@ export function IncomeFormModal({
                   disabled={loading || loadingData}
                   className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
-                  {loading ? "Cancelling…" : "Cancel pending"}
+                  {loading ? t("buttons.cancelling") : t("buttons.cancelPending")}
                 </button>
               </>
             )}
@@ -985,7 +987,7 @@ export function IncomeFormModal({
                 disabled={loading || loadingData}
                 className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
               >
-                {loading ? "Deleting…" : "Delete"}
+                {loading ? t("buttons.deleting") : t("buttons.delete")}
               </button>
             )}
             <button
@@ -993,7 +995,7 @@ export function IncomeFormModal({
               disabled={loading || loadingData}
               className="px-4 py-2 rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
-              {loading ? "Saving…" : "Save"}
+              {loading ? t("buttons.saving") : t("buttons.save")}
             </button>
           </div>
         </form>
@@ -1003,10 +1005,10 @@ export function IncomeFormModal({
         open={dialog === "confirm"}
         onClose={() => setDialog(null)}
         onConfirm={handleConfirm}
-        title="Confirm transaction"
-        message="Confirm this pending transaction? It will be applied and balances updated."
-        confirmLabel="Confirm"
-        cancelLabel="Go back"
+        title={t("confirmDialogs.confirmTitle")}
+        message={t("confirmDialogs.confirmMessage")}
+        confirmLabel={t("confirmDialogs.confirmButton")}
+        cancelLabel={t("confirmDialogs.goBack")}
         variant="confirm"
         loading={loading}
       />
@@ -1014,10 +1016,10 @@ export function IncomeFormModal({
         open={dialog === "cancel"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Cancel pending transaction"
-        message="Cancel this pending transaction? It will be deleted."
-        confirmLabel="Yes, cancel"
-        cancelLabel="Keep"
+        title={t("confirmDialogs.cancelTitle")}
+        message={t("confirmDialogs.cancelMessage")}
+        confirmLabel={t("confirmDialogs.cancelButton")}
+        cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}
       />
@@ -1025,10 +1027,10 @@ export function IncomeFormModal({
         open={dialog === "delete"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Delete transaction"
-        message="Delete this transaction? Balances will be updated."
-        confirmLabel="Delete"
-        cancelLabel="Keep"
+        title={t("confirmDialogs.deleteTitle")}
+        message={t("confirmDialogs.deleteMessage")}
+        confirmLabel={t("confirmDialogs.deleteButton")}
+        cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}
       />

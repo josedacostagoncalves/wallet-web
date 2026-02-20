@@ -111,8 +111,11 @@ export type TransactionByAccountRow = {
   description: string | null;
   categoryLabel: string;
   subcategoryLabel: string;
+  accountFromId: string | null;
   accountFromName: string;
+  accountToId: string | null;
   accountToName: string;
+  balanceAfter: number;
   status: "confirmed" | "pending";
   holdBalance?: boolean;
 };
@@ -128,6 +131,12 @@ export async function getTransactionsByAccount(
   options?: { limit?: number; fromDate?: string; toDate?: string }
 ): Promise<TransactionByAccountRow[]> {
   const supabase = await createClient();
+  const { data: account } = await supabase
+    .from("accounts")
+    .select("initial_balance")
+    .eq("id", accountId)
+    .single();
+
   let q = supabase
     .from("transactions")
     .select(
@@ -174,6 +183,43 @@ export async function getTransactionsByAccount(
   };
   const rows = (tx ?? []) as unknown as TxRow[];
 
+  const balanceQuery = supabase
+    .from("transactions")
+    .select("id, date, amount, account_from_id, account_to_id, status, hold_balance")
+    .eq("wallet_id", walletId)
+    .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
+    .order("date", { ascending: true });
+
+  const { data: balanceTx } = options?.toDate
+    ? await balanceQuery.lte("date", options.toDate)
+    : await balanceQuery;
+
+  type BalanceTxRow = {
+    id: string;
+    date: string;
+    amount: number;
+    account_from_id: string | null;
+    account_to_id: string | null;
+    status?: string | null;
+    hold_balance?: boolean;
+  };
+  const balanceRows = (balanceTx ?? []) as unknown as BalanceTxRow[];
+
+  const balanceAfterById = new Map<string, number>();
+  let runningBalance = Number(account?.initial_balance ?? 0);
+  for (const t of balanceRows) {
+    const statusConfirmed = t.status === "confirmed" || !t.status;
+    const includePending = t.status === "pending" && !t.hold_balance;
+    const amount = Math.abs(Number(t.amount));
+
+    if (statusConfirmed || includePending) {
+      if (t.account_from_id === accountId) runningBalance -= amount;
+      if (t.account_to_id === accountId) runningBalance += amount;
+    }
+
+    balanceAfterById.set(t.id, runningBalance);
+  }
+
   return rows.map((t) => {
     const c = t.category;
     const categoryLabel = c?.parent_id
@@ -194,8 +240,11 @@ export async function getTransactionsByAccount(
       description: t.description,
       categoryLabel,
       subcategoryLabel,
+      accountFromId: t.account_from_id,
       accountFromName,
+      accountToId: t.account_to_id,
       accountToName,
+      balanceAfter: balanceAfterById.get(t.id) ?? runningBalance,
       status: (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
       holdBalance: !!t.hold_balance,
     };

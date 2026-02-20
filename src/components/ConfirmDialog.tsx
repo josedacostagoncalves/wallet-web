@@ -1,6 +1,7 @@
 "use client";
 
 import { JWalletLogo } from "@/components/JWalletIcon";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 
 export type ConfirmVariant = "confirm" | "cancel";
@@ -31,6 +32,7 @@ export function ConfirmDialog({
   loading = false,
   children,
 }: Props) {
+  const tCommon = useTranslations("common");
   const overlayRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const loadingRef = useRef(loading);
@@ -123,7 +125,7 @@ export function ConfirmDialog({
               disabled={loading}
               className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${primaryBtn}`}
             >
-              {loading ? "Please wait…" : confirmLabel}
+              {loading ? tCommon("pleaseWait") : confirmLabel}
             </button>
           </div>
         </div>

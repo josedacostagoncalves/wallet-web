@@ -13,6 +13,7 @@ import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type RecurringRow = {
   id: string;
@@ -34,6 +35,7 @@ type Props = { recurring: RecurringRow[] };
 
 export function RecurringSection({ recurring }: Props) {
   const router = useRouter();
+  const t = useTranslations("transactions.recurring");
   const { showToast } = useToast();
   const { openEditRecurring, openCopyRecurring } = useTransactionModals();
   const [expanded, setExpanded] = useState(false);
@@ -49,7 +51,7 @@ export function RecurringSection({ recurring }: Props) {
       showToast(res.error, "error");
       return;
     }
-    showToast("Recurring rule deleted.");
+    showToast(t("deleteToast"));
     router.refresh();
   }
 
@@ -57,11 +59,13 @@ export function RecurringSection({ recurring }: Props) {
     <div className="rounded-xl border border-slate-200 overflow-hidden">
       {recurring.length === 0 ? (
         <div className="p-6 text-slate-500 text-xs">
-          No recurring transactions.{" "}
-          <Link href="/transactions/new" className="underline">
-            Add a transaction
-          </Link>{" "}
-          and enable &quot;Make it recurring&quot;.
+          {t.rich("empty", {
+            link: (chunks) => (
+              <Link href="/transactions/new" className="underline">
+                {chunks}
+              </Link>
+            ),
+          })}
         </div>
       ) : (
         <>
@@ -70,10 +74,10 @@ export function RecurringSection({ recurring }: Props) {
             onClick={() => setExpanded((x) => !x)}
             className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
             aria-expanded={expanded}
-            aria-label={expanded ? "Collapse recurring" : "Expand recurring"}
+            aria-label={expanded ? t("collapse") : t("expand")}
           >
             <span className="text-lg font-medium text-slate-800">
-              Recurring
+              {t("title")}
             </span>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -96,24 +100,24 @@ export function RecurringSection({ recurring }: Props) {
               <table className="w-full text-xs min-w-[640px]">
                 <thead className="bg-slate-100">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">Type</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Next run
+                      {t("table.nextRun")}
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Description
+                      {t("table.description")}
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Category :: Subcategory
+                      {t("table.categorySubcategory")}
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      From → To
+                      {t("table.fromTo")}
                     </th>
                     <th className="px-4 py-3 text-right font-medium text-slate-600">
-                      Amount
+                      {t("table.amount")}
                     </th>
                     <th className="px-4 py-3 text-left font-medium text-slate-600">
-                      Repeat
+                      {t("table.repeat")}
                     </th>
                     <th className="px-4 py-3 w-24" />
                   </tr>
@@ -131,9 +135,12 @@ export function RecurringSection({ recurring }: Props) {
                         {r.isStopped ? (
                           <span
                             className="text-amber-700 dark:text-amber-400"
-                            title={`End date ${r.endDate ?? ""} passed. Next run would be ${r.nextRunDate}.`}
+                            title={t("stoppedTooltip", {
+                              endDate: r.endDate ?? "",
+                              nextRun: r.nextRunDate,
+                            })}
                           >
-                            Stopped (end date passed)
+                            {t("stopped")}
                           </span>
                         ) : (
                           r.nextRunDate
@@ -211,10 +218,10 @@ export function RecurringSection({ recurring }: Props) {
           open={!!deleteDialogId}
           onClose={() => setDeleteDialogId(null)}
           onConfirm={() => handleDeleteConfirm(deleteDialogId)}
-          title="Delete recurring rule"
-          message="Delete this recurring rule? No new runs will be created. Existing transactions are kept."
-          confirmLabel="Delete"
-          cancelLabel="Keep"
+          title={t("confirmDelete.title")}
+          message={t("confirmDelete.message")}
+          confirmLabel={t("confirmDelete.confirm")}
+          cancelLabel={t("confirmDelete.cancel")}
           variant="cancel"
           loading={!!deletingId}
         />

@@ -30,6 +30,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
+import { useTranslations } from "next-intl";
 
 type Props = {
   open: boolean;
@@ -52,6 +53,7 @@ export function ExpenseFormModal({
   copyFromRecurringId,
 }: Props) {
   const router = useRouter();
+  const t = useTranslations("transactions.form");
   const { showToast } = useToast();
   const { currentWalletId } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -335,25 +337,25 @@ export function ExpenseFormModal({
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) return "Amount must be a positive number";
+    if (isNaN(num) || num <= 0) return t("validation.amountPositive");
     const catId = subcategoryId || categoryId;
-    if (!catId) return "Please select a category";
-    if (subcategories.length > 0 && !subcategoryId) return "Please select a subcategory";
-    if (!description.trim()) return "Description is required";
+    if (!catId) return t("validation.categoryRequired");
+    if (subcategories.length > 0 && !subcategoryId) return t("validation.subcategoryRequired");
+    if (!description.trim()) return t("validation.descriptionRequired");
 
     // Account required for 'track' and 'track_and_split' wallets, not for 'split'
-    if (!isSplitOnly && !accountFromId) return "Account (pay from) is required";
+    if (!isSplitOnly && !accountFromId) return t("validation.accountFromRequired");
 
     // Member required for 'split' and 'track_and_split' wallets
-    if (isSplitWallet && !paidByMemberId) return "Please select a member who paid";
+    if (isSplitWallet && !paidByMemberId) return t("validation.memberPaidRequired");
 
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
+      if (isNaN(x) || x < 1) return t("validation.intervalMonthsValid");
     }
     if (isRecurring && recurrenceType === "interval_days") {
       const x = parseInt(intervalDays, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of days (1 or more)";
+      if (isNaN(x) || x < 1) return t("validation.intervalDaysValid");
     }
     const isWorkDay =
       isRecurring &&
@@ -361,7 +363,7 @@ export function ExpenseFormModal({
         recurrenceType === "monthly_nth_last_work_day");
     if (isWorkDay) {
       const x = parseInt(workDayIndex, 10);
-      if (isNaN(x) || x < 1 || x > 31) return "Work day index must be 1–31";
+      if (isNaN(x) || x < 1 || x > 31) return t("validation.workDayIndexValid");
     }
     return null;
   }
@@ -412,7 +414,7 @@ export function ExpenseFormModal({
         showToast(res.error, "error");
         return;
       }
-      showToast("Transaction updated.");
+      showToast(t("toasts.transactionUpdated"));
       onClose();
       router.push("/dashboard");
       router.refresh();
@@ -450,7 +452,7 @@ export function ExpenseFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast("Transaction added.");
+    showToast(t("toasts.transactionAdded"));
     onClose();
     router.push("/dashboard");
     router.refresh();
@@ -494,7 +496,7 @@ export function ExpenseFormModal({
       showToast(cr.error, "error");
       return;
     }
-    showToast("Transaction confirmed.");
+    showToast(t("toasts.transactionConfirmed"));
     onClose();
     router.push("/dashboard");
     router.refresh();
@@ -533,14 +535,14 @@ export function ExpenseFormModal({
         />
         <div className="relative rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl p-6 max-w-sm">
           <p className="text-slate-600 dark:text-slate-400 mb-4">
-            Select or create a wallet first.
+            {t("noWallet")}
           </p>
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
           >
-            Close
+            {t("close")}
           </button>
         </div>
       </div>
@@ -568,9 +570,9 @@ export function ExpenseFormModal({
           <h2 id="expense-modal-title" className="text-xl font-semibold text-slate-900 dark:text-slate-100">
             {isEdit
               ? status === "pending"
-                ? "Edit pending expense"
-                : "Edit expense"
-              : "New expense"}
+                ? t("editPendingExpense")
+                : t("editExpense")
+              : t("newExpense")}
           </h2>
         </div>
         <form
@@ -578,12 +580,12 @@ export function ExpenseFormModal({
           className="flex flex-col min-h-0 flex-1 overflow-y-auto"
         >
           {loadingData && (
-            <div className="px-6 py-4 text-sm text-slate-500">Loading…</div>
+            <div className="px-6 py-4 text-sm text-slate-500">{t("loading")}</div>
           )}
           <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Date *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.date")}</label>
                 <input
                   type="date"
                   value={date}
@@ -593,18 +595,18 @@ export function ExpenseFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.description")}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
                   required
-                  placeholder="e.g. Groceries"
+                  placeholder={t("fields.descriptionPlaceholder")}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Category *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.category")}</label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={categoryId}
@@ -612,7 +614,7 @@ export function ExpenseFormModal({
                     required
                     className={inputClass + " flex-1"}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectCategory")}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -624,7 +626,7 @@ export function ExpenseFormModal({
                       type="button"
                       onClick={() => setCatModal({ kind: "add-category", type: "expense" })}
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      title="Add category"
+                      title={t("fields.addCategory")}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
@@ -634,7 +636,7 @@ export function ExpenseFormModal({
               {(subcategories.length > 0 || categoryId) && (
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Subcategory{subcategories.length > 0 ? " *" : ""}
+                    {subcategories.length > 0 ? t("fields.subcategoryRequired") : t("fields.subcategory")}
                   </label>
                   <div className="flex items-center gap-1.5">
                     <select
@@ -643,7 +645,7 @@ export function ExpenseFormModal({
                       required={subcategories.length > 0}
                       className={inputClass + " flex-1"}
                     >
-                      <option value="">{subcategories.length > 0 ? "Select…" : "None"}</option>
+                      <option value="">{subcategories.length > 0 ? t("fields.selectSubcategory") : t("fields.none")}</option>
                       {subcategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -658,7 +660,7 @@ export function ExpenseFormModal({
                           if (parent) setCatModal({ kind: "add-subcategory", type: "expense", parentId: parent.id, parentName: parent.name });
                         }}
                         className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        title="Add subcategory"
+                        title={t("fields.addSubcategory")}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                       </button>
@@ -667,27 +669,27 @@ export function ExpenseFormModal({
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.amount")}</label>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  placeholder="0,00"
+                  placeholder={t("fields.amountPlaceholder")}
                   className={inputClass}
                 />
               </div>
               {!isSplitOnly && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.accountFrom")}</label>
                   <select
                     value={accountFromId}
                     onChange={(e) => setAccountFromId(e.target.value)}
                     required={!isSplitOnly}
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -737,10 +739,12 @@ export function ExpenseFormModal({
               )}
               {isSplitWallet && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">Paid by member {walletSharedOption !== null && "*"}</label>
+                  <label className="block text-sm font-medium mb-2">
+                    {walletSharedOption !== null ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
+                  </label>
                   <div className="space-y-2">
                     {walletMembers.length === 0 && (
-                      <div className="text-xs text-slate-500">No members found.</div>
+                      <div className="text-xs text-slate-500">{t("fields.noMembers")}</div>
                     )}
                     {walletMembers.map((m) => {
                       const isSelected = paidByMemberId === m.user_id;
@@ -845,26 +849,26 @@ export function ExpenseFormModal({
                       </div>
                       {recurrenceType === "interval_days" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                          <label className="block text-sm font-medium mb-1">{t("options.intervalDays")}</label>
                           <input
                             type="number"
                             min={1}
                             value={intervalDays}
                             onChange={(e) => setIntervalDays(e.target.value)}
-                            placeholder="e.g. 14"
+                            placeholder={t("options.intervalDaysPlaceholder")}
                             className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                           />
                         </div>
                       )}
                       {recurrenceType === "interval_months" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                          <label className="block text-sm font-medium mb-1">{t("options.intervalMonths")}</label>
                           <input
                             type="number"
                             min={1}
                             value={intervalMonths}
                             onChange={(e) => setIntervalMonths(e.target.value)}
-                            placeholder="e.g. 3"
+                            placeholder={t("options.intervalMonthsPlaceholder")}
                             className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                           />
                         </div>
@@ -874,8 +878,8 @@ export function ExpenseFormModal({
                           <div>
                             <label className="block text-sm font-medium mb-1">
                               {recurrenceType === "monthly_nth_last_work_day"
-                                ? "Nth last work day (e.g. 3)"
-                                : "Nth work day (e.g. 3)"}
+                                ? t("options.nthLastWorkDay")
+                                : t("options.nthWorkDay")}
                             </label>
                             <input
                               type="number"
@@ -883,7 +887,7 @@ export function ExpenseFormModal({
                               max={31}
                               value={workDayIndex}
                               onChange={(e) => setWorkDayIndex(e.target.value)}
-                              placeholder="e.g. 3"
+                              placeholder={t("options.workDayPlaceholder")}
                               className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                             />
                           </div>
@@ -900,26 +904,26 @@ export function ExpenseFormModal({
               <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   {!categoryId
-                    ? "Similar expenses"
+                    ? t("similar.expenses")
                     : subcategoryId
-                      ? "Similar expenses (subcategory)"
-                      : "Similar expenses (category)"}
+                      ? t("similar.expensesSubcategory")
+                      : t("similar.expensesCategory")}
                 </h3>
               </div>
               <div className="p-4 min-h-[140px] max-h-[480px] overflow-y-auto">
                 {loadingSimilar ? (
-                  <p className="text-xs text-slate-500">Loading…</p>
+                  <p className="text-xs text-slate-500">{t("similar.loading")}</p>
                 ) : recentSimilar.length === 0 ? (
                   <p className="text-xs text-slate-500">
-                    {!categoryId ? "No expenses yet" : "No similar transactions"}
+                    {!categoryId ? t("similar.noExpenses") : t("similar.noSimilar")}
                   </p>
                 ) : (
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="text-left text-slate-500">
-                        <th className="pb-2 pr-3 font-medium">Date</th>
-                        <th className="pb-2 pr-3 font-medium min-w-0">Description</th>
-                        <th className="pb-2 pr-3 font-medium text-right">Amount</th>
+                        <th className="pb-2 pr-3 font-medium">{t("similar.tableDate")}</th>
+                        <th className="pb-2 pr-3 font-medium min-w-0">{t("similar.tableDescription")}</th>
+                        <th className="pb-2 pr-3 font-medium text-right">{t("similar.tableAmount")}</th>
                         <th className="pb-2 font-medium w-10"></th>
                       </tr>
                     </thead>
@@ -939,8 +943,8 @@ export function ExpenseFormModal({
                               onClick={() => handleCopyFromSimilar(r.id)}
                               disabled={!!copyingSimilarId}
                               className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                              title={copyingSimilarId === r.id ? "Copying…" : "Copy"}
-                              aria-label={copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                              title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                              aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
                             >
                               <CopyIcon aria-hidden />
                             </button>
@@ -960,7 +964,7 @@ export function ExpenseFormModal({
               disabled={loading || loadingData}
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
-              Cancel
+              {t("buttons.cancel")}
             </button>
             {isEdit && status === "pending" && (
               <>
@@ -970,7 +974,7 @@ export function ExpenseFormModal({
                   disabled={loading || loadingData}
                   className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
                 >
-                  {loading ? "Confirming…" : "Confirm"}
+                  {loading ? t("buttons.confirming") : t("buttons.confirm")}
                 </button>
                 <button
                   type="button"
@@ -978,7 +982,7 @@ export function ExpenseFormModal({
                   disabled={loading || loadingData}
                   className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
-                  {loading ? "Cancelling…" : "Cancel pending"}
+                  {loading ? t("buttons.cancelling") : t("buttons.cancelPending")}
                 </button>
               </>
             )}
@@ -989,7 +993,7 @@ export function ExpenseFormModal({
                 disabled={loading || loadingData}
                 className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
               >
-                {loading ? "Deleting…" : "Delete"}
+                {loading ? t("buttons.deleting") : t("buttons.delete")}
               </button>
             )}
             <button
@@ -997,20 +1001,20 @@ export function ExpenseFormModal({
               disabled={loading || loadingData}
               className="px-4 py-2 rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
-              {loading ? "Saving…" : "Save"}
+              {loading ? t("buttons.saving") : t("buttons.save")}
             </button>
           </div>
         </form>
-      </div>
+      </div >
 
       <ConfirmDialog
         open={dialog === "confirm"}
         onClose={() => setDialog(null)}
         onConfirm={handleConfirm}
-        title="Confirm transaction"
-        message="Confirm this pending transaction? It will be applied and balances updated."
-        confirmLabel="Confirm"
-        cancelLabel="Go back"
+        title={t("confirmDialogs.confirmTitle")}
+        message={t("confirmDialogs.confirmMessage")}
+        confirmLabel={t("confirmDialogs.confirmButton")}
+        cancelLabel={t("confirmDialogs.goBack")}
         variant="confirm"
         loading={loading}
       />
@@ -1018,10 +1022,10 @@ export function ExpenseFormModal({
         open={dialog === "cancel"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Cancel pending transaction"
-        message="Cancel this pending transaction? It will be deleted."
-        confirmLabel="Yes, cancel"
-        cancelLabel="Keep"
+        title={t("confirmDialogs.cancelTitle")}
+        message={t("confirmDialogs.cancelMessage")}
+        confirmLabel={t("confirmDialogs.cancelButton")}
+        cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}
       />
@@ -1029,37 +1033,39 @@ export function ExpenseFormModal({
         open={dialog === "delete"}
         onClose={() => setDialog(null)}
         onConfirm={handleDelete}
-        title="Delete transaction"
-        message="Delete this transaction? Balances will be updated."
-        confirmLabel="Delete"
-        cancelLabel="Keep"
+        title={t("confirmDialogs.deleteTitle")}
+        message={t("confirmDialogs.deleteMessage")}
+        confirmLabel={t("confirmDialogs.deleteButton")}
+        cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}
       />
-      {catModal && (
-        <CategoryModal
-          mode={catModal}
-          open={true}
-          onClose={() => setCatModal(null)}
-          onSaved={(newId) => {
-            if (!currentWalletId) return;
-            if (catModal.kind === "add-category") {
-              getCategories(currentWalletId, "expense").then((cats) => {
-                setCategories(cats);
-                if (newId) setCategoryId(newId);
-              });
-            } else if (catModal.kind === "add-subcategory") {
-              getSubcategories(categoryId).then((subs) => {
-                setSubcategories(subs);
-                if (newId) {
-                  skipNextSubcategoryReset.current = true;
-                  setSubcategoryId(newId);
-                }
-              });
-            }
-          }}
-        />
-      )}
-    </div>
+      {
+        catModal && (
+          <CategoryModal
+            mode={catModal}
+            open={true}
+            onClose={() => setCatModal(null)}
+            onSaved={(newId) => {
+              if (!currentWalletId) return;
+              if (catModal.kind === "add-category") {
+                getCategories(currentWalletId, "expense").then((cats) => {
+                  setCategories(cats);
+                  if (newId) setCategoryId(newId);
+                });
+              } else if (catModal.kind === "add-subcategory") {
+                getSubcategories(categoryId).then((subs) => {
+                  setSubcategories(subs);
+                  if (newId) {
+                    skipNextSubcategoryReset.current = true;
+                    setSubcategoryId(newId);
+                  }
+                });
+              }
+            }}
+          />
+        )
+      }
+    </div >
   );
 }

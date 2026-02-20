@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { getTranslations } from "next-intl/server";
 
 export default async function ActivityPage() {
+  const t = await getTranslations("activity");
   const supabase = await createClient();
   const { data: rows } = await supabase
     .from("activity_log")
@@ -15,16 +17,16 @@ export default async function ActivityPage() {
       <h1 className="text-2xl font-semibold">Activity log</h1>
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {list.length === 0 ? (
-          <div className="p-6 text-slate-500">No activity yet.</div>
+          <div className="p-6 text-slate-500">{t("empty")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="text-left p-3">When</th>
-                  <th className="text-left p-3">Action</th>
-                  <th className="text-left p-3">Entity</th>
-                  <th className="text-left p-3">Details</th>
+                  <th className="text-left p-3">{t("table.when")}</th>
+                  <th className="text-left p-3">{t("table.action")}</th>
+                  <th className="text-left p-3">{t("table.entity")}</th>
+                  <th className="text-left p-3">{t("table.details")}</th>
                 </tr>
               </thead>
               <tbody>

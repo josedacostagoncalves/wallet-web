@@ -30,9 +30,13 @@ export default async function ProfileSettingsPage() {
         email={user.email ?? ""}
       />
       <hr className="border-slate-200 dark:border-slate-700" />
-      <ThemeSelector />
-      <hr className="border-slate-200 dark:border-slate-700" />
-      <LanguageSelector language={profile.language} />
+      <div className="grid gap-8 md:grid-cols-2">
+        <ThemeSelector />
+        <LanguageSelector language={profile.language} />
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400">
+        {t("preferencesNote")}
+      </p>
       <hr className="border-slate-200 dark:border-slate-700" />
       <DevicesSection />
     </div>

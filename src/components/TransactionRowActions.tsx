@@ -10,6 +10,7 @@ import { ConfirmIcon, CopyIcon, DeleteIcon, EditIcon } from "@/components/Action
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import { useToast } from "@/contexts/ToastContext";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
@@ -33,7 +34,7 @@ function fmt(n: number) {
   return n.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function BalancePreviewTable({ rows }: { rows: BalancePreviewRow[] }) {
+function BalancePreviewTable({ rows, labels }: { rows: BalancePreviewRow[]; labels: { account: string; before: string; after: string } }) {
   if (rows.length === 0) return null;
   return (
     <div className="mt-4">
@@ -41,9 +42,9 @@ function BalancePreviewTable({ rows }: { rows: BalancePreviewRow[] }) {
       <table className="w-full text-xs rounded-lg overflow-hidden border border-slate-200">
         <thead className="bg-slate-100">
           <tr>
-            <th className="px-3 py-1.5 text-left font-medium text-slate-600">Account</th>
-            <th className="px-3 py-1.5 text-right font-medium text-slate-600">Before</th>
-            <th className="px-3 py-1.5 text-right font-medium text-slate-600">After</th>
+            <th className="px-3 py-1.5 text-left font-medium text-slate-600">{labels.account}</th>
+            <th className="px-3 py-1.5 text-right font-medium text-slate-600">{labels.before}</th>
+            <th className="px-3 py-1.5 text-right font-medium text-slate-600">{labels.after}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -75,6 +76,7 @@ function BalancePreviewTable({ rows }: { rows: BalancePreviewRow[] }) {
 }
 
 export function TransactionRowActions({ id, status, holdBalance, onAfterAction, showEdit }: Props) {
+  const t = useTranslations("home.transactionActions");
   const router = useRouter();
   const { showToast } = useToast();
   const { openEditTransaction, openCopyTransaction } = useTransactionModals();
@@ -109,7 +111,7 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
       return;
     }
     setDialog(null);
-    showToast("Transaction confirmed.");
+    showToast(t("transactionConfirmed"));
     router.refresh();
     await onAfterAction?.();
   }
@@ -123,7 +125,7 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
       return;
     }
     setDialog(null);
-    showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
+    showToast(status === "pending" ? t("pendingTransactionCanceled") : t("transactionDeleted"));
     router.refresh();
     await onAfterAction?.();
   }
@@ -138,8 +140,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
                 type="button"
                 onClick={() => openCopyTransaction(id)}
                 className={`${iconBtn} text-slate-500 hover:text-slate-700`}
-                title="Copy"
-                aria-label="Copy"
+                title={t("copy")}
+                aria-label={t("copy")}
               >
                 <CopyIcon aria-hidden />
               </button>
@@ -147,8 +149,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
                 type="button"
                 onClick={() => openEditTransaction(id)}
                 className={`${iconBtn} text-slate-500 hover:text-slate-700`}
-                title="Edit"
-                aria-label="Edit"
+                title={t("edit")}
+                aria-label={t("edit")}
               >
                 <EditIcon aria-hidden />
               </button>
@@ -160,8 +162,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
             onClick={() => openDialog("confirm")}
             disabled={loading || loadingPreview}
             className={`${iconBtn} text-green-600 hover:bg-green-50 hover:text-green-700`}
-            title="Confirm"
-            aria-label="Confirm"
+            title={t("confirm")}
+            aria-label={t("confirm")}
           >
             <ConfirmIcon aria-hidden />
           </button>
@@ -170,8 +172,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
             onClick={() => openDialog("delete")}
             disabled={loading || loadingPreview}
             className={`${iconBtn} text-red-600 hover:bg-red-50 hover:text-red-700`}
-            title="Delete"
-            aria-label="Delete"
+            title={t("delete")}
+            aria-label={t("delete")}
           >
             <DeleteIcon aria-hidden />
           </button>
@@ -180,36 +182,36 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
           open={dialog === "confirm"}
           onClose={() => { setDialog(null); setPreview([]); }}
           onConfirm={handleConfirmAction}
-          title="Confirm transaction"
+          title={t("confirmTransactionTitle")}
           message={
             holdBalance
-              ? "Confirm this pending transaction? It will be applied and balances updated."
-              : "Confirm this pending transaction? It will be applied."
+              ? t("confirmTransactionMessageWithBalance")
+              : t("confirmTransactionMessage")
           }
-          confirmLabel="Confirm"
-          cancelLabel="Go back"
+          confirmLabel={t("confirm")}
+          cancelLabel={t("goBack")}
           variant="confirm"
           loading={loading}
         >
-          {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} />}
+          {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} labels={{ account: t("account"), before: t("before"), after: t("after") }} />}
           {loadingPreview && (
-            <p className="text-xs text-slate-400 mt-2">Loading balances…</p>
+            <p className="text-xs text-slate-400 mt-2">{t("loadingBalances")}</p>
           )}
         </ConfirmDialog>
         <ConfirmDialog
           open={dialog === "delete"}
           onClose={() => { setDialog(null); setPreview([]); }}
           onConfirm={handleDeleteAction}
-          title="Cancel pending transaction"
-          message="Cancel this pending transaction? It will be deleted."
-          confirmLabel="Yes, cancel"
-          cancelLabel="Keep"
+          title={t("cancelPendingTransactionTitle")}
+          message={t("cancelPendingTransactionMessage")}
+          confirmLabel={t("yesCancel")}
+          cancelLabel={t("keep")}
           variant="cancel"
           loading={loading}
         >
-          {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} />}
+          {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} labels={{ account: t("account"), before: t("before"), after: t("after") }} />}
           {loadingPreview && (
-            <p className="text-xs text-slate-400 mt-2">Loading balances…</p>
+            <p className="text-xs text-slate-400 mt-2">{t("loadingBalances")}</p>
           )}
         </ConfirmDialog>
       </>
@@ -222,8 +224,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
         type="button"
         onClick={() => openCopyTransaction(id)}
         className={`${iconBtn} text-slate-500 hover:text-slate-700`}
-        title="Copy"
-        aria-label="Copy"
+        title={t("copy")}
+        aria-label={t("copy")}
       >
         <CopyIcon aria-hidden />
       </button>
@@ -231,8 +233,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
         type="button"
         onClick={() => openEditTransaction(id)}
         className={`${iconBtn} text-slate-500 hover:text-slate-700`}
-        title="Edit"
-        aria-label="Edit"
+        title={t("edit")}
+        aria-label={t("edit")}
       >
         <EditIcon aria-hidden />
       </button>
@@ -241,8 +243,8 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
         onClick={() => openDialog("delete")}
         disabled={loading || loadingPreview}
         className={`${iconBtn} text-red-600 hover:bg-red-50 hover:text-red-700`}
-        title="Delete"
-        aria-label="Delete"
+        title={t("delete")}
+        aria-label={t("delete")}
       >
         <DeleteIcon aria-hidden />
       </button>
@@ -250,16 +252,16 @@ export function TransactionRowActions({ id, status, holdBalance, onAfterAction, 
         open={dialog === "delete"}
         onClose={() => { setDialog(null); setPreview([]); }}
         onConfirm={handleDeleteAction}
-        title="Delete transaction"
-        message="Delete this transaction? Balances will be updated."
-        confirmLabel="Delete"
-        cancelLabel="Keep"
+        title={t("deleteTransactionTitle")}
+        message={t("deleteTransactionMessage")}
+        confirmLabel={t("delete")}
+        cancelLabel={t("keep")}
         variant="cancel"
         loading={loading}
       >
-        {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} />}
+        {!loadingPreview && preview.length > 0 && <BalancePreviewTable rows={preview} labels={{ account: t("account"), before: t("before"), after: t("after") }} />}
         {loadingPreview && (
-          <p className="text-xs text-slate-400 mt-2">Loading balances…</p>
+          <p className="text-xs text-slate-400 mt-2">{t("loadingBalances")}</p>
         )}
       </ConfirmDialog>
     </span>
