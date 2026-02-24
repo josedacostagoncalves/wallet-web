@@ -19,6 +19,7 @@
     },
     "navigation": {
         "home": "Home",
+        "portfolio": "Portfolio",
         "newIncome": "New income",
         "newExpense": "New expense",
         "newTransfer": "New transfer",
@@ -162,6 +163,12 @@
             "after": "After"
         }
     },
+    "portfoliio": {
+        "title": "Portfoliio",
+        "subtitle": "Your finances, all in one place",
+        "emptyMessage": "Create a wallet to start tracking your finances",
+        "createWallet": "Create wallet"
+    },
     "settings": {
         "title": "Settings",
         "profile": "Profile",
@@ -272,6 +279,8 @@
     },
     "transactions": {
         "title": "Transactions",
+        "subtitle": "Track recurring, pending, and confirmed transactions.",
+        "emptyWalletMessage": "Select or create a wallet to see the transactions.",
         "addTransaction": "Add Transaction",
         "income": "Income",
         "expense": "Expense",
@@ -286,11 +295,11 @@
             "title": "All transactions",
             "collapse": "Collapse all transactions",
             "expand": "Expand all transactions",
-            "searchPlaceholder": "Search movements…",
-            "searchLabel": "Search movements",
+            "searchPlaceholder": "Search transactions…",
+            "searchLabel": "Search transactions",
             "clearSearch": "Clear search",
             "filter": "Filter",
-            "filterLabel": "Filter movements",
+            "filterLabel": "Filter transactions",
             "clearAllFilters": "Clear all filters",
             "filterDialog": {
                 "title": "Filter",
@@ -314,9 +323,9 @@
                 "paidBy": "Paid by",
                 "amount": "Amount"
             },
-            "empty": "No movements yet. {link}",
-            "addOne": "Add one",
-            "noMatch": "No movements match your {criteria}.",
+            "empty": "No transactions yet. {link}",
+            "addOne": "Add a transaction",
+            "noMatch": "No transactions match your {criteria}.",
             "search": "search",
             "filters": "filters",
             "searchOr": "or",
@@ -346,6 +355,22 @@
                 "message": "Delete this recurring rule? No new runs will be created. Existing transactions are kept.",
                 "confirm": "Delete",
                 "cancel": "Keep"
+            },
+            "actions": {
+                "copy": "Copy",
+                "edit": "Edit",
+                "delete": "Delete"
+            },
+            "repeat": {
+                "daily": "Daily",
+                "weekly": "Weekly",
+                "monthly": "Monthly",
+                "yearly": "Yearly",
+                "everyDays": "Every {count} days",
+                "everyMonths": "Every {count} months",
+                "nthWorkDay": "{count}. work day of month",
+                "nthLastWorkDay": "{count}. last work day of month",
+                "unknown": "{value}"
             }
         },
         "pending": {

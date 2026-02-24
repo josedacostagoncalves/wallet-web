@@ -81,6 +81,14 @@ export function SidebarNav() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 9l9-7 9 7" /><path d="M9 22V12h6v10" /></svg>
                         <span className={`truncate transition-all ${labelClass}`}>{t('home')}</span>
                     </Link>
+                    <Link
+                        href="/portfolio"
+                        className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
+                        title={t('portfolio')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect x="2" y="6" width="20" height="14" rx="2" /><path d="M2 10h20" /><path d="M8 14h4" /></svg>
+                        <span className={`truncate transition-all ${labelClass}`}>{t('portfolio')}</span>
+                    </Link>
 
                     <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
 
@@ -100,20 +108,12 @@ export function SidebarNav() {
                     <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />
 
                     <Link
-                        href="/dashboard"
+                        href="/transactions"
                         className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
                         title={t('transactions')}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /><path d="M12 20V4" /></svg>
                         <span className={`truncate transition-all ${labelClass}`}>{t('transactions')}</span>
-                    </Link>
-                    <Link
-                        href="/reports"
-                        className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
-                        title={t('reports')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 3v18h18" /><path d="M7 15v3" /><path d="M12 11v7" /><path d="M17 7v11" /></svg>
-                        <span className={`truncate transition-all ${labelClass}`}>{t('reports')}</span>
                     </Link>
                     <Link
                         href="/statements"
@@ -122,6 +122,14 @@ export function SidebarNav() {
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M10 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" /><path d="M14 4h6m0 0v6m0-6h-6" /><path d="M6 12h8" /><path d="M6 16h8" /></svg>
                         <span className={`truncate transition-all ${labelClass}`}>{t('statements')}</span>
+                    </Link>
+                    <Link
+                        href="/reports"
+                        className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
+                        title={t('reports')}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M3 3v18h18" /><path d="M7 15v3" /><path d="M12 11v7" /><path d="M17 7v11" /></svg>
+                        <span className={`truncate transition-all ${labelClass}`}>{t('reports')}</span>
                     </Link>
 
                     <div className="my-2 h-px bg-slate-200 dark:bg-slate-800" />

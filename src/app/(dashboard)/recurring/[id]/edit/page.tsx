@@ -241,7 +241,7 @@ export default function EditRecurringPage() {
       return;
     }
     showToast("Recurring rule updated.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -257,7 +257,7 @@ export default function EditRecurringPage() {
       return;
     }
     showToast("Recurring rule deleted.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -266,7 +266,7 @@ export default function EditRecurringPage() {
     return (
       <div className="space-y-4">
         <p className="text-slate-500">Recurring rule not found.</p>
-        <Link href="/dashboard" className="underline">
+        <Link href="/transactions" className="underline">
           ← Transactions
         </Link>
       </div>
@@ -651,7 +651,7 @@ export default function EditRecurringPage() {
             {saving ? "Saving…" : "Save"}
           </button>
           <Link
-            href="/dashboard"
+            href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
             Cancel

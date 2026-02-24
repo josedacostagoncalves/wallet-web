@@ -19,6 +19,7 @@
     },
     "navigation": {
         "home": "Accueil",
+        "portfolio": "Portefeuille",
         "newIncome": "Nouveau revenu",
         "newExpense": "Nouvelle dépense",
         "newTransfer": "Nouveau transfert",
@@ -162,6 +163,12 @@
             "after": "Après"
         }
     },
+    "portfoliio": {
+        "title": "Portefeuille",
+        "subtitle": "Vos finances, en un seul endroit",
+        "emptyMessage": "Créez un portefeuille pour commencer à suivre vos finances",
+        "createWallet": "Créer un portefeuille"
+    },
     "settings": {
         "title": "Paramètres",
         "profile": "Profil",
@@ -272,6 +279,8 @@
     },
     "transactions": {
         "title": "Transactions",
+        "subtitle": "Suivez les transactions récurrentes, en attente et confirmées.",
+        "emptyWalletMessage": "Sélectionnez ou créez un portefeuille pour voir les transactions.",
         "addTransaction": "Ajouter une transaction",
         "income": "Revenu",
         "expense": "Dépense",
@@ -286,11 +295,11 @@
             "title": "Toutes les transactions",
             "collapse": "Réduire toutes les transactions",
             "expand": "Développer toutes les transactions",
-            "searchPlaceholder": "Rechercher des mouvements…",
-            "searchLabel": "Rechercher des mouvements",
+            "searchPlaceholder": "Rechercher des transactions…",
+            "searchLabel": "Rechercher des transactions",
             "clearSearch": "Effacer la recherche",
             "filter": "Filtrer",
-            "filterLabel": "Filtrer les mouvements",
+            "filterLabel": "Filtrer les transactions",
             "clearAllFilters": "Effacer tous les filtres",
             "filterDialog": {
                 "title": "Filtrer",
@@ -314,9 +323,9 @@
                 "paidBy": "Payé par",
                 "amount": "Montant"
             },
-            "empty": "Pas encore de mouvements. {link}",
-            "addOne": "Ajouter un",
-            "noMatch": "Aucun mouvement ne correspond à votre {criteria}.",
+            "empty": "Pas encore de transactions. {link}",
+            "addOne": "Ajouter une transaction",
+            "noMatch": "Aucune transaction ne correspond à votre {criteria}.",
             "search": "recherche",
             "filters": "filtres",
             "searchOr": "ou",
@@ -346,6 +355,22 @@
                 "message": "Supprimer cette règle récurrente? Aucune nouvelle exécution ne sera créée. Les transactions existantes sont conservées.",
                 "confirm": "Supprimer",
                 "cancel": "Conserver"
+            },
+            "actions": {
+                "copy": "Copier",
+                "edit": "Modifier",
+                "delete": "Supprimer"
+            },
+            "repeat": {
+                "daily": "Quotidien",
+                "weekly": "Hebdomadaire",
+                "monthly": "Mensuel",
+                "yearly": "Annuel",
+                "everyDays": "Tous les {count} jours",
+                "everyMonths": "Tous les {count} mois",
+                "nthWorkDay": "{count}e jour ouvré du mois",
+                "nthLastWorkDay": "{count}e dernier jour ouvré du mois",
+                "unknown": "{value}"
             }
         },
         "pending": {

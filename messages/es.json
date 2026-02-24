@@ -19,6 +19,7 @@
     },
     "navigation": {
         "home": "Inicio",
+        "portfolio": "Portafolio",
         "newIncome": "Nuevo ingreso",
         "newExpense": "Nuevo gasto",
         "newTransfer": "Nueva transferencia",
@@ -162,6 +163,12 @@
             "after": "Después"
         }
     },
+    "portfoliio": {
+        "title": "Portafolio",
+        "subtitle": "Tus finanzas, en un solo lugar",
+        "emptyMessage": "Crea una cartera para empezar a controlar tus finanzas",
+        "createWallet": "Crear cartera"
+    },
     "settings": {
         "title": "Configuración",
         "profile": "Perfil",
@@ -272,6 +279,8 @@
     },
     "transactions": {
         "title": "Transacciones",
+        "subtitle": "Sigue transacciones recurrentes, pendientes y confirmadas.",
+        "emptyWalletMessage": "Selecciona o crea una cartera para ver las transacciones.",
         "addTransaction": "Añadir Transacción",
         "income": "Ingreso",
         "expense": "Gasto",
@@ -286,11 +295,11 @@
             "title": "Todas las transacciones",
             "collapse": "Contraer todas las transacciones",
             "expand": "Expandir todas las transacciones",
-            "searchPlaceholder": "Buscar movimientos…",
-            "searchLabel": "Buscar movimientos",
+            "searchPlaceholder": "Buscar transacciones…",
+            "searchLabel": "Buscar transacciones",
             "clearSearch": "Limpiar búsqueda",
             "filter": "Filtrar",
-            "filterLabel": "Filtrar movimientos",
+            "filterLabel": "Filtrar transacciones",
             "clearAllFilters": "Limpiar todos los filtros",
             "filterDialog": {
                 "title": "Filtrar",
@@ -314,9 +323,9 @@
                 "paidBy": "Pagado por",
                 "amount": "Cantidad"
             },
-            "empty": "Aún no hay movimientos. {link}",
-            "addOne": "Añadir uno",
-            "noMatch": "Ningún movimiento coincide con tu {criteria}.",
+            "empty": "Aún no hay transacciones. {link}",
+            "addOne": "Añadir una transacción",
+            "noMatch": "Ninguna transacción coincide con tu {criteria}.",
             "search": "búsqueda",
             "filters": "filtros",
             "searchOr": "o",
@@ -346,6 +355,22 @@
                 "message": "¿Eliminar esta regla recurrente? No se crearán nuevas ejecuciones. Las transacciones existentes se mantienen.",
                 "confirm": "Eliminar",
                 "cancel": "Mantener"
+            },
+            "actions": {
+                "copy": "Copiar",
+                "edit": "Editar",
+                "delete": "Eliminar"
+            },
+            "repeat": {
+                "daily": "Diariamente",
+                "weekly": "Semanalmente",
+                "monthly": "Mensualmente",
+                "yearly": "Anualmente",
+                "everyDays": "Cada {count} días",
+                "everyMonths": "Cada {count} meses",
+                "nthWorkDay": "{count}.º día laborable del mes",
+                "nthLastWorkDay": "{count}.º último día laborable del mes",
+                "unknown": "{value}"
             }
         },
         "pending": {

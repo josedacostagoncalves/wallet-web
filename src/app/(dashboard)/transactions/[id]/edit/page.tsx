@@ -184,7 +184,7 @@ export default function EditTransactionPage() {
       return;
     }
     showToast("Transaction updated.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -228,7 +228,7 @@ export default function EditTransactionPage() {
     }
     setConfirmDialogOpen(false);
     showToast("Transaction confirmed.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -244,7 +244,7 @@ export default function EditTransactionPage() {
       return;
     }
     showToast("Transaction deleted.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -260,7 +260,7 @@ export default function EditTransactionPage() {
     } else {
       setCancelDialogOpen(false);
       showToast("Pending transaction canceled.");
-      router.push("/dashboard");
+      router.push("/transactions");
       router.refresh();
     }
   }
@@ -270,7 +270,7 @@ export default function EditTransactionPage() {
     return (
       <div className="space-y-4">
         <p className="text-slate-500">Transaction not found.</p>
-        <Link href="/dashboard" className="underline">← Transactions</Link>
+        <Link href="/transactions" className="underline">← Transactions</Link>
       </div>
     );
   }
@@ -575,7 +575,7 @@ export default function EditTransactionPage() {
           )}
           {status !== "pending" && (
             <Link
-              href="/dashboard"
+              href="/transactions"
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
             >
               Cancel
@@ -592,7 +592,7 @@ export default function EditTransactionPage() {
             </button>
           )}
           <Link
-            href="/dashboard"
+            href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             ← Dashboard

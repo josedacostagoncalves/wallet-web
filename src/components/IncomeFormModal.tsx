@@ -415,7 +415,7 @@ export function IncomeFormModal({
       }
       showToast(t("toasts.transactionUpdated"));
       onClose();
-      router.push("/dashboard");
+      router.push("/transactions");
       router.refresh();
       return;
     }
@@ -453,7 +453,7 @@ export function IncomeFormModal({
     }
     showToast(t("toasts.transactionAdded"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -497,7 +497,7 @@ export function IncomeFormModal({
     }
     showToast(t("toasts.transactionConfirmed"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -513,7 +513,7 @@ export function IncomeFormModal({
     }
     showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 

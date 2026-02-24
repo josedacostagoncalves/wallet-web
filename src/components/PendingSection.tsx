@@ -28,6 +28,7 @@ type Props = { pending: PendingRow[] };
 export function PendingSection({ pending }: Props) {
   const router = useRouter();
   const t = useTranslations("transactions.pending");
+  const tType = useTranslations("transactions");
   const hasAny = pending.length > 0;
   const [expanded, setExpanded] = useState(hasAny);
   const prevHasAny = useRef(hasAny);
@@ -90,7 +91,10 @@ export function PendingSection({ pending }: Props) {
                 {pending.map((p) => (
                   <tr key={p.id} className={`hover:bg-slate-50/50 ${p.holdBalance ? "bg-amber-100" : "bg-amber-50"}`}>
                     <td className="px-4 py-3">
-                      <TransactionTypeIcon type={p.type as "income" | "expense" | "transfer"} />
+                      <TransactionTypeIcon
+                        type={p.type as "income" | "expense" | "transfer"}
+                        label={tType(p.type as "income" | "expense" | "transfer")}
+                      />
                     </td>
                     <td className="px-4 py-3 text-slate-600">{p.date}</td>
                     <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">

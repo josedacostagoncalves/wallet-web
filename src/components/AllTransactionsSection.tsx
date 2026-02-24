@@ -11,6 +11,7 @@ import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 export type ConfirmedRow = {
   id: string;
@@ -111,6 +112,8 @@ function FilterIcon({ className = "" }: { className?: string }) {
 }
 
 export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
+  const t = useTranslations("transactions.allMovements");
+  const tType = useTranslations("transactions");
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -193,11 +196,10 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     }
     updatePopoverPosition();
     window.addEventListener("resize", updatePopoverPosition);
-    const closeOnScroll = () => setFilterOpen(false);
-    window.addEventListener("scroll", closeOnScroll, true);
+    window.addEventListener("scroll", updatePopoverPosition, true);
     return () => {
       window.removeEventListener("resize", updatePopoverPosition);
-      window.removeEventListener("scroll", closeOnScroll, true);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
     };
   }, [filterOpen, updatePopoverPosition]);
 
@@ -228,9 +230,9 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
         onClick={() => setExpanded((x) => !x)}
         className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
         aria-expanded={expanded}
-        aria-label={expanded ? "Collapse all transactions" : "Expand all transactions"}
+        aria-label={expanded ? t("collapse") : t("expand")}
       >
-        <span className="text-lg font-medium text-slate-800">All transactions</span>
+        <span className="text-lg font-medium text-slate-800">{t("title")}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -253,7 +255,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
             <div className="px-4 py-2 border-t border-slate-200 bg-slate-50/80">
               <div className="flex gap-2 items-center">
                 <label htmlFor="all-transactions-search" className="sr-only">
-                  Search transactions
+                  {t("searchLabel")}
                 </label>
                 <div className="relative flex-1 min-w-0">
                   <input
@@ -261,9 +263,9 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search transactions…"
+                    placeholder={t("searchPlaceholder")}
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pl-9 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
-                    aria-label="Search transactions"
+                    aria-label={t("searchLabel")}
                   />
                   <span
                     className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -279,7 +281,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       type="button"
                       onClick={() => setSearch("")}
                       className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
-                      aria-label="Clear search"
+                      aria-label={t("clearSearch")}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 6 6 18" />
@@ -299,10 +301,10 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       }`}
                     aria-expanded={filterOpen}
                     aria-haspopup="dialog"
-                    aria-label="Filter transactions"
+                    aria-label={t("filterLabel")}
                   >
                     <FilterIcon />
-                    Filter
+                    {t("filter")}
                   </button>
                   {hasActiveFilter && (
                     <button
@@ -310,7 +312,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       onClick={clearFilter}
                       className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 bg-white hover:bg-slate-50"
                     >
-                      Clear all filters
+                      {t("clearAllFilters")}
                     </button>
                   )}
                 </div>
@@ -321,14 +323,14 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     <div
                       ref={popoverRef}
                       role="dialog"
-                      aria-label="Filter transactions"
+                      aria-label={t("filterLabel")}
                       className="fixed z-[200] w-80 max-h-[min(400px,calc(100vh-32px))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
                       style={{ top: popoverStyle.top, left: popoverStyle.left }}
                     >
-                      <h4 className="text-sm font-semibold text-slate-800 mb-3">Filter</h4>
+                      <h4 className="text-sm font-semibold text-slate-800 mb-3">{t("filterDialog.title")}</h4>
                       <div className="space-y-4">
                         <div>
-                          <p className="text-xs font-medium text-slate-600 mb-2">Type</p>
+                          <p className="text-xs font-medium text-slate-600 mb-2">{t("filterDialog.type")}</p>
                           <div className="flex flex-wrap gap-3">
                             {(["income", "expense", "transfer"] as const).map((type) => (
                               <label key={type} className="flex items-center gap-2 cursor-pointer">
@@ -338,14 +340,14 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                                   onChange={() => toggleType(type)}
                                   className="rounded border-slate-300"
                                 />
-                                <span className="capitalize text-sm text-slate-700">{type}</span>
+                                <span className="text-sm text-slate-700">{tType(type)}</span>
                               </label>
                             ))}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label htmlFor="filter-date-from" className="block text-xs font-medium text-slate-600 mb-1">From date</label>
+                            <label htmlFor="filter-date-from" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.fromDate")}</label>
                             <input
                               id="filter-date-from"
                               type="date"
@@ -355,7 +357,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                             />
                           </div>
                           <div>
-                            <label htmlFor="filter-date-to" className="block text-xs font-medium text-slate-600 mb-1">To date</label>
+                            <label htmlFor="filter-date-to" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.toDate")}</label>
                             <input
                               id="filter-date-to"
                               type="date"
@@ -366,7 +368,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                           </div>
                         </div>
                         <div>
-                          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.category")}</label>
                           <select
                             id="filter-category"
                             value={filter.category}
@@ -379,28 +381,28 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                             }
                             className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
                           >
-                            <option value="">All</option>
+                            <option value="">{t("filterDialog.all")}</option>
                             {categories.map((c) => (
                               <option key={c} value={c}>{c}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <label htmlFor="filter-subcategory" className="block text-xs font-medium text-slate-600 mb-1">Subcategory</label>
+                          <label htmlFor="filter-subcategory" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.subcategory")}</label>
                           <select
                             id="filter-subcategory"
                             value={filter.subcategory}
                             onChange={(e) => setFilter((f) => ({ ...f, subcategory: e.target.value }))}
                             className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
                           >
-                            <option value="">All</option>
+                            <option value="">{t("filterDialog.all")}</option>
                             {subcategories.map((s) => (
                               <option key={s} value={s}>{s}</option>
                             ))}
                           </select>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-600 mb-2">Amount range (€)</p>
+                          <p className="text-xs font-medium text-slate-600 mb-2">{t("filterDialog.amountRange")}</p>
                           {(() => {
                             const cap = Math.max(1, maxAmount);
                             const minVal = filter.amountMin.trim()
@@ -418,7 +420,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                               <div className="space-y-4">
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
-                                    <label htmlFor="filter-amount-min" className="text-xs text-slate-600">Min</label>
+                                    <label htmlFor="filter-amount-min" className="text-xs text-slate-600">{t("filterDialog.min")}</label>
                                     <span className="text-xs font-mono text-slate-700">{fmt(safeMin)} €</span>
                                   </div>
                                   <input
@@ -445,7 +447,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                                 </div>
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
-                                    <label htmlFor="filter-amount-max" className="text-xs text-slate-600">Max</label>
+                                    <label htmlFor="filter-amount-max" className="text-xs text-slate-600">{t("filterDialog.max")}</label>
                                     <span className="text-xs font-mono text-slate-700">{fmt(safeMax)} €</span>
                                   </div>
                                   <input
@@ -473,7 +475,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                               </div>
                             );
                           })()}
-                          <p className="text-xs text-slate-500 mt-1">Expenses use absolute values. Drag to set range.</p>
+                          <p className="text-xs text-slate-500 mt-1">{t("filterDialog.amountHint")}</p>
                         </div>
                       </div>
                     </div>,
@@ -485,14 +487,21 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
           <div className="overflow-x-auto border-t border-slate-200">
             {confirmed.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
-                No transactions yet.{" "}
-                <Link href="/transactions/new" className="underline">
-                  Add a transaction
-                </Link>
+                {t.rich("empty", {
+                  link: (chunks) => (
+                    <Link href="/transactions/new" className="underline">
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </div>
             ) : filtered.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
-                No transactions match your {[search.trim() && "search", hasActiveFilter && "filters"].filter(Boolean).join(" or ")}.
+                {t("noMatch", {
+                  criteria: [search.trim() && t("search"), hasActiveFilter && t("filters")]
+                    .filter(Boolean)
+                    .join(` ${t("searchOr")} `),
+                })}
                 {(search.trim() || hasActiveFilter) && (
                   <span className="ml-1">
                     {search.trim() && (
@@ -501,7 +510,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                         onClick={() => setSearch("")}
                         className="underline hover:no-underline"
                       >
-                        Clear search
+                        {t("clearSearchLink")}
                       </button>
                     )}
                     {search.trim() && hasActiveFilter && " · "}
@@ -511,7 +520,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                         onClick={clearFilter}
                         className="underline hover:no-underline"
                       >
-                        Clear filters
+                        {t("clearFiltersLink")}
                       </button>
                     )}
                   </span>
@@ -521,16 +530,16 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
               <table className="w-full text-xs min-w-[640px]">
                 <thead className="bg-slate-100">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">Type</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">Date</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">Description</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">{t("table.date")}</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600">{t("table.description")}</th>
                     <th className="px-4 py-2 text-left font-medium text-slate-600">
-                      Category :: Subcategory
+                      {t("table.categorySubcategory")}
                     </th>
                     <th className="px-4 py-2 text-left font-medium text-slate-600">
-                      {isSplitOnly ? "Paid by" : "From → To"}
+                      {isSplitOnly ? t("table.paidBy") : t("table.fromTo")}
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-slate-600">Amount</th>
+                    <th className="px-4 py-2 text-right font-medium text-slate-600">{t("table.amount")}</th>
                     <th className="px-4 py-2 w-24" />
                   </tr>
                 </thead>
@@ -538,7 +547,10 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                   {filtered.map((t) => (
                     <tr key={t.id} className={transactionRowBgClass(t.type)}>
                       <td className="px-4 py-2">
-                        <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} />
+                        <TransactionTypeIcon
+                          type={t.type as "income" | "expense" | "transfer"}
+                          label={tType(t.type as "income" | "expense" | "transfer")}
+                        />
                       </td>
                       <td className="px-4 py-2 text-slate-600">{t.date}</td>
                       <td className="px-4 py-2 text-slate-700 max-w-[180px] truncate">

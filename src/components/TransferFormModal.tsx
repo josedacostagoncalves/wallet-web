@@ -419,7 +419,7 @@ export function TransferFormModal({
       }
       showToast(t("toasts.transactionUpdated"));
       onClose();
-      router.push("/dashboard");
+      router.push("/transactions");
       router.refresh();
       return;
     }
@@ -457,7 +457,7 @@ export function TransferFormModal({
     }
     showToast(t("toasts.transactionAdded"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -501,7 +501,7 @@ export function TransferFormModal({
     }
     showToast(t("toasts.transactionConfirmed"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -517,7 +517,7 @@ export function TransferFormModal({
     }
     showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 

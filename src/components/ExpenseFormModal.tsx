@@ -416,7 +416,7 @@ export function ExpenseFormModal({
       }
       showToast(t("toasts.transactionUpdated"));
       onClose();
-      router.push("/dashboard");
+      router.push("/transactions");
       router.refresh();
       return;
     }
@@ -454,7 +454,7 @@ export function ExpenseFormModal({
     }
     showToast(t("toasts.transactionAdded"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -498,7 +498,7 @@ export function ExpenseFormModal({
     }
     showToast(t("toasts.transactionConfirmed"));
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -514,7 +514,7 @@ export function ExpenseFormModal({
     }
     showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 

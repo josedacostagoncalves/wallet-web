@@ -18,17 +18,18 @@ export function TransactionTypeIcon({
   type,
   className = "",
   "aria-hidden": ariaHidden,
-}: IconProps & { type: TransactionType }) {
+  label,
+}: IconProps & { type: TransactionType; label?: string }) {
   const t = type as TransactionType;
   const color = TYPE_COLORS[t] ?? "text-slate-500";
-  const label = TYPE_LABELS[t] ?? type;
+  const resolvedLabel = label ?? TYPE_LABELS[t] ?? type;
   return (
     <span
       className={`inline-flex items-center justify-center shrink-0 ${color} ${className}`.trim()}
       role="img"
-      aria-label={ariaHidden ? undefined : label}
+      aria-label={ariaHidden ? undefined : resolvedLabel}
       aria-hidden={ariaHidden ?? undefined}
-      title={label}
+      title={resolvedLabel}
     >
       {t === "income" && (
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

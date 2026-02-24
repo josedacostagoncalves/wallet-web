@@ -261,7 +261,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       }
       showToast("Recurring rule updated.");
       onClose();
-      router.push("/dashboard");
+      router.push("/transactions");
       router.refresh();
     },
     [
@@ -302,7 +302,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
     }
     showToast("Recurring rule deleted.");
     onClose();
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }, [rule, ruleId, onClose, router, showToast]);
 

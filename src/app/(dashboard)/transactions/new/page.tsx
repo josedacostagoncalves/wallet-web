@@ -284,7 +284,7 @@ export default function NewTransactionPage() {
       return;
     }
     showToast("Transaction added.");
-    router.push("/dashboard");
+    router.push("/transactions");
     router.refresh();
   }
 
@@ -330,7 +330,7 @@ export default function NewTransactionPage() {
             Choose type
           </Link>
           <Link
-            href="/dashboard"
+            href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             Back to Dashboard
@@ -370,7 +370,7 @@ export default function NewTransactionPage() {
             <span className="font-medium">Transfer</span>
           </button>
         </div>
-        <Link href="/dashboard" className="text-slate-500 hover:underline">← Back to Transactions</Link>
+        <Link href="/transactions" className="text-slate-500 hover:underline">← Back to Transactions</Link>
       </div>
     );
   }
@@ -662,7 +662,7 @@ export default function NewTransactionPage() {
               {loading ? "Saving…" : "Save"}
             </button>
             <Link
-              href="/dashboard"
+              href="/transactions"
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
               Cancel

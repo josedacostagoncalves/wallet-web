@@ -36,6 +36,7 @@ type Props = { recurring: RecurringRow[] };
 export function RecurringSection({ recurring }: Props) {
   const router = useRouter();
   const t = useTranslations("transactions.recurring");
+  const tType = useTranslations("transactions");
   const { showToast } = useToast();
   const { openEditRecurring, openCopyRecurring } = useTransactionModals();
   const [expanded, setExpanded] = useState(false);
@@ -129,7 +130,10 @@ export function RecurringSection({ recurring }: Props) {
                       className={`${transactionRowBgClass(r.type)} ${!r.isActive || r.isStopped ? "opacity-60" : ""}`}
                     >
                       <td className="px-4 py-3">
-                        <TransactionTypeIcon type={r.type as "income" | "expense" | "transfer"} />
+                        <TransactionTypeIcon
+                          type={r.type as "income" | "expense" | "transfer"}
+                          label={tType(r.type as "income" | "expense" | "transfer")}
+                        />
                       </td>
                       <td className="px-4 py-3 text-slate-600">
                         {r.isStopped ? (
@@ -178,8 +182,8 @@ export function RecurringSection({ recurring }: Props) {
                               type="button"
                               onClick={() => openCopyRecurring(r.id)}
                               className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                              title="Copy"
-                              aria-label="Copy"
+                              title={t("actions.copy")}
+                              aria-label={t("actions.copy")}
                             >
                               <CopyIcon aria-hidden />
                             </button>
@@ -188,8 +192,8 @@ export function RecurringSection({ recurring }: Props) {
                             type="button"
                             onClick={() => openEditRecurring(r.id)}
                             className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
-                            title="Edit"
-                            aria-label="Edit"
+                            title={t("actions.edit")}
+                            aria-label={t("actions.edit")}
                           >
                             <EditIcon aria-hidden />
                           </button>
@@ -198,8 +202,8 @@ export function RecurringSection({ recurring }: Props) {
                             onClick={() => setDeleteDialogId(r.id)}
                             disabled={!!deletingId}
                             className="p-1.5 rounded text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 transition-colors"
-                            title="Delete"
-                            aria-label="Delete"
+                            title={t("actions.delete")}
+                            aria-label={t("actions.delete")}
                           >
                             <DeleteIcon aria-hidden />
                           </button>

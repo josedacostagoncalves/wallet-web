@@ -3,6 +3,7 @@
 import { updateProfile } from "@/app/actions/profiles";
 import { useToast } from "@/contexts/ToastContext";
 import { UserIcon } from "@/components/UserIcon";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -141,9 +142,12 @@ export function ProfileSettingsForm({
           {/* Avatar */}
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
             {displayUrl ? (
-              <img
+              <Image
                 src={displayUrl}
                 alt={t("profileSection.avatarAlt")}
+                width={64}
+                height={64}
+                unoptimized
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -198,9 +202,12 @@ export function ProfileSettingsForm({
                 <div className="flex items-center gap-4">
                   <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
                     {(photoPreview ?? savedAvatarUrl) ? (
-                      <img
+                      <Image
                         src={photoPreview ?? savedAvatarUrl ?? ""}
                         alt={t("profileSection.avatarAlt")}
+                        width={80}
+                        height={80}
+                        unoptimized
                         className="h-full w-full object-cover"
                       />
                     ) : (
