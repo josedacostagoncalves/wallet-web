@@ -1,12 +1,12 @@
 "use client";
 
-import { MovementTypeIcon } from "@/components/ActionIcons";
-import { MovementRowActions } from "@/components/MovementRowActions";
+import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
   formatFromTo,
-} from "@/lib/movement-labels";
-import { movementRowBgClass } from "@/lib/movement-row-style";
+} from "@/lib/transaction-labels";
+import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -534,9 +534,9 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filtered.map((t) => (
-                    <tr key={t.id} className={movementRowBgClass(t.type)}>
+                    <tr key={t.id} className={transactionRowBgClass(t.type)}>
                       <td className="px-4 py-2">
-                        <MovementTypeIcon type={t.type as "income" | "expense" | "transfer"} />
+                        <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} />
                       </td>
                       <td className="px-4 py-2 text-slate-600">{t.date}</td>
                       <td className="px-4 py-2 text-slate-700 max-w-[180px] truncate">
@@ -588,7 +588,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                         €
                       </td>
                       <td className="px-4 py-2">
-                        <MovementRowActions id={t.id} status="confirmed" />
+                        <TransactionRowActions id={t.id} status="confirmed" />
                       </td>
                     </tr>
                   ))}
