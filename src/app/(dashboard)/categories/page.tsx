@@ -8,6 +8,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import { createClient } from "@/lib/supabase/client";
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Cat = {
   id: string;
@@ -65,12 +66,6 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  income: "Income",
-  expense: "Expense",
-  transfer: "Transfer",
-};
-
 const TYPE_COLORS: Record<string, string> = {
   income: "text-green-700 dark:text-green-400",
   expense: "text-red-700 dark:text-red-400",
@@ -101,6 +96,10 @@ function buildDeleteMessage(t: { name: string; childCount: number; transactionCo
 /* ─── Main Page ─── */
 
 export default function CategoriesPage() {
+  const tCategories = useTranslations("categories.modal");
+  const tCategoriesPage = useTranslations("categories");
+  const tTransactions = useTranslations("transactions");
+  const tCommon = useTranslations("common");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const [categories, setCategories] = useState<Cat[]>([]);
@@ -203,10 +202,10 @@ export default function CategoriesPage() {
     if (res.error) {
       showToast(res.error, "error");
     } else if (res.deactivated) {
-      showToast("Category deactivated (transactions preserved).");
+      showToast(tCategories("deactivatedToast"));
       loadCategories();
     } else {
-      showToast("Category deleted.");
+      showToast(tCategories("deletedToast"));
       loadCategories();
     }
     setDeleteTarget(null);
@@ -215,19 +214,19 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Categories</h1>
-        <p className="text-slate-500">Loading…</p>
+        <h1 className="text-2xl font-semibold">{tCategoriesPage("title")}</h1>
+        <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Categories</h1>
+      <h1 className="text-2xl font-semibold">{tCategoriesPage("title")}</h1>
 
       {!currentWalletId ? (
         <p className="text-slate-600 dark:text-slate-400">
-          Select or create a wallet first.
+          {tCategories("noWallet")}
         </p>
       ) : (
         <div className="space-y-4">
@@ -246,7 +245,7 @@ export default function CategoriesPage() {
                   className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <span className={`text-lg font-medium ${TYPE_COLORS[type]}`}>
-                    {TYPE_LABELS[type]}
+                    {type === "income" ? tTransactions("income") : type === "expense" ? tTransactions("expense") : tTransactions("transfer")}
                     <span className="ml-2 text-slate-400 font-normal text-sm">
                       ({forType.length})
                     </span>
@@ -268,13 +267,13 @@ export default function CategoriesPage() {
                         className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
                       >
                         <PlusIcon className="w-3.5 h-3.5" />
-                        Add category
+                        {tCategoriesPage("addCategory")}
                       </button>
                     </div>
 
                     {forType.length === 0 ? (
                       <div className="px-4 py-4 text-sm text-slate-500">
-                        No categories yet.
+                        {tCategoriesPage("noCategories")}
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
@@ -299,7 +298,7 @@ export default function CategoriesPage() {
                                   </span>
                                   {!cat.is_active && (
                                     <span className="text-[10px] text-slate-400 ml-1">
-                                      (inactive)
+                                      ({tCategoriesPage("page.inactive")})
                                     </span>
                                   )}
                                   {hasSubs && (
@@ -322,7 +321,7 @@ export default function CategoriesPage() {
                                       })
                                     }
                                     className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                                    title="Add subcategory"
+                                    title={tCommon("add")}
                                   >
                                     <PlusIcon className="w-3.5 h-3.5" />
                                   </button>
@@ -331,7 +330,7 @@ export default function CategoriesPage() {
                                       setModal({ kind: "edit", categoryId: cat.id })
                                     }
                                     className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                                    title="Edit"
+                                    title={tCommon("edit")}
                                   >
                                     <EditIcon className="w-3.5 h-3.5" />
                                   </button>
@@ -345,7 +344,7 @@ export default function CategoriesPage() {
                                     }
                                     disabled={loadingUsage}
                                     className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                                    title="Delete"
+                                    title={tCommon("delete")}
                                   >
                                     <DeleteIcon className="w-3.5 h-3.5" />
                                   </button>
@@ -367,7 +366,7 @@ export default function CategoriesPage() {
                                         </span>
                                         {!sub.is_active && (
                                           <span className="text-[10px] text-slate-400">
-                                            (inactive)
+                                            ({tCategoriesPage("page.inactive")})
                                           </span>
                                         )}
                                       </div>
@@ -380,7 +379,7 @@ export default function CategoriesPage() {
                                             })
                                           }
                                           className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                                          title="Edit"
+                                          title={tCommon("edit")}
                                         >
                                           <EditIcon className="w-3.5 h-3.5" />
                                         </button>
@@ -394,7 +393,7 @@ export default function CategoriesPage() {
                                           }
                                           disabled={loadingUsage}
                                           className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 disabled:opacity-50"
-                                          title="Delete"
+                                          title={tCommon("delete")}
                                         >
                                           <DeleteIcon className="w-3.5 h-3.5" />
                                         </button>
@@ -431,14 +430,14 @@ export default function CategoriesPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        title="Delete category"
+        title={tCommon("delete")}
         message={
           deleteTarget
             ? buildDeleteMessage(deleteTarget)
             : ""
         }
-        confirmLabel={deleteTarget && deleteTarget.transactionCount > 0 ? "Deactivate" : "Delete"}
-        cancelLabel="Cancel"
+        confirmLabel={deleteTarget && deleteTarget.transactionCount > 0 ? tCategoriesPage("page.deactivate") : tCommon("delete")}
+        cancelLabel={tCommon("cancel")}
         variant="cancel"
         loading={deleting}
       />

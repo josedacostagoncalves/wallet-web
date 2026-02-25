@@ -1,6 +1,7 @@
 "use client";
 
 import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { AvatarImage } from "@/components/AvatarImage";
 import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
@@ -549,18 +550,16 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                         {isSplitOnly ? (
                           t.paidByMemberName ? (
                             <div className="flex items-center gap-2 min-w-0">
-                              {t.paidByMemberAvatar ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={t.paidByMemberAvatar}
-                                  alt=""
-                                  className="h-6 w-6 rounded-full object-cover"
-                                />
-                              ) : (
-                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                                  <UserIcon className="w-4 h-4" />
-                                </span>
-                              )}
+                              <AvatarImage
+                                src={t.paidByMemberAvatar}
+                                size={24}
+                                className="h-6 w-6 rounded-full object-cover"
+                                fallback={
+                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                                    <UserIcon className="w-4 h-4" />
+                                  </span>
+                                }
+                              />
                               <span className="truncate text-sm font-medium text-slate-700">
                                 {t.paidByMemberName}
                               </span>

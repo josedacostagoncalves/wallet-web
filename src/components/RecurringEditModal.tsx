@@ -19,10 +19,10 @@ import {
   type RecurrenceType,
   RECURRENCE_OPTIONS,
   isRecurrenceOptionSeparator,
-  WEEKDAY_LABELS,
 } from "@/lib/recurrence";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Props = { open: boolean; onClose: () => void; ruleId: string };
 type TransactionType = "income" | "expense" | "transfer";
@@ -32,6 +32,10 @@ const inputClass =
 
 export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const router = useRouter();
+  const tForm = useTranslations("transactions.form");
+  const tRecurring = useTranslations("transactions.recurring");
+  const tCalendar = useTranslations("calendar");
+  const tCommon = useTranslations("common");
   const { showToast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +64,39 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const weekdayLabels = [
+    tCalendar("sunday"),
+    tCalendar("monday"),
+    tCalendar("tuesday"),
+    tCalendar("wednesday"),
+    tCalendar("thursday"),
+    tCalendar("friday"),
+    tCalendar("saturday"),
+  ];
+
+  const recurrenceOptionLabel = (value: string, fallback: string) => {
+    switch (value) {
+      case "daily":
+        return tForm("options.scheduleTypes.daily");
+      case "weekly":
+        return tForm("options.scheduleTypes.weekly");
+      case "monthly":
+        return tForm("options.scheduleTypes.monthly");
+      case "yearly":
+        return tForm("options.scheduleTypes.yearly");
+      case "interval_days":
+        return tForm("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return tForm("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return tForm("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return tForm("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return fallback;
+    }
+  };
 
   useEffect(() => {
     if (!open || !ruleId) return;
@@ -164,13 +201,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       setSaving(true);
       const num = parseFloat(amount.replace(",", "."));
       if (isNaN(num) || num <= 0) {
-        setError("Amount must be a positive number");
+        setError(tForm("validation.amountPositive"));
         setSaving(false);
         return;
       }
       const catId = subcategoryId || categoryId;
       if (!catId) {
-        setError("Please select a category");
+        setError(tForm("validation.categoryRequired"));
         setSaving(false);
         return;
       }
@@ -179,19 +216,19 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         subcategories.length > 0 &&
         !subcategoryId
       ) {
-        setError("Please select a subcategory");
+        setError(tForm("validation.subcategoryRequired"));
         setSaving(false);
         return;
       }
       if (!description.trim()) {
-        setError("Description is required");
+        setError(tForm("validation.descriptionRequired"));
         setSaving(false);
         return;
       }
       if (recurrenceType === "interval_months") {
         const x = parseInt(intervalMonths, 10);
         if (isNaN(x) || x < 1) {
-          setError("Please enter a valid number of months (1 or more)");
+          setError(tForm("validation.intervalMonthsValid"));
           setSaving(false);
           return;
         }
@@ -199,7 +236,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       if (recurrenceType === "interval_days") {
         const x = parseInt(intervalDays, 10);
         if (isNaN(x) || x < 1) {
-          setError("Please enter a valid number of days (1 or more)");
+          setError(tForm("validation.intervalDaysValid"));
           setSaving(false);
           return;
         }
@@ -210,7 +247,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       if (isWorkDay) {
         const x = parseInt(workDayIndex, 10);
         if (isNaN(x) || x < 1 || x > 31) {
-          setError("Work day index must be 1–31 (e.g. 3 for 3rd or 3rd last)");
+          setError(tForm("validation.workDayIndexValid"));
           setSaving(false);
           return;
         }
@@ -218,7 +255,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       if (recurrenceType === "monthly" && dayOfMonth.trim()) {
         const x = parseInt(dayOfMonth, 10);
         if (isNaN(x) || x < 1 || x > 31) {
-          setError("Day of month must be 1–31");
+          setError(tRecurring("editModal.dayOfMonthValid"));
           setSaving(false);
           return;
         }
@@ -259,7 +296,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         showToast(res.error, "error");
         return;
       }
-      showToast("Recurring rule updated.");
+      showToast(tRecurring("editModal.updatedToast"));
       onClose();
       router.push("/transactions");
       router.refresh();
@@ -285,6 +322,8 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       onClose,
       router,
       showToast,
+      tForm,
+      tRecurring,
     ]
   );
 
@@ -300,11 +339,11 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       showToast(res.error, "error");
       return;
     }
-    showToast("Recurring rule deleted.");
+    showToast(tRecurring("deleteToast"));
     onClose();
     router.push("/transactions");
     router.refresh();
-  }, [rule, ruleId, onClose, router, showToast]);
+  }, [rule, ruleId, onClose, router, showToast, tRecurring]);
 
   if (!open) return null;
 
@@ -322,7 +361,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           onClick={onClose}
         />
         <div className="relative rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl px-6 py-4">
-          <p className="text-slate-600 dark:text-slate-400">Loading…</p>
+          <p className="text-slate-600 dark:text-slate-400">{tCommon("loading")}</p>
         </div>
       </div>
     );
@@ -342,13 +381,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           onClick={onClose}
         />
         <div className="relative rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl p-6 max-w-sm">
-          <p className="text-slate-500 mb-4">Recurring rule not found.</p>
+          <p className="text-slate-500 mb-4">{tRecurring("editModal.notFound")}</p>
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
           >
-            Close
+            {tCommon("close")}
           </button>
         </div>
       </div>
@@ -385,11 +424,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             id="recurring-edit-modal-title"
             className="text-xl font-semibold text-slate-900 dark:text-slate-100"
           >
-            Edit recurring
+            {tRecurring("editModal.title")}
           </h2>
           <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-            Changes apply only to future runs. Existing pending or confirmed
-            transactions are not modified.
+            {tRecurring("editModal.subtitle")}
           </p>
         </div>
         <form
@@ -398,13 +436,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         >
           <div className="p-6 space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
+              <label className="block text-sm font-medium mb-1">{tRecurring("table.type")}</label>
               <p className="py-2 capitalize text-slate-600 dark:text-slate-400">
                 {type}
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Description *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.description")}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -414,7 +452,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Category *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
               <select
                 value={categoryId}
                 onChange={(e) => {
@@ -424,10 +462,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 required
                 className={inputClass}
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectCategory")}</option>
                 {needsExtraCategory && (
                   <option value={categoryId}>
-                    {currentCategoryName || "(current)"}
+                    {currentCategoryName || tRecurring("editModal.current")}
                   </option>
                 )}
                 {categoryOpts.map((c) => (
@@ -440,7 +478,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             {subOpts.length > 0 && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Subcategory{type === "expense" ? " *" : ""}
+                  {type === "expense" ? tForm("fields.subcategoryRequired") : tForm("fields.subcategory")}
                 </label>
                 <select
                   value={subcategoryId}
@@ -449,11 +487,11 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   className={inputClass}
                 >
                   <option value="">
-                    {type === "expense" ? "Select…" : "None"}
+                    {type === "expense" ? tForm("fields.selectSubcategory") : tForm("fields.none")}
                   </option>
                   {needsExtraSub && (
                     <option value={subcategoryId}>
-                      {currentSubcategoryName || "(current)"}
+                      {currentSubcategoryName || tRecurring("editModal.current")}
                     </option>
                   )}
                   {subOpts.map((c) => (
@@ -465,7 +503,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.amount")}</label>
               <input
                 type="text"
                 inputMode="decimal"
@@ -478,7 +516,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             {type === "income" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Account (receive) *
+                  {tForm("fields.accountTo")}
                 </label>
                 <select
                   value={accountToId}
@@ -486,7 +524,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   required
                   className={inputClass}
                 >
-                  <option value="">Select…</option>
+                  <option value="">{tForm("fields.selectAccount")}</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -505,7 +543,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             {type === "expense" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Account (pay from) *
+                  {tForm("fields.accountFrom")}
                 </label>
                 <select
                   value={accountFromId}
@@ -513,7 +551,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   required
                   className={inputClass}
                 >
-                  <option value="">Select…</option>
+                  <option value="">{tForm("fields.selectAccount")}</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -533,7 +571,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               <>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    From account *
+                    {tForm("fields.accountTransferFrom")}
                   </label>
                   <select
                     value={accountFromId}
@@ -541,7 +579,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     required
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{tForm("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -558,7 +596,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    To account *
+                    {tForm("fields.accountTransferTo")}
                   </label>
                   <select
                     value={accountToId}
@@ -566,7 +604,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     required
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{tForm("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -584,10 +622,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               </>
             )}
             <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-              <div className="text-sm font-medium">Repeat</div>
+              <div className="text-sm font-medium">{tRecurring("table.repeat")}</div>
               <div className="space-y-3 pl-0">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Schedule</label>
+                  <label className="block text-sm font-medium mb-1">{tForm("options.schedule")}</label>
                   <select
                     value={recurrenceType}
                     onChange={(e) => {
@@ -628,7 +666,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         </option>
                       ) : (
                         <option key={o.value} value={o.value}>
-                          {o.label}
+                          {recurrenceOptionLabel(o.value, o.label)}
                         </option>
                       )
                     )}
@@ -637,14 +675,14 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 {recurrenceType === "interval_days" && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Every how many days?
+                      {tForm("options.intervalDays")}
                     </label>
                     <input
                       type="number"
                       min={1}
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(e.target.value)}
-                      placeholder="e.g. 14"
+                      placeholder={tForm("options.intervalDaysPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
@@ -652,14 +690,14 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 {recurrenceType === "interval_months" && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Every how many months?
+                      {tForm("options.intervalMonths")}
                     </label>
                     <input
                       type="number"
                       min={1}
                       value={intervalMonths}
                       onChange={(e) => setIntervalMonths(e.target.value)}
-                      placeholder="e.g. 3"
+                      placeholder={tForm("options.intervalMonthsPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
@@ -669,8 +707,8 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         {recurrenceType === "monthly_nth_last_work_day"
-                          ? "Nth last work day (e.g. 3 = 3rd last)"
-                          : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                          ? tForm("options.nthLastWorkDay")
+                          : tForm("options.nthWorkDay")}
                       </label>
                       <input
                         type="number"
@@ -678,7 +716,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         max={31}
                         value={workDayIndex}
                         onChange={(e) => setWorkDayIndex(e.target.value)}
-                        placeholder="e.g. 3"
+                        placeholder={tForm("options.workDayPlaceholder")}
                         className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                       />
                     </div>
@@ -686,7 +724,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 {recurrenceType === "weekly" && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Day of week
+                      {tRecurring("editModal.dayOfWeek")}
                     </label>
                     <select
                       value={weekday ?? ""}
@@ -699,7 +737,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       }
                       className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     >
-                      {WEEKDAY_LABELS.map((label, i) => (
+                      {weekdayLabels.map((label, i) => (
                         <option key={i} value={i}>
                           {label}
                         </option>
@@ -710,7 +748,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 {recurrenceType === "monthly" && (
                   <div>
                     <label className="block text-sm font-medium mb-1">
-                      Day of month (1–31)
+                      {tRecurring("editModal.dayOfMonth")}
                     </label>
                     <input
                       type="number"
@@ -718,14 +756,14 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       max={31}
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(e.target.value)}
-                      placeholder="e.g. 15"
+                      placeholder={tRecurring("editModal.dayOfMonthPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    End date (optional)
+                    {tRecurring("editModal.endDate")}
                   </label>
                   <input
                     type="date"
@@ -734,8 +772,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                   />
                   <p className="text-xs text-slate-500 mt-1">
-                    Leave empty to run indefinitely. If set, recurring stops
-                    after this date.
+                    {tRecurring("editModal.endDateHint")}
                   </p>
                 </div>
               </div>
@@ -748,12 +785,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   className="p-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20"
                 >
                   <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                    This recurring is stopped (end date passed).
+                    {tRecurring("stopped")}
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                    Next run {rule.next_run_date} is after end date {endDate}.
-                    No new runs will be created. Turn it active again or update
-                    the end date to continue.
+                    {tRecurring("stoppedTooltip", { endDate, nextRun: rule.next_run_date })}
                   </p>
                 </div>
               )}
@@ -769,12 +804,11 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   htmlFor="recurring-isActive"
                   className="text-sm font-medium"
                 >
-                  Active (recurring runs automatically)
+                  {tRecurring("editModal.activeLabel")}
                 </label>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 pl-6">
-                Uncheck to disable recurring. No new transactions will be created
-                until you turn it back on.
+                {tRecurring("editModal.activeHint")}
               </p>
             </div>
             {error && (
@@ -787,7 +821,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               disabled={saving || deleting}
               className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? tForm("buttons.saving") : tCommon("save")}
             </button>
             <button
               type="button"
@@ -795,7 +829,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               disabled={saving || deleting}
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
-              Cancel
+              {tCommon("cancel")}
             </button>
             <button
               type="button"
@@ -803,7 +837,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               disabled={saving || deleting}
               className="px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? tForm("buttons.deleting") : tCommon("delete")}
             </button>
           </div>
         </form>
@@ -813,10 +847,10 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleDelete}
-        title="Delete recurring rule"
-        message="Delete this recurring rule? No new runs will be created. Existing transactions are kept."
-        confirmLabel="Delete"
-        cancelLabel="Keep"
+        title={tRecurring("confirmDelete.title")}
+        message={tRecurring("confirmDelete.message")}
+        confirmLabel={tRecurring("confirmDelete.confirm")}
+        cancelLabel={tRecurring("confirmDelete.cancel")}
         variant="cancel"
         loading={deleting}
       />

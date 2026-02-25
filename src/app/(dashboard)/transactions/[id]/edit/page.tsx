@@ -20,10 +20,14 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type TransactionType = "income" | "expense" | "transfer";
 
 export default function EditTransactionPage() {
+  const tForm = useTranslations("transactions.form");
+  const tTransactions = useTranslations("transactions");
+  const tCommon = useTranslations("common");
   const params = useParams();
   const id = String(params.id);
   const { currentWalletId } = useWallet();
@@ -104,20 +108,20 @@ export default function EditTransactionPage() {
 
   function validateForm(): string | null {
     const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) return "Amount must be a positive number";
+    if (isNaN(num) || num <= 0) return tForm("validation.amountPositive");
     const catId = subcategoryId || categoryId;
-    if (!catId) return "Please select a category";
+    if (!catId) return tForm("validation.categoryRequired");
     if (type === "expense" && subcategories.length > 0 && !subcategoryId)
-      return "Please select a subcategory";
-    if (!description.trim()) return "Description is required";
+      return tForm("validation.subcategoryRequired");
+    if (!description.trim()) return tForm("validation.descriptionRequired");
     if (!status) return null;
     if (status === "confirmed" && isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of months (1 or more)";
+      if (isNaN(x) || x < 1) return tForm("validation.intervalMonthsValid");
     }
     if (status === "confirmed" && isRecurring && recurrenceType === "interval_days") {
       const x = parseInt(intervalDays, 10);
-      if (isNaN(x) || x < 1) return "Please enter a valid number of days (1 or more)";
+      if (isNaN(x) || x < 1) return tForm("validation.intervalDaysValid");
     }
     if (status === "confirmed") {
       const isWorkDay =
@@ -127,10 +131,33 @@ export default function EditTransactionPage() {
       if (isWorkDay) {
         const x = parseInt(workDayIndex, 10);
         if (isNaN(x) || x < 1 || x > 31)
-          return "Work day index must be 1–31 (e.g. 3 for 3rd or 3rd last)";
+          return tForm("validation.workDayIndexValid");
       }
     }
     return null;
+  }
+
+  function recurrenceOptionLabel(value: RecurrenceType) {
+    switch (value) {
+      case "daily":
+        return tForm("options.scheduleTypes.daily");
+      case "weekly":
+        return tForm("options.scheduleTypes.weekly");
+      case "monthly":
+        return tForm("options.scheduleTypes.monthly");
+      case "yearly":
+        return tForm("options.scheduleTypes.yearly");
+      case "interval_days":
+        return tForm("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return tForm("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return tForm("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return tForm("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return value;
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -183,7 +210,7 @@ export default function EditTransactionPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Transaction updated.");
+    showToast(tForm("toasts.transactionUpdated"));
     router.push("/transactions");
     router.refresh();
   }
@@ -227,13 +254,13 @@ export default function EditTransactionPage() {
       return;
     }
     setConfirmDialogOpen(false);
-    showToast("Transaction confirmed.");
+    showToast(tForm("toasts.transactionConfirmed"));
     router.push("/transactions");
     router.refresh();
   }
 
   async function handleDelete() {
-    if (!confirm("Delete this transaction? Balances will be updated.")) return;
+    if (!confirm(tForm("confirmDialogs.deleteMessage"))) return;
     setError(null);
     setDeleting(true);
     const res = await deleteTransaction(id);
@@ -243,7 +270,7 @@ export default function EditTransactionPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Transaction deleted.");
+    showToast(tForm("toasts.transactionDeleted"));
     router.push("/transactions");
     router.refresh();
   }
@@ -259,18 +286,18 @@ export default function EditTransactionPage() {
       showToast(res.error, "error");
     } else {
       setCancelDialogOpen(false);
-      showToast("Pending transaction canceled.");
+      showToast(tForm("toasts.pendingTransactionCanceled"));
       router.push("/transactions");
       router.refresh();
     }
   }
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
   if (!type) {
     return (
       <div className="space-y-4">
-        <p className="text-slate-500">Transaction not found.</p>
-        <Link href="/transactions" className="underline">← Transactions</Link>
+        <p className="text-slate-500">{tForm("page.notFound")}</p>
+        <Link href="/transactions" className="underline">← {tTransactions("title")}</Link>
       </div>
     );
   }
@@ -285,16 +312,28 @@ export default function EditTransactionPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">
-        {status === "pending" ? "Edit pending transaction" : "Edit transaction"}
+        {status === "pending"
+          ? type === "income"
+            ? tForm("editPendingIncome")
+            : type === "expense"
+              ? tForm("editPendingExpense")
+              : tForm("editPendingTransfer")
+          : type === "income"
+            ? tForm("editIncome")
+            : type === "expense"
+              ? tForm("editExpense")
+              : tForm("editTransfer")}
       </h1>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
-          <p className="py-2 capitalize text-slate-600 dark:text-slate-400">{type}</p>
+          <label className="block text-sm font-medium mb-1">{tTransactions("pending.table.type")}</label>
+          <p className="py-2 capitalize text-slate-600 dark:text-slate-400">
+            {type === "income" ? tTransactions("income") : type === "expense" ? tTransactions("expense") : tTransactions("transfer")}
+          </p>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Date *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.date")}</label>
           <input
             type="date"
             value={date}
@@ -304,7 +343,7 @@ export default function EditTransactionPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Description *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.description")}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -314,16 +353,16 @@ export default function EditTransactionPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Category *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
             required
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           >
-            <option value="">Select…</option>
+            <option value="">{tForm("fields.selectCategory")}</option>
             {needsExtraCategory && (
-              <option value={categoryId}>{currentCategoryName || "(current)"}</option>
+              <option value={categoryId}>{currentCategoryName || tForm("page.current")}</option>
             )}
             {categoryOpts.map((c) => (
               <option key={c.id} value={c.id}>
@@ -343,10 +382,10 @@ export default function EditTransactionPage() {
               required={type === "expense"}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">{type === "expense" ? "Select…" : "None"}</option>
+              <option value="">{type === "expense" ? tForm("fields.selectSubcategory") : tForm("fields.none")}</option>
               {needsExtraSub && (
                 <option value={subcategoryId}>
-                  {currentSubcategoryName || "(current)"}
+                  {currentSubcategoryName || tForm("page.current")}
                 </option>
               )}
               {subOpts.map((c) => (
@@ -358,7 +397,7 @@ export default function EditTransactionPage() {
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.amount")}</label>
           <input
             type="text"
             inputMode="decimal"
@@ -370,14 +409,14 @@ export default function EditTransactionPage() {
         </div>
         {type === "income" && (
           <div>
-            <label className="block text-sm font-medium mb-1">Account (receive) *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.accountTo")}</label>
             <select
               value={accountToId}
               onChange={(e) => setAccountToId(e.target.value)}
               required
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">Select…</option>
+              <option value="">{tForm("fields.selectAccount")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -386,14 +425,14 @@ export default function EditTransactionPage() {
         )}
         {type === "expense" && (
           <div>
-            <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.accountFrom")}</label>
             <select
               value={accountFromId}
               onChange={(e) => setAccountFromId(e.target.value)}
               required
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">Select…</option>
+              <option value="">{tForm("fields.selectAccount")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
@@ -403,28 +442,28 @@ export default function EditTransactionPage() {
         {type === "transfer" && (
           <>
             <div>
-              <label className="block text-sm font-medium mb-1">From account *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.accountTransferFrom")}</label>
               <select
                 value={accountFromId}
                 onChange={(e) => setAccountFromId(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">To account *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.accountTransferTo")}</label>
               <select
                 value={accountToId}
                 onChange={(e) => setAccountToId(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
@@ -442,13 +481,13 @@ export default function EditTransactionPage() {
                 onChange={(e) => setIsRecurring(e.target.checked)}
               />
               <label htmlFor="isRecurring" className="text-sm font-medium">
-                Make it recurring
+                {tForm("options.makeRecurring")}
               </label>
             </div>
             {isRecurring && (
               <div className="space-y-3 pl-6">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Schedule</label>
+                  <label className="block text-sm font-medium mb-1">{tForm("options.schedule")}</label>
                   <select
                     value={recurrenceType}
                     onChange={(e) => {
@@ -464,7 +503,7 @@ export default function EditTransactionPage() {
                         </option>
                       ) : (
                         <option key={o.value} value={o.value}>
-                          {o.label}
+                          {recurrenceOptionLabel(o.value)}
                         </option>
                       )
                     )}
@@ -472,26 +511,26 @@ export default function EditTransactionPage() {
                 </div>
                 {recurrenceType === "interval_days" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                    <label className="block text-sm font-medium mb-1">{tForm("options.intervalDays")}</label>
                     <input
                       type="number"
                       min={1}
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(e.target.value)}
-                      placeholder="e.g. 14"
+                      placeholder={tForm("options.intervalDaysPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 {recurrenceType === "interval_months" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                    <label className="block text-sm font-medium mb-1">{tForm("options.intervalMonths")}</label>
                     <input
                       type="number"
                       min={1}
                       value={intervalMonths}
                       onChange={(e) => setIntervalMonths(e.target.value)}
-                      placeholder="e.g. 3"
+                      placeholder={tForm("options.intervalMonthsPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
@@ -501,8 +540,8 @@ export default function EditTransactionPage() {
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         {recurrenceType === "monthly_nth_last_work_day"
-                          ? "Nth last work day (e.g. 3 = 3rd last)"
-                          : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                          ? tForm("options.nthLastWorkDay")
+                          : tForm("options.nthWorkDay")}
                       </label>
                       <input
                         type="number"
@@ -510,13 +549,13 @@ export default function EditTransactionPage() {
                         max={31}
                         value={workDayIndex}
                         onChange={(e) => setWorkDayIndex(e.target.value)}
-                        placeholder="e.g. 3"
+                        placeholder={tForm("options.workDayPlaceholder")}
                         className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                       />
                     </div>
                   )}
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.
+                  {tForm("page.recurringHint")}
                 </p>
               </div>
             )}
@@ -529,7 +568,7 @@ export default function EditTransactionPage() {
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? tForm("buttons.saving") : tForm("buttons.save")}
           </button>
           {status === "pending" && (
             <>
@@ -539,7 +578,7 @@ export default function EditTransactionPage() {
                 disabled={confirming}
                 className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
               >
-                {confirming ? "Confirming…" : "Confirm"}
+                {confirming ? tForm("buttons.confirming") : tForm("buttons.confirm")}
               </button>
               <button
                 type="button"
@@ -547,16 +586,16 @@ export default function EditTransactionPage() {
                 disabled={deleting}
                 className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
               >
-                {deleting ? "Cancelling…" : "Cancel"}
+                {deleting ? tForm("buttons.cancelling") : tForm("buttons.cancelPending")}
               </button>
               <ConfirmDialog
                 open={confirmDialogOpen}
                 onClose={() => setConfirmDialogOpen(false)}
                 onConfirm={handleConfirmClick}
-                title="Confirm transaction"
-                message="Confirm this pending transaction? It will be applied and balances updated."
-                confirmLabel="Confirm"
-                cancelLabel="Go back"
+                title={tForm("confirmDialogs.confirmTitle")}
+                message={tForm("confirmDialogs.confirmMessage")}
+                confirmLabel={tForm("confirmDialogs.confirmButton")}
+                cancelLabel={tForm("confirmDialogs.goBack")}
                 variant="confirm"
                 loading={confirming}
               />
@@ -564,10 +603,10 @@ export default function EditTransactionPage() {
                 open={cancelDialogOpen}
                 onClose={() => setCancelDialogOpen(false)}
                 onConfirm={handleCancelPending}
-                title="Cancel pending transaction"
-                message="Cancel this pending transaction? It will be deleted."
-                confirmLabel="Yes, cancel"
-                cancelLabel="Keep"
+                title={tForm("confirmDialogs.cancelTitle")}
+                message={tForm("confirmDialogs.cancelMessage")}
+                confirmLabel={tForm("confirmDialogs.cancelButton")}
+                cancelLabel={tForm("confirmDialogs.keepButton")}
                 variant="cancel"
                 loading={deleting}
               />
@@ -578,7 +617,7 @@ export default function EditTransactionPage() {
               href="/transactions"
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
             >
-              Cancel
+              {tCommon("cancel")}
             </Link>
           )}
           {status !== "pending" && (
@@ -588,14 +627,14 @@ export default function EditTransactionPage() {
               disabled={deleting}
               className="ml-auto px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
             >
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? tForm("buttons.deleting") : tCommon("delete")}
             </button>
           )}
           <Link
             href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            ← Dashboard
+            ← {tForm("confirmDialogs.goBack")}
           </Link>
         </div>
       </form>

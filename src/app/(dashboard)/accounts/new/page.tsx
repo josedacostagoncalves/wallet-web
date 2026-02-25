@@ -8,8 +8,12 @@ import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function NewAccountPage() {
+  const tAccounts = useTranslations("accounts.modal");
+  const tCommon = useTranslations("common");
+  const tNavigation = useTranslations("navigation");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
@@ -43,7 +47,7 @@ export default function NewAccountPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Account added.");
+    showToast(tAccounts("addedToast"));
     router.push("/accounts");
     router.refresh();
   }
@@ -51,21 +55,21 @@ export default function NewAccountPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Add account</h1>
+        <h1 className="text-2xl font-semibold">{tAccounts("titleAdd")}</h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Select or create a wallet first.
+          {tAccounts("noWallet")}
         </p>
-        <Link href="/wallets" className="underline">Wallets</Link>
+        <Link href="/wallets" className="underline">{tNavigation("wallets")}</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Add account</h1>
+      <h1 className="text-2xl font-semibold">{tAccounts("titleAdd")}</h1>
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">{tAccounts("nameLabel")}</label>
           <input
             type="text"
             value={name}
@@ -77,22 +81,22 @@ export default function NewAccountPage() {
         <AccountTypeSelect value={accountType} onChange={setAccountType} />
         {accountType === "credit_card" && (
           <div>
-            <label className="block text-sm font-medium mb-1">Plafond / Credit limit (€)</label>
+            <label className="block text-sm font-medium mb-1">{tAccounts("plafondLabel")}</label>
             <input
               type="text"
               inputMode="decimal"
               value={plafond}
               onChange={(e) => setPlafond(e.target.value)}
-              placeholder="e.g. 2000"
+              placeholder={tAccounts("plafondPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
             <p className="text-xs text-slate-500 mt-1">
-              The maximum amount allowed on this credit card.
+              {tAccounts("plafondHint")}
             </p>
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
+          <label className="block text-sm font-medium mb-1">{tAccounts("initialBalanceLabel")}</label>
           <input
             type="text"
             inputMode="decimal"
@@ -108,13 +112,13 @@ export default function NewAccountPage() {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {loading ? "Saving…" : "Save"}
+            {loading ? tAccounts("saving") : tCommon("save")}
           </button>
           <Link
             href="/accounts"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
         </div>
       </form>

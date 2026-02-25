@@ -6,8 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export default function NewWalletPage() {
+  const tAuth = useTranslations("auth");
+  const tWallets = useTranslations("wallets");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const { showToast } = useToast();
   const [name, setName] = useState("");
@@ -26,9 +30,9 @@ export default function NewWalletPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      setError("Not authenticated");
+      setError(tAuth("notAuthenticated"));
       setLoading(false);
-      showToast("Not authenticated", "error");
+      showToast(tAuth("notAuthenticated"), "error");
       return;
     }
 
@@ -45,9 +49,9 @@ export default function NewWalletPage() {
       return;
     }
     if (!walletId) {
-      setError("Create failed");
+      setError(tWallets("toasts.createFailed"));
       setLoading(false);
-      showToast("Create failed", "error");
+      showToast(tWallets("toasts.createFailed"), "error");
       return;
     }
 
@@ -64,23 +68,23 @@ export default function NewWalletPage() {
     await setWalletCookie(walletId);
 
     setLoading(false);
-    showToast("Wallet created.");
+    showToast(tWallets("toasts.created"));
     router.push("/home");
     router.refresh();
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Create wallet</h1>
+      <h1 className="text-2xl font-semibold">{tWallets("page.create")}</h1>
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">{tWallets("page.new.nameLabel")}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder="e.g. Family, Personal"
+            placeholder={tWallets("page.new.namePlaceholder")}
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
@@ -91,14 +95,14 @@ export default function NewWalletPage() {
             checked={isShared}
             onChange={(e) => setIsShared(e.target.checked)}
           />
-          <label htmlFor="isShared">Shared (e.g. with your spouse)</label>
+          <label htmlFor="isShared">{tWallets("page.new.sharedLabel")}</label>
         </div>
         <p className="text-sm text-slate-500">
-          You can add members to a shared wallet later from the wallet settings.
+          {tWallets("page.new.sharedHint")}
         </p>
         {isShared && (
           <div className="mt-4">
-            <p className="text-sm font-medium mb-2">Shared wallet type</p>
+            <p className="text-sm font-medium mb-2">{tWallets("page.new.sharedType")}</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <button
                 type="button"
@@ -110,8 +114,8 @@ export default function NewWalletPage() {
                     : "border-slate-200 hover:border-slate-300")
                 }
               >
-                <div className="text-sm font-semibold mb-1">Shared: Track</div>
-                <div className="text-xs text-slate-600">Register transactions and account balances</div>
+                <div className="text-sm font-semibold mb-1">{tWallets("page.type.track")}</div>
+                <div className="text-xs text-slate-600">{tWallets("page.new.type.trackDesc")}</div>
               </button>
 
               <button
@@ -124,8 +128,8 @@ export default function NewWalletPage() {
                     : "border-slate-200 hover:border-slate-300")
                 }
               >
-                <div className="text-sm font-semibold mb-1">Shared: Split</div>
-                <div className="text-xs text-slate-600">Register transactions and split expenses among members</div>
+                <div className="text-sm font-semibold mb-1">{tWallets("page.type.split")}</div>
+                <div className="text-xs text-slate-600">{tWallets("page.new.type.splitDesc")}</div>
               </button>
 
               <button
@@ -138,8 +142,8 @@ export default function NewWalletPage() {
                     : "border-slate-200 hover:border-slate-300")
                 }
               >
-                <div className="text-sm font-semibold mb-1">Shared: Track and Split</div>
-                <div className="text-xs text-slate-600">Register transactions and split expenses (based on income)</div>
+                <div className="text-sm font-semibold mb-1">{tWallets("page.type.trackAndSplit")}</div>
+                <div className="text-xs text-slate-600">{tWallets("page.new.type.trackAndSplitDesc")}</div>
               </button>
             </div>
           </div>
@@ -151,13 +155,13 @@ export default function NewWalletPage() {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {loading ? "Creating…" : "Create"}
+            {loading ? tWallets("page.new.creating") : tWallets("page.create")}
           </button>
           <Link
             href="/wallets"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
         </div>
       </form>

@@ -109,6 +109,29 @@ export function TransferFormModal({
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
 
+  const recurrenceOptionLabel = (value: string, fallback: string) => {
+    switch (value) {
+      case "daily":
+        return t("options.scheduleTypes.daily");
+      case "weekly":
+        return t("options.scheduleTypes.weekly");
+      case "monthly":
+        return t("options.scheduleTypes.monthly");
+      case "yearly":
+        return t("options.scheduleTypes.yearly");
+      case "interval_days":
+        return t("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return t("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return t("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return t("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return fallback;
+    }
+  };
+
   useEffect(() => {
     if (!open || !currentWalletId) {
       autoSelectedMember.current = false;
@@ -515,7 +538,7 @@ export function TransferFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
+    showToast(status === "pending" ? t("toasts.pendingTransactionCanceled") : t("toasts.transactionDeleted"));
     onClose();
     router.push("/transactions");
     router.refresh();
@@ -588,7 +611,7 @@ export function TransferFormModal({
           <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Date *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.date")}</label>
                 <input
                   type="date"
                   value={date}
@@ -598,18 +621,18 @@ export function TransferFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.description")}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
                   required
-                  placeholder="e.g. Rent payment"
+                  placeholder={t("fields.transferDescriptionPlaceholder")}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Category *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.category")}</label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={categoryId}
@@ -617,7 +640,7 @@ export function TransferFormModal({
                     required
                     className={inputClass + " flex-1"}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectCategory")}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -629,7 +652,7 @@ export function TransferFormModal({
                       type="button"
                       onClick={() => setCatModal({ kind: "add-category", type: "transfer" })}
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      title="Add category"
+                      title={t("fields.addCategory")}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
@@ -638,14 +661,14 @@ export function TransferFormModal({
               </div>
               {(subcategories.length > 0 || categoryId) && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Subcategory</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.subcategory")}</label>
                   <div className="flex items-center gap-1.5">
                     <select
                       value={subcategoryId}
                       onChange={(e) => setSubcategoryId(e.target.value)}
                       className={inputClass + " flex-1"}
                     >
-                      <option value="">None</option>
+                      <option value="">{t("fields.none")}</option>
                       {subcategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -660,7 +683,7 @@ export function TransferFormModal({
                           if (parent) setCatModal({ kind: "add-subcategory", type: "transfer", parentId: parent.id, parentName: parent.name });
                         }}
                         className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        title="Add subcategory"
+                        title={t("fields.addSubcategory")}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                       </button>
@@ -669,27 +692,27 @@ export function TransferFormModal({
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.amount")}</label>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  placeholder="0,00"
+                  placeholder={t("fields.amountPlaceholder")}
                   className={inputClass}
                 />
               </div>
               {walletSharedOption !== "split" && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">From account *</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.accountTransferFrom")}</label>
                   <select
                     value={accountFromId}
                     onChange={(e) => setAccountFromId(e.target.value)}
                     required
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -737,14 +760,14 @@ export function TransferFormModal({
               )}
               {walletSharedOption !== "split" && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">To account *</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.accountTransferTo")}</label>
                   <select
                     value={accountToId}
                     onChange={(e) => setAccountToId(e.target.value)}
                     required
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -792,13 +815,15 @@ export function TransferFormModal({
               )}
               {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Paid by member {walletSharedOption === "split" && "*"}</label>
+                  <label className="block text-sm font-medium mb-1">
+                    {walletSharedOption === "split" ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
+                  </label>
                   <select
                     value={paidByMemberId || ""}
                     onChange={(e) => setPaidByMemberId(e.target.value || null)}
                     className={inputClass}
                   >
-                    <option value="">Not specified</option>
+                    <option value="">{t("fields.notSpecified")}</option>
                     {walletMembers.map((m) => (
                       <option key={m.user_id} value={m.user_id}>
                         {m.display_name}
@@ -863,7 +888,7 @@ export function TransferFormModal({
                               </option>
                             ) : (
                               <option key={o.value} value={o.value}>
-                                {o.label}
+                                {recurrenceOptionLabel(o.value, o.label)}
                               </option>
                             )
                           )}
@@ -926,10 +951,10 @@ export function TransferFormModal({
               <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   {!categoryId
-                    ? "Similar transfers"
+                    ? t("similar.transfers")
                     : subcategoryId
-                      ? "Similar transfers (subcategory)"
-                      : "Similar transfers (category)"}
+                      ? t("similar.transfersSubcategory")
+                      : t("similar.transfersCategory")}
                 </h3>
               </div>
               <div className="p-4 min-h-[140px] max-h-[480px] overflow-y-auto">

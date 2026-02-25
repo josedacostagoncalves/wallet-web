@@ -4,10 +4,14 @@ import { updateWallet, getWalletShareCode, updateMemberIncome } from "@/app/acti
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function EditWalletPage() {
+  const tAuth = useTranslations("auth");
+  const tCommon = useTranslations("common");
+  const tWallets = useTranslations("wallets");
   const params = useParams();
   const id = String(params.id);
   const { showToast } = useToast();
@@ -30,7 +34,7 @@ export default function EditWalletPage() {
   async function loadShareCode() {
     // Check if wallet needs to be saved as shared first
     if (isShared && !isSavedAsShared) {
-      setShareCodeError("Please save the wallet with 'Shared' enabled first");
+      setShareCodeError(tWallets("page.edit.share.saveFirst"));
       return;
     }
 
@@ -56,7 +60,7 @@ export default function EditWalletPage() {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        setError("Not authenticated");
+        setError(tAuth("notAuthenticated"));
         setLoading(false);
         return;
       }
@@ -75,14 +79,14 @@ export default function EditWalletPage() {
         return;
       }
       if (!data || !data.wallets) {
-        setError("Wallet not found or you don't have access");
+        setError(tWallets("page.edit.notFound"));
         return;
       }
       type WalletRow = { name: string; is_shared: boolean; is_active: boolean; shared_option?: string | null; split_type?: string | null };
       const raw = data.wallets as WalletRow | WalletRow[] | null;
       const wallet = Array.isArray(raw) ? raw[0] : raw;
       if (!wallet) {
-        setError("Wallet not found or you don't have access");
+        setError(tWallets("page.edit.notFound"));
         return;
       }
       setName(wallet.name);
@@ -175,7 +179,7 @@ export default function EditWalletPage() {
         ? { ...m, income_monthly: newIncome, editingIncome: false }
         : m
     ));
-    showToast("Member income updated.");
+    showToast(tWallets("toasts.memberIncomeUpdated"));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -204,27 +208,27 @@ export default function EditWalletPage() {
       setIsSavedAsShared(false);
     }
     setSaving(false);
-    showToast("Wallet updated.");
+    showToast(tWallets("toasts.updated"));
     router.push("/wallets");
     router.refresh();
   }
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
   if (error) {
     return (
       <div className="space-y-4">
         <p className="text-red-600 dark:text-red-400">{error}</p>
-        <Link href="/wallets" className="underline">← Wallets</Link>
+        <Link href="/wallets" className="underline">← {tWallets("title")}</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Edit wallet</h1>
+      <h1 className="text-2xl font-semibold">{tWallets("page.edit.title")}</h1>
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">{tWallets("page.new.nameLabel")}</label>
           <input
             type="text"
             value={name}
@@ -240,18 +244,18 @@ export default function EditWalletPage() {
             checked={isShared}
             onChange={(e) => handleShareToggle(e.target.checked)}
           />
-          <label htmlFor="isShared">Shared</label>
+          <label htmlFor="isShared">{tWallets("shared")}</label>
         </div>
 
         {isShared && (
           <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-3">Sharing Type *</label>
+              <label className="block text-sm font-medium mb-3">{tWallets("page.edit.sharingType")}</label>
               <div className="space-y-2">
                 {[
-                  { key: 'track', label: 'Shared: Track', desc: 'Register transactions and account balances' },
-                  { key: 'split', label: 'Shared: Split', desc: 'Register transactions and split expenses among members' },
-                  { key: 'track_and_split', label: 'Shared: Track and Split', desc: 'Register transactions and split expenses (based on income)' },
+                  { key: 'track', label: tWallets("page.type.track"), desc: tWallets("page.new.type.trackDesc") },
+                  { key: 'split', label: tWallets("page.type.split"), desc: tWallets("page.new.type.splitDesc") },
+                  { key: 'track_and_split', label: tWallets("page.type.trackAndSplit"), desc: tWallets("page.new.type.trackAndSplitDesc") },
                 ].map((opt) => (
                   <label key={opt.key} className="flex items-start gap-3 p-3 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-white dark:hover:bg-slate-700/50" style={{ backgroundColor: sharedOption === opt.key ? 'rgba(51, 65, 85, 0.05)' : undefined }}>
                     <input
@@ -271,9 +275,9 @@ export default function EditWalletPage() {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2">Share Code</label>
+              <label className="block text-sm font-medium mb-2">{tWallets("page.edit.share.codeLabel")}</label>
               {loadingShareCode ? (
-                <p className="text-sm text-slate-500">Loading…</p>
+                <p className="text-sm text-slate-500">{tCommon("loading")}</p>
               ) : shareCode ? (
                 <div className="flex items-center gap-2">
                   <code className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg font-mono text-lg font-semibold">
@@ -284,7 +288,7 @@ export default function EditWalletPage() {
                     onClick={copyShareCode}
                     className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
                   >
-                    {copied ? "Copied!" : "Copy"}
+                    {copied ? tWallets("page.edit.share.copied") : tWallets("page.edit.share.copy")}
                   </button>
                 </div>
               ) : (
@@ -297,25 +301,25 @@ export default function EditWalletPage() {
                         onClick={loadShareCode}
                         className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
                       >
-                        Retry
+                        {tWallets("page.edit.share.retry")}
                       </button>
                     </div>
                   ) : (
                     <>
                       {!isSavedAsShared ? (
                         <p className="text-sm text-amber-600 dark:text-amber-400">
-                          Please save the wallet with &quot;Shared&quot; enabled first, then generate the share code.
+                          {tWallets("page.edit.share.saveFirst")}
                         </p>
                       ) : (
                         <>
-                          <p className="text-sm text-slate-500">No share code available</p>
+                          <p className="text-sm text-slate-500">{tWallets("page.edit.share.none")}</p>
                           <button
                             type="button"
                             onClick={loadShareCode}
                             disabled={loadingShareCode}
                             className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm disabled:opacity-50"
                           >
-                            {loadingShareCode ? "Generating..." : "Generate Share Code"}
+                            {loadingShareCode ? tWallets("page.edit.share.generating") : tWallets("page.edit.share.generate")}
                           </button>
                         </>
                       )}
@@ -330,28 +334,28 @@ export default function EditWalletPage() {
                 onClick={copyShareLink}
                 className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
               >
-                {copied ? "Link Copied!" : "Copy Share Link"}
+                {copied ? tWallets("page.edit.share.linkCopied") : tWallets("page.edit.share.copyLink")}
               </button>
               <button
                 type="button"
                 onClick={sendEmail}
                 className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm"
               >
-                Send Email
+                {tWallets("page.edit.share.sendEmail")}
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              Share this code or link with others. They can use it to join this wallet after signing up.
+              {tWallets("page.edit.share.hint")}
             </p>
 
             {(sharedOption === 'split' || sharedOption === 'track_and_split') && (
               <div className="mt-4 pt-4 border-t border-slate-300 dark:border-slate-600 space-y-3">
                 <div>
-                  <label className="block text-sm font-medium mb-3">Split Method *</label>
+                  <label className="block text-sm font-medium mb-3">{tWallets("page.edit.split.method")}</label>
                   <div className="space-y-2">
                     {[
-                      { key: 'equally', label: 'Split Equally', desc: 'Divide expenses equally among all members' },
-                      { key: 'by_income', label: 'Split by Income', desc: 'Divide based on each member\'s monthly income (percentage)' },
+                      { key: 'equally', label: tWallets("page.edit.split.equallyLabel"), desc: tWallets("page.edit.split.equallyDesc") },
+                      { key: 'by_income', label: tWallets("page.edit.split.byIncomeLabel"), desc: tWallets("page.edit.split.byIncomeDesc") },
                     ].map((opt) => (
                       <label key={opt.key} className="flex items-start gap-3 p-3 rounded-lg border border-slate-300 dark:border-slate-600 cursor-pointer hover:bg-white dark:hover:bg-slate-700/50" style={{ backgroundColor: splitType === opt.key ? 'rgba(51, 65, 85, 0.05)' : undefined }}>
                         <input
@@ -374,16 +378,16 @@ export default function EditWalletPage() {
                 {splitType === 'by_income' && members.length > 0 && (
                   <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
                     <div>
-                      <p className="text-sm font-medium mb-2 text-blue-900 dark:text-blue-200">Members Income</p>
+                      <p className="text-sm font-medium mb-2 text-blue-900 dark:text-blue-200">{tWallets("page.edit.split.membersIncome")}</p>
                       <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-                        Set monthly income for each member to calculate expense splits as a percentage.
+                        {tWallets("page.edit.split.membersIncomeHint")}
                       </p>
                     </div>
                     <div className="space-y-2">
                       {members.map((m) => (
                         <div key={m.user_id} className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{m.email || 'Unknown'}</p>
+                            <p className="text-sm font-medium">{m.email || tWallets("page.edit.split.unknownMember")}</p>
                           </div>
                           {m.editingIncome ? (
                             <div className="flex items-center gap-2">
@@ -406,7 +410,7 @@ export default function EditWalletPage() {
                                 onClick={() => handleMemberIncomeUpdate(m.user_id, m.income_monthly ?? null)}
                                 className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
                               >
-                                Save
+                                {tCommon("save")}
                               </button>
                               <button
                                 type="button"
@@ -415,7 +419,7 @@ export default function EditWalletPage() {
                                 ))}
                                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
                               >
-                                Cancel
+                                {tCommon("cancel")}
                               </button>
                             </div>
                           ) : (
@@ -428,7 +432,7 @@ export default function EditWalletPage() {
                                 ))}
                                 className="px-2 py-1 text-xs border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-100 dark:hover:bg-slate-700"
                               >
-                                Edit
+                                {tCommon("edit")}
                               </button>
                             </div>
                           )}
@@ -448,7 +452,7 @@ export default function EditWalletPage() {
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
           />
-          <label htmlFor="isActive">Active</label>
+          <label htmlFor="isActive">{tWallets("page.status.active")}</label>
         </div>
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex gap-3">
@@ -457,13 +461,13 @@ export default function EditWalletPage() {
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? tWallets("page.edit.saving") : tCommon("save")}
           </button>
           <Link
             href="/wallets"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
         </div>
       </form>

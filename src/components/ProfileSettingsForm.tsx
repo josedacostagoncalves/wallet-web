@@ -1,9 +1,9 @@
 "use client";
 
 import { updateProfile } from "@/app/actions/profiles";
+import { AvatarImage } from "@/components/AvatarImage";
 import { useToast } from "@/contexts/ToastContext";
 import { UserIcon } from "@/components/UserIcon";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -141,18 +141,13 @@ export function ProfileSettingsForm({
         <div className="flex items-center gap-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 max-w-md">
           {/* Avatar */}
           <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
-            {displayUrl ? (
-              <Image
-                src={displayUrl}
-                alt={t("profileSection.avatarAlt")}
-                width={64}
-                height={64}
-                unoptimized
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <UserIcon className="w-10 h-10" />
-            )}
+            <AvatarImage
+              src={displayUrl}
+              alt={t("profileSection.avatarAlt")}
+              size={64}
+              className="h-full w-full object-cover"
+              fallback={<UserIcon className="w-10 h-10" />}
+            />
           </div>
 
           {/* Name + email */}
@@ -201,18 +196,13 @@ export function ProfileSettingsForm({
                 {/* Photo */}
                 <div className="flex items-center gap-4">
                   <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-500">
-                    {(photoPreview ?? savedAvatarUrl) ? (
-                      <Image
-                        src={photoPreview ?? savedAvatarUrl ?? ""}
-                        alt={t("profileSection.avatarAlt")}
-                        width={80}
-                        height={80}
-                        unoptimized
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <UserIcon className="w-12 h-12" />
-                    )}
+                    <AvatarImage
+                      src={photoPreview ?? savedAvatarUrl}
+                      alt={t("profileSection.avatarAlt")}
+                      size={80}
+                      className="h-full w-full object-cover"
+                      fallback={<UserIcon className="w-12 h-12" />}
+                    />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <input

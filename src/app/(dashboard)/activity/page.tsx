@@ -14,7 +14,7 @@ export default async function ActivityPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Activity log</h1>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {list.length === 0 ? (
           <div className="p-6 text-slate-500">{t("empty")}</div>

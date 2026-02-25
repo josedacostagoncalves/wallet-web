@@ -19,10 +19,13 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type TransactionType = "income" | "expense" | "transfer";
 
 export default function NewTransactionPage() {
+  const tForm = useTranslations("transactions.form");
+  const tTransactions = useTranslations("transactions");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
@@ -96,7 +99,7 @@ export default function NewTransactionPage() {
     getTransaction(copyId).then((m) => {
       setLoadingCopy(false);
       if (!m) {
-        setCopyError("Could not load transaction to copy.");
+        setCopyError(tForm("page.copyLoadError"));
         return;
       }
       const parentId = m.parent_id ?? null;
@@ -122,7 +125,7 @@ export default function NewTransactionPage() {
       skipNextSubcategoryReset.current = true;
       didCopyFrom.current = true;
     });
-  }, [copyId, currentWalletId]);
+  }, [copyId, currentWalletId, tForm]);
 
   useEffect(() => {
     if (!currentWalletId || !type) return;
@@ -204,30 +207,30 @@ export default function NewTransactionPage() {
     setLoading(true);
     const num = parseFloat(amount.replace(",", "."));
     if (isNaN(num) || num <= 0) {
-      setError("Amount must be a positive number");
+      setError(tForm("validation.amountPositive"));
       setLoading(false);
       return;
     }
     const catId = subcategoryId || categoryId;
     if (!catId) {
-      setError("Please select a category");
+      setError(tForm("validation.categoryRequired"));
       setLoading(false);
       return;
     }
     if (type === "expense" && subcategories.length > 0 && !subcategoryId) {
-      setError("Please select a subcategory");
+      setError(tForm("validation.subcategoryRequired"));
       setLoading(false);
       return;
     }
     if (!description.trim()) {
-      setError("Description is required");
+      setError(tForm("validation.descriptionRequired"));
       setLoading(false);
       return;
     }
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
       if (isNaN(x) || x < 1) {
-        setError("Please enter a valid number of months (1 or more)");
+        setError(tForm("validation.intervalMonthsValid"));
         setLoading(false);
         return;
       }
@@ -235,7 +238,7 @@ export default function NewTransactionPage() {
     if (isRecurring && recurrenceType === "interval_days") {
       const x = parseInt(intervalDays, 10);
       if (isNaN(x) || x < 1) {
-        setError("Please enter a valid number of days (1 or more)");
+        setError(tForm("validation.intervalDaysValid"));
         setLoading(false);
         return;
       }
@@ -247,7 +250,7 @@ export default function NewTransactionPage() {
     if (isWorkDay) {
       const x = parseInt(workDayIndex, 10);
       if (isNaN(x) || x < 1 || x > 31) {
-        setError("Work day index must be 1–31 (e.g. 3 for 3rd or 3rd last)");
+        setError(tForm("validation.workDayIndexValid"));
         setLoading(false);
         return;
       }
@@ -283,20 +286,54 @@ export default function NewTransactionPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Transaction added.");
+    showToast(tForm("toasts.transactionAdded"));
     router.push("/transactions");
     router.refresh();
+  }
+
+  function recurrenceOptionLabel(value: RecurrenceType) {
+    switch (value) {
+      case "daily":
+        return tForm("options.scheduleTypes.daily");
+      case "weekly":
+        return tForm("options.scheduleTypes.weekly");
+      case "monthly":
+        return tForm("options.scheduleTypes.monthly");
+      case "yearly":
+        return tForm("options.scheduleTypes.yearly");
+      case "interval_days":
+        return tForm("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return tForm("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return tForm("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return tForm("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return value;
+    }
+  }
+
+  function similarTitle() {
+    if (!type) return "";
+    if (type === "expense") {
+      return subcategoryId ? tForm("similar.expensesSubcategory") : tForm("similar.expensesCategory");
+    }
+    if (type === "income") {
+      return subcategoryId ? tForm("similar.incomeSubcategory") : tForm("similar.incomeCategory");
+    }
+    return subcategoryId ? tForm("similar.transfersSubcategory") : tForm("similar.transfersCategory");
   }
 
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">New transaction</h1>
+        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Select or create a wallet first.
+          {tForm("noWallet")}
         </p>
         <Link href="/wallets" className="text-slate-800 dark:text-slate-200 underline">
-          Go to Wallets
+          {tForm("page.goToWallets")}
         </Link>
       </div>
     );
@@ -305,14 +342,14 @@ export default function NewTransactionPage() {
   if (copyId && (loadingCopy || step === "type")) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">New transaction</h1>
+        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
         <div className="w-full max-w-md space-y-4 animate-pulse">
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
         </div>
-        <p className="text-sm text-slate-500">Loading transaction to copy…</p>
+        <p className="text-sm text-slate-500">{tForm("page.loadingCopy")}</p>
       </div>
     );
   }
@@ -320,20 +357,20 @@ export default function NewTransactionPage() {
   if (copyId && copyError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">New transaction</h1>
+        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
         <p className="text-slate-600 dark:text-slate-400">{copyError}</p>
         <div className="flex gap-3">
           <Link
             href="/transactions/new"
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
           >
-            Choose type
+            {tForm("page.chooseType")}
           </Link>
           <Link
             href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            Back to Dashboard
+            {tForm("page.backToDashboard")}
           </Link>
         </div>
       </div>
@@ -343,9 +380,9 @@ export default function NewTransactionPage() {
   if (step === "type") {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">New transaction</h1>
+        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Choose the type of transaction.
+          {tForm("page.chooseTypeSubtitle")}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
@@ -353,24 +390,24 @@ export default function NewTransactionPage() {
             className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20 hover:border-green-400 dark:hover:border-green-600"
           >
             <span className="text-2xl mb-2">↓</span>
-            <span className="font-medium">Income</span>
+            <span className="font-medium">{tTransactions("income")}</span>
           </button>
           <button
             onClick={() => pickType("expense")}
             className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-900/20 hover:border-red-400 dark:hover:border-red-600"
           >
             <span className="text-2xl mb-2">↑</span>
-            <span className="font-medium">Expense</span>
+            <span className="font-medium">{tTransactions("expense")}</span>
           </button>
           <button
             onClick={() => pickType("transfer")}
             className="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-blue-200 dark:border-blue-900 bg-blue-50/50 dark:bg-blue-900/20 hover:border-blue-400 dark:hover:border-blue-600"
           >
             <span className="text-2xl mb-2">⇄</span>
-            <span className="font-medium">Transfer</span>
+            <span className="font-medium">{tTransactions("transfer")}</span>
           </button>
         </div>
-        <Link href="/transactions" className="text-slate-500 hover:underline">← Back to Transactions</Link>
+        <Link href="/transactions" className="text-slate-500 hover:underline">← {tForm("page.backToTransactions")}</Link>
       </div>
     );
   }
@@ -378,7 +415,9 @@ export default function NewTransactionPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-semibold">New {type}</h1>
+        <h1 className="text-2xl font-semibold">
+          {type === "income" ? tForm("newIncome") : type === "expense" ? tForm("newExpense") : tForm("newTransfer")}
+        </h1>
         <button
           type="button"
           onClick={() => {
@@ -390,14 +429,14 @@ export default function NewTransactionPage() {
           }}
           className="text-sm text-slate-500 hover:underline"
         >
-          Change type
+          {tForm("page.changeType")}
         </button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch">
         <form onSubmit={handleSubmit} className="w-full lg:w-1/2 lg:min-w-0 space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Date *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.date")}</label>
             <input
               type="date"
               value={date}
@@ -407,7 +446,7 @@ export default function NewTransactionPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Description *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.description")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -417,7 +456,7 @@ export default function NewTransactionPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Category *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
             <select
               value={categoryId}
               onChange={(e) => {
@@ -436,7 +475,7 @@ export default function NewTransactionPage() {
               required
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">Select…</option>
+              <option value="">{tForm("fields.selectCategory")}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -447,7 +486,7 @@ export default function NewTransactionPage() {
           {subcategories.length > 0 && (
             <div>
               <label className="block text-sm font-medium mb-1">
-                Subcategory{type === "expense" ? " *" : ""}
+                {type === "expense" ? tForm("fields.subcategoryRequired") : tForm("fields.subcategory")}
               </label>
               <select
                 value={subcategoryId}
@@ -455,7 +494,7 @@ export default function NewTransactionPage() {
                 required={type === "expense"}
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">{type === "expense" ? "Select…" : "None"}</option>
+                <option value="">{type === "expense" ? tForm("fields.selectSubcategory") : tForm("fields.none")}</option>
                 {subcategories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -465,27 +504,27 @@ export default function NewTransactionPage() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+            <label className="block text-sm font-medium mb-1">{tForm("fields.amount")}</label>
             <input
               type="text"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              placeholder="0,00"
+              placeholder={tForm("fields.amountPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
           </div>
           {type === "income" && (
             <div>
-              <label className="block text-sm font-medium mb-1">Account (receive) *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.accountTo")}</label>
               <select
                 value={accountToId}
                 onChange={(e) => setAccountToId(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -496,14 +535,14 @@ export default function NewTransactionPage() {
           )}
           {type === "expense" && (
             <div>
-              <label className="block text-sm font-medium mb-1">Account (pay from) *</label>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.accountFrom")}</label>
               <select
                 value={accountFromId}
                 onChange={(e) => setAccountFromId(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -515,14 +554,14 @@ export default function NewTransactionPage() {
           {type === "transfer" && (
             <>
               <div>
-                <label className="block text-sm font-medium mb-1">From account *</label>
+                <label className="block text-sm font-medium mb-1">{tForm("fields.accountTransferFrom")}</label>
                 <select
                   value={accountFromId}
                   onChange={(e) => setAccountFromId(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                 >
-                  <option value="">Select…</option>
+                  <option value="">{tForm("fields.selectAccount")}</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -531,14 +570,14 @@ export default function NewTransactionPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">To account *</label>
+                <label className="block text-sm font-medium mb-1">{tForm("fields.accountTransferTo")}</label>
                 <select
                   value={accountToId}
                   onChange={(e) => setAccountToId(e.target.value)}
                   required
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                 >
-                  <option value="">Select…</option>
+                  <option value="">{tForm("fields.selectAccount")}</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -557,12 +596,12 @@ export default function NewTransactionPage() {
                 onChange={(e) => setSaveAsPending(e.target.checked)}
               />
               <label htmlFor="saveAsPending" className="text-sm font-medium">
-                Save as pending
+                {tForm("options.saveAsPending")}
               </label>
             </div>
             {saveAsPending && (
               <p className="text-xs text-slate-500 dark:text-slate-400 pl-6 -mt-1">
-                Balances will not change until you confirm. Confirm or cancel from Dashboard or Home.
+                {tForm("page.pendingHint")}
               </p>
             )}
             <div className="flex items-center gap-2">
@@ -573,13 +612,13 @@ export default function NewTransactionPage() {
                 onChange={(e) => setIsRecurring(e.target.checked)}
               />
               <label htmlFor="isRecurring" className="text-sm font-medium">
-                Make it recurring
+                {tForm("options.makeRecurring")}
               </label>
             </div>
             {isRecurring && (
               <div className="space-y-3 pl-6">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Schedule</label>
+                  <label className="block text-sm font-medium mb-1">{tForm("options.schedule")}</label>
                   <select
                     value={recurrenceType}
                     onChange={(e) => {
@@ -595,7 +634,7 @@ export default function NewTransactionPage() {
                         </option>
                       ) : (
                         <option key={o.value} value={o.value}>
-                          {o.label}
+                          {recurrenceOptionLabel(o.value)}
                         </option>
                       )
                     )}
@@ -603,26 +642,26 @@ export default function NewTransactionPage() {
                 </div>
                 {recurrenceType === "interval_days" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Every how many days?</label>
+                    <label className="block text-sm font-medium mb-1">{tForm("options.intervalDays")}</label>
                     <input
                       type="number"
                       min={1}
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(e.target.value)}
-                      placeholder="e.g. 14"
+                      placeholder={tForm("options.intervalDaysPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 {recurrenceType === "interval_months" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">Every how many months?</label>
+                    <label className="block text-sm font-medium mb-1">{tForm("options.intervalMonths")}</label>
                     <input
                       type="number"
                       min={1}
                       value={intervalMonths}
                       onChange={(e) => setIntervalMonths(e.target.value)}
-                      placeholder="e.g. 3"
+                      placeholder={tForm("options.intervalMonthsPlaceholder")}
                       className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
@@ -632,8 +671,8 @@ export default function NewTransactionPage() {
                     <div>
                       <label className="block text-sm font-medium mb-1">
                         {recurrenceType === "monthly_nth_last_work_day"
-                          ? "Nth last work day (e.g. 3 = 3rd last)"
-                          : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                          ? tForm("options.nthLastWorkDay")
+                          : tForm("options.nthWorkDay")}
                       </label>
                       <input
                         type="number"
@@ -641,13 +680,13 @@ export default function NewTransactionPage() {
                         max={31}
                         value={workDayIndex}
                         onChange={(e) => setWorkDayIndex(e.target.value)}
-                        placeholder="e.g. 3"
+                        placeholder={tForm("options.workDayPlaceholder")}
                         className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                       />
                     </div>
                   )}
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.
+                  {tForm("page.recurringHint")}
                 </p>
               </div>
             )}
@@ -659,13 +698,13 @@ export default function NewTransactionPage() {
               disabled={loading}
               className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {loading ? "Saving…" : "Save"}
+              {loading ? tForm("buttons.saving") : tForm("buttons.save")}
             </button>
             <Link
               href="/transactions"
               className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
-              Cancel
+              {tForm("buttons.cancel")}
             </Link>
           </div>
         </form>
@@ -674,22 +713,21 @@ export default function NewTransactionPage() {
           <div className="w-full lg:w-1/2 lg:min-w-0 rounded-xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
               <h3 className="text-xs font-medium">
-                Similar {type === "expense" ? "expenses" : type === "income" ? "income" : "transfers"}
-                {subcategoryId ? " (subcategory)" : " (category)"}
+                {similarTitle()}
               </h3>
             </div>
             <div className="p-4 min-h-[140px]">
               {loadingSimilar ? (
-                <p className="text-xs text-slate-500">Loading…</p>
+                <p className="text-xs text-slate-500">{tForm("similar.loading")}</p>
               ) : recentSimilar.length === 0 ? (
-                <p className="text-xs text-slate-500">No similar transactions</p>
+                <p className="text-xs text-slate-500">{tForm("similar.noSimilar")}</p>
               ) : (
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="text-left text-slate-500">
-                      <th className="pb-2 pr-3 font-medium">Date</th>
-                      <th className="pb-2 pr-3 font-medium min-w-0">Description</th>
-                      <th className="pb-2 pr-3 font-medium text-right">Amount</th>
+                      <th className="pb-2 pr-3 font-medium">{tForm("similar.tableDate")}</th>
+                      <th className="pb-2 pr-3 font-medium min-w-0">{tForm("similar.tableDescription")}</th>
+                      <th className="pb-2 pr-3 font-medium text-right">{tForm("similar.tableAmount")}</th>
                       <th className="pb-2 font-medium w-14"></th>
                     </tr>
                   </thead>
@@ -720,8 +758,8 @@ export default function NewTransactionPage() {
                             onClick={() => handleCopyFromSimilar(r.id)}
                             disabled={!!copyingSimilarId}
                             className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                            title={copyingSimilarId === r.id ? "Copying…" : "Copy"}
-                            aria-label={copyingSimilarId === r.id ? "Copying…" : "Copy"}
+                            title={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
+                            aria-label={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
                           >
                             <CopyIcon aria-hidden />
                           </button>

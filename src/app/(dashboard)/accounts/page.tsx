@@ -6,7 +6,9 @@ import {
   saveAccountsTableDisplayOptions,
 } from "@/app/actions/preferences";
 import { EditIcon } from "@/components/ActionIcons";
+import { AvatarImage } from "@/components/AvatarImage";
 import { EditAccountModal } from "@/components/EditAccountModal";
+import { UserIcon } from "@/components/UserIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
@@ -18,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type AccountDetails = {
   ownerName: string;
@@ -111,26 +114,6 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   );
 }
 
-function UserIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-slate-400"
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
 function fmt(n: number) {
   return n.toLocaleString("pt-PT", {
     minimumFractionDigits: 2,
@@ -149,6 +132,8 @@ function AccountDetailsPopup({
   accountName: string;
   onClose: () => void;
 }) {
+  const tAccounts = useTranslations("accounts");
+  const tCommon = useTranslations("common");
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -176,7 +161,7 @@ function AccountDetailsPopup({
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-          aria-label="Close"
+          aria-label={tCommon("close")}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" />
@@ -189,41 +174,39 @@ function AccountDetailsPopup({
         {/* Details grid */}
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="space-y-0.5">
-            <div className="text-slate-500">Created by</div>
+            <div className="text-slate-500">{tAccounts("page.details.createdBy")}</div>
             <div className="flex items-center gap-2 font-medium">
-              {details.ownerAvatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={details.ownerAvatar}
-                  alt=""
-                  className="h-5 w-5 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <UserIcon />
-                </span>
-              )}
+              <AvatarImage
+                src={details.ownerAvatar}
+                size={20}
+                className="h-5 w-5 rounded-full object-cover"
+                fallback={
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                    <UserIcon className="w-4 h-4 text-slate-400" />
+                  </span>
+                }
+              />
               {details.ownerName}
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Created at</div>
+            <div className="text-slate-500">{tAccounts("page.details.createdAt")}</div>
             <div className="font-medium">
               {new Date(details.createdAt).toLocaleDateString("pt-PT")}
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Initial balance</div>
+            <div className="text-slate-500">{tAccounts("page.details.initialBalance")}</div>
             <div className="font-medium font-mono">{fmt(details.initialBalance)} €</div>
           </div>
           {details.plafond != null && (
             <div className="space-y-0.5">
-              <div className="text-slate-500">Plafond</div>
+              <div className="text-slate-500">{tAccounts("page.details.plafond")}</div>
               <div className="font-medium font-mono">{fmt(details.plafond)} €</div>
             </div>
           )}
           <div className="space-y-0.5">
-            <div className="text-slate-500">Last update</div>
+            <div className="text-slate-500">{tAccounts("page.details.lastUpdate")}</div>
             <div className="font-medium">
               {new Date(details.updatedAt).toLocaleDateString("pt-PT")},{" "}
               {new Date(details.updatedAt).toLocaleTimeString("pt-PT", {
@@ -234,7 +217,7 @@ function AccountDetailsPopup({
           </div>
         </div>
       </div>
-    </div>,
+    </div >,
     document.body
   );
 }
@@ -242,6 +225,9 @@ function AccountDetailsPopup({
 /* ─── Main Page ─── */
 
 export default function AccountsPage() {
+  const tAccounts = useTranslations("accounts");
+  const tCommon = useTranslations("common");
+  const tHomeAccounts = useTranslations("home.accountsTable");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -363,7 +349,7 @@ export default function AccountsPage() {
     const res = await getAccountDetails(a.id);
     setLoadingDetails(null);
     if (res.error || !res.details) {
-      showToast(res.error ?? "Failed to load details", "error");
+      showToast(res.error ?? tAccounts("page.details.loadError"), "error");
       return;
     }
     setDetailsPopup({ accountName: a.name, details: res.details });
@@ -372,8 +358,8 @@ export default function AccountsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Accounts</h1>
-        <p className="text-slate-500">Loading…</p>
+        <h1 className="text-2xl font-semibold">{tAccounts("title")}</h1>
+        <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
   }
@@ -381,20 +367,20 @@ export default function AccountsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Accounts</h1>
+        <h1 className="text-2xl font-semibold">{tAccounts("title")}</h1>
         {currentWalletId && (
           <Link
             href="/accounts/new"
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
           >
-            Add account
+            {tAccounts("addAccount")}
           </Link>
         )}
       </div>
 
       {!currentWalletId ? (
         <p className="text-slate-600 dark:text-slate-400">
-          Select or create a wallet first.
+          {tAccounts("page.noWallet")}
         </p>
       ) : (
         <>
@@ -404,20 +390,19 @@ export default function AccountsPage() {
               <button
                 onClick={() => setHideBalances((p) => !p)}
                 className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                aria-label={hideBalances ? "Show balances" : "Hide balances"}
-                title={hideBalances ? "Show balances" : "Hide balances"}
+                aria-label={hideBalances ? tHomeAccounts("showBalances") : tHomeAccounts("hideBalances")}
+                title={hideBalances ? tHomeAccounts("showBalances") : tHomeAccounts("hideBalances")}
               >
                 <EyeIcon hidden={hideBalances} />
               </button>
               <button
                 ref={optionsBtnRef}
                 onClick={toggleOptions}
-                className={`p-2 rounded-lg border transition-colors ${
-                  optionsOpen
-                    ? "border-slate-400 bg-slate-100 text-slate-800"
-                    : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
-                }`}
-                title="Display options"
+                className={`p-2 rounded-lg border transition-colors ${optionsOpen
+                  ? "border-slate-400 bg-slate-100 text-slate-800"
+                  : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
+                  }`}
+                title={tHomeAccounts("displayOptions")}
               >
                 <OptionsIcon />
               </button>
@@ -437,7 +422,7 @@ export default function AccountsPage() {
                   checked={displayOpts.showInitialBalance}
                   onChange={() => toggleDisplayOpt("showInitialBalance")}
                 />
-                Show initial balance
+                {tHomeAccounts("showInitialBalance")}
               </label>
               <label className="flex items-center gap-2 text-xs cursor-pointer">
                 <input
@@ -445,112 +430,111 @@ export default function AccountsPage() {
                   checked={displayOpts.showPlafond}
                   onChange={() => toggleDisplayOpt("showPlafond")}
                 />
-                Show plafond info
+                {tHomeAccounts("showPlafondInfo")}
               </label>
             </div>,
             document.body
           )}
 
           <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-          {accounts.length === 0 ? (
-            <div className="p-6 text-slate-500">
-              No accounts.{" "}
-              <Link href="/accounts/new" className="underline">
-                Add one
-              </Link>
-            </div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                  <th className="text-left p-3">Name</th>
-                  <th className="text-left p-3">Type</th>
-                  {displayOpts.showInitialBalance && (
-                    <th className="text-right p-3">Initial</th>
-                  )}
-                  <th className="text-right p-3">Current</th>
-                  {displayOpts.showPlafond && hasAnyCreditCard && (
-                    <th className="text-right p-3">Plafond</th>
-                  )}
-                  <th className="text-left p-3">Status</th>
-                  <th className="text-left p-3 w-20">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {accounts.map((a) => (
-                  <tr
-                    key={a.id}
-                    className={`border-b border-slate-100 dark:border-slate-700/50 ${
-                      !a.is_active ? "opacity-60" : ""
-                    }`}
-                  >
-                    <td className="p-3 font-medium">
-                      <span
-                        className="inline-flex items-center gap-2"
-                        title={accountTypeLabel(a.account_type)}
-                      >
-                        <span className="text-base leading-none" aria-hidden>
-                          {accountTypeIcon(a.account_type)}
-                        </span>
-                        {a.name}
-                      </span>
-                    </td>
-                    <td className="p-3 text-slate-600 dark:text-slate-400">
-                      {accountTypeLabel(a.account_type)}
-                    </td>
+            {accounts.length === 0 ? (
+              <div className="p-6 text-slate-500">
+                {tAccounts("noAccounts")}.{" "}
+                <Link href="/accounts/new" className="underline">
+                  {tAccounts("page.addOne")}
+                </Link>
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                    <th className="text-left p-3">{tAccounts("accountName")}</th>
+                    <th className="text-left p-3">{tAccounts("accountType")}</th>
                     {displayOpts.showInitialBalance && (
-                      <td className="p-3 text-right font-mono">
-                        {hideBalances ? "••••••" : `${fmt(a.initial_balance)} €`}
-                      </td>
+                      <th className="text-right p-3">{tAccounts("page.table.initial")}</th>
                     )}
-                    <td className="p-3 text-right font-mono">
-                      {hideBalances ? "••••••" : `${fmt(a.current_balance)} €`}
-                    </td>
+                    <th className="text-right p-3">{tAccounts("page.table.current")}</th>
                     {displayOpts.showPlafond && hasAnyCreditCard && (
-                      <td className="p-3 text-right font-mono">
-                        {a.account_type === "credit_card" && a.plafond != null
-                          ? hideBalances ? "••••••" : `${fmt(a.plafond)} €`
-                          : "—"}
-                      </td>
+                      <th className="text-right p-3">{tAccounts("page.table.plafond")}</th>
                     )}
-                    <td className="p-3">
-                      {a.is_active ? (
-                        <span className="text-green-600 dark:text-green-400">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-slate-500">Inactive</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleInfoClick(a)}
-                          className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                          title="Details"
-                          disabled={loadingDetails === a.id}
-                        >
-                          {loadingDetails === a.id ? (
-                            <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                          ) : (
-                            <InfoIcon className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setEditAccountId(a.id)}
-                          className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                          title="Edit"
-                        >
-                          <EditIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                    <th className="text-left p-3">{tAccounts("page.table.status")}</th>
+                    <th className="text-left p-3 w-20">{tAccounts("page.table.actions")}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                  {accounts.map((a) => (
+                    <tr
+                      key={a.id}
+                      className={`border-b border-slate-100 dark:border-slate-700/50 ${!a.is_active ? "opacity-60" : ""
+                        }`}
+                    >
+                      <td className="p-3 font-medium">
+                        <span
+                          className="inline-flex items-center gap-2"
+                          title={accountTypeLabel(a.account_type)}
+                        >
+                          <span className="text-base leading-none" aria-hidden>
+                            {accountTypeIcon(a.account_type)}
+                          </span>
+                          {a.name}
+                        </span>
+                      </td>
+                      <td className="p-3 text-slate-600 dark:text-slate-400">
+                        {accountTypeLabel(a.account_type)}
+                      </td>
+                      {displayOpts.showInitialBalance && (
+                        <td className="p-3 text-right font-mono">
+                          {hideBalances ? "••••••" : `${fmt(a.initial_balance)} €`}
+                        </td>
+                      )}
+                      <td className="p-3 text-right font-mono">
+                        {hideBalances ? "••••••" : `${fmt(a.current_balance)} €`}
+                      </td>
+                      {displayOpts.showPlafond && hasAnyCreditCard && (
+                        <td className="p-3 text-right font-mono">
+                          {a.account_type === "credit_card" && a.plafond != null
+                            ? hideBalances ? "••••••" : `${fmt(a.plafond)} €`
+                            : "—"}
+                        </td>
+                      )}
+                      <td className="p-3">
+                        {a.is_active ? (
+                          <span className="text-green-600 dark:text-green-400">
+                            {tAccounts("page.status.active")}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">{tAccounts("page.status.inactive")}</span>
+                        )}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleInfoClick(a)}
+                            className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            title={tAccounts("page.actions.details")}
+                            disabled={loadingDetails === a.id}
+                          >
+                            {loadingDetails === a.id ? (
+                              <span className="inline-block w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                            ) : (
+                              <InfoIcon className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setEditAccountId(a.id)}
+                            className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                            title={tCommon("edit")}
+                          >
+                            <EditIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </>
       )}
 

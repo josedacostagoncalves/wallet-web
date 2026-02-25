@@ -29,7 +29,7 @@ export function Header() {
     await logActivityAction({ action: "logout" });
     const supabase = createClient();
     await supabase.auth.signOut();
-    showToast("Logged out successfully.");
+    showToast(tAuth("loggedOutSuccess"));
     router.push("/");
     router.refresh();
   }
@@ -71,7 +71,7 @@ export function Header() {
                         className={`block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 ${w.id === currentWalletId ? "font-medium bg-slate-50 dark:bg-slate-700/50" : ""
                           }`}
                       >
-                        {w.name} {w.is_shared ? " (shared)" : ""}
+                        {w.name} {w.is_shared ? ` (${tNav("walletShared")})` : ""}
                       </button>
                     ))}
                     <Link

@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/transactions";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
+import { AvatarImage } from "@/components/AvatarImage";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
@@ -108,6 +109,29 @@ export function IncomeFormModal({
   const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
+
+  const recurrenceOptionLabel = (value: string, fallback: string) => {
+    switch (value) {
+      case "daily":
+        return t("options.scheduleTypes.daily");
+      case "weekly":
+        return t("options.scheduleTypes.weekly");
+      case "monthly":
+        return t("options.scheduleTypes.monthly");
+      case "yearly":
+        return t("options.scheduleTypes.yearly");
+      case "interval_days":
+        return t("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return t("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return t("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return t("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return fallback;
+    }
+  };
 
   useEffect(() => {
     if (!open || !currentWalletId) {
@@ -511,7 +535,7 @@ export function IncomeFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
+    showToast(status === "pending" ? t("toasts.pendingTransactionCanceled") : t("toasts.transactionDeleted"));
     onClose();
     router.push("/transactions");
     router.refresh();
@@ -584,7 +608,7 @@ export function IncomeFormModal({
           <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Date *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.date")}</label>
                 <input
                   type="date"
                   value={date}
@@ -594,18 +618,18 @@ export function IncomeFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Description *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.description")}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
                   required
-                  placeholder="e.g. Salary"
+                  placeholder={t("fields.incomeDescriptionPlaceholder")}
                   className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Category *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.category")}</label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={categoryId}
@@ -613,7 +637,7 @@ export function IncomeFormModal({
                     required
                     className={inputClass + " flex-1"}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectCategory")}</option>
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
@@ -625,7 +649,7 @@ export function IncomeFormModal({
                       type="button"
                       onClick={() => setCatModal({ kind: "add-category", type: "income" })}
                       className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      title="Add category"
+                      title={t("fields.addCategory")}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                     </button>
@@ -634,14 +658,14 @@ export function IncomeFormModal({
               </div>
               {(subcategories.length > 0 || categoryId) && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Subcategory</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.subcategory")}</label>
                   <div className="flex items-center gap-1.5">
                     <select
                       value={subcategoryId}
                       onChange={(e) => setSubcategoryId(e.target.value)}
                       className={inputClass + " flex-1"}
                     >
-                      <option value="">None</option>
+                      <option value="">{t("fields.none")}</option>
                       {subcategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -656,7 +680,7 @@ export function IncomeFormModal({
                           if (parent) setCatModal({ kind: "add-subcategory", type: "income", parentId: parent.id, parentName: parent.name });
                         }}
                         className="shrink-0 p-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        title="Add subcategory"
+                        title={t("fields.addSubcategory")}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14" /><path d="M5 12h14" /></svg>
                       </button>
@@ -665,27 +689,27 @@ export function IncomeFormModal({
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+                <label className="block text-sm font-medium mb-1">{t("fields.amount")}</label>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  placeholder="0,00"
+                  placeholder={t("fields.amountPlaceholder")}
                   className={inputClass}
                 />
               </div>
               {!isSplitOnly && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">Account (receive) *</label>
+                  <label className="block text-sm font-medium mb-1">{t("fields.accountTo")}</label>
                   <select
                     value={accountToId}
                     onChange={(e) => setAccountToId(e.target.value)}
                     required={!isSplitOnly}
                     className={inputClass}
                   >
-                    <option value="">Select…</option>
+                    <option value="">{t("fields.selectAccount")}</option>
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
@@ -735,10 +759,12 @@ export function IncomeFormModal({
               )}
               {isSplitWallet && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">Received by member {walletSharedOption !== null && "*"}</label>
+                  <label className="block text-sm font-medium mb-2">
+                    {walletSharedOption !== null ? t("fields.receivedByMemberRequired") : t("fields.receivedByMember")}
+                  </label>
                   <div className="space-y-2">
                     {walletMembers.length === 0 && (
-                      <div className="text-xs text-slate-500">No members found.</div>
+                      <div className="text-xs text-slate-500">{t("fields.noMembers")}</div>
                     )}
                     {walletMembers.map((m) => {
                       const isSelected = paidByMemberId === m.user_id;
@@ -754,14 +780,16 @@ export function IncomeFormModal({
                               : "border-slate-300 hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500")
                           }
                         >
-                          {m.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={m.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                          ) : (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                              <UserIcon className="w-4 h-4" />
-                            </span>
-                          )}
+                          <AvatarImage
+                            src={m.avatar_url}
+                            size={28}
+                            className="h-7 w-7 rounded-full object-cover"
+                            fallback={
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                                <UserIcon className="w-4 h-4" />
+                              </span>
+                            }
+                          />
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">{m.display_name}</div>
                           </div>
@@ -835,7 +863,7 @@ export function IncomeFormModal({
                               </option>
                             ) : (
                               <option key={o.value} value={o.value}>
-                                {o.label}
+                                {recurrenceOptionLabel(o.value, o.label)}
                               </option>
                             )
                           )}

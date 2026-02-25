@@ -31,6 +31,7 @@
         "categories": "Categories",
         "activityLog": "Activity log",
         "settings": "Settings",
+        "walletShared": "shared",
         "sidebarControl": "Sidebar control",
         "expanded": "Expanded",
         "collapsed": "Collapsed",
@@ -42,11 +43,22 @@
         "login": "Login",
         "signup": "Sign Up",
         "logout": "Log out",
+        "loggedInSuccess": "Logged in successfully.",
+        "notAuthenticated": "Not authenticated",
+        "loggedOutSuccess": "Logged out successfully.",
         "email": "Email",
         "password": "Password",
         "forgotPassword": "Forgot Password?",
         "dontHaveAccount": "Don't have an account?",
-        "alreadyHaveAccount": "Already have an account?"
+        "alreadyHaveAccount": "Already have an account?",
+        "signingIn": "Signing in...",
+        "creatingAccount": "Creating account...",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "checkEmail": "Check your email",
+        "checkEmailMessage": "We sent a confirmation link to {email}. Click it to activate your account, then log in.",
+        "goToLogin": "Go to login",
+        "back": "Back"
     },
     "dashboard": {
         "title": "Dashboard",
@@ -163,8 +175,8 @@
             "after": "After"
         }
     },
-    "portfoliio": {
-        "title": "Portfoliio",
+    "portfolio": {
+        "title": "Portfolio",
         "subtitle": "Your finances, all in one place",
         "emptyMessage": "Create a wallet to start tracking your finances",
         "createWallet": "Create wallet"
@@ -275,7 +287,50 @@
         "accountName": "Account Name",
         "accountType": "Account Type",
         "balance": "Balance",
-        "noAccounts": "No accounts yet"
+        "noAccounts": "No accounts yet",
+        "page": {
+            "noWallet": "Select or create a wallet first.",
+            "addOne": "Add one",
+            "table": {
+                "initial": "Initial",
+                "current": "Current",
+                "plafond": "Plafond",
+                "status": "Status",
+                "actions": "Actions"
+            },
+            "status": {
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "actions": {
+                "details": "Details"
+            },
+            "details": {
+                "createdBy": "Created by",
+                "createdAt": "Created at",
+                "initialBalance": "Initial balance",
+                "plafond": "Plafond",
+                "lastUpdate": "Last update",
+                "loadError": "Failed to load details"
+            }
+        },
+        "modal": {
+            "titleEdit": "Edit account",
+            "titleAdd": "Add account",
+            "noWallet": "Select or create a wallet first.",
+            "notFound": "Not found",
+            "invalidInitialBalance": "Invalid initial balance",
+            "updatedToast": "Account updated.",
+            "addedToast": "Account added.",
+            "saving": "Saving…",
+            "nameLabel": "Name *",
+            "plafondLabel": "Plafond / Credit limit (€)",
+            "plafondPlaceholder": "e.g. 2000",
+            "plafondHint": "The maximum amount allowed on this credit card.",
+            "initialBalanceLabel": "Initial balance (€) *",
+            "initialBalanceHint": "Changing this will adjust the current balance by the same difference.",
+            "activeLabel": "Active (shown in transaction form)"
+        }
     },
     "transactions": {
         "title": "Transactions",
@@ -356,6 +411,21 @@
                 "confirm": "Delete",
                 "cancel": "Keep"
             },
+            "editModal": {
+                "title": "Edit recurring",
+                "subtitle": "Changes apply only to future runs. Existing pending or confirmed transactions are not modified.",
+                "notFound": "Recurring rule not found.",
+                "updatedToast": "Recurring rule updated.",
+                "current": "(current)",
+                "dayOfWeek": "Day of week",
+                "dayOfMonth": "Day of month (1–31)",
+                "dayOfMonthPlaceholder": "e.g. 15",
+                "endDate": "End date (optional)",
+                "endDateHint": "Leave empty to run indefinitely. If set, recurring stops after this date.",
+                "activeLabel": "Active (recurring runs automatically)",
+                "activeHint": "Uncheck to disable recurring. No new transactions will be created until you turn it back on.",
+                "dayOfMonthValid": "Day of month must be 1–31"
+            },
             "actions": {
                 "copy": "Copy",
                 "edit": "Edit",
@@ -404,6 +474,8 @@
                 "date": "Date *",
                 "description": "Description *",
                 "descriptionPlaceholder": "e.g. Groceries",
+                "incomeDescriptionPlaceholder": "e.g. Salary",
+                "transferDescriptionPlaceholder": "e.g. Rent payment",
                 "category": "Category *",
                 "selectCategory": "Select…",
                 "addCategory": "Add category",
@@ -423,6 +495,7 @@
                 "paidByMemberRequired": "Paid by member *",
                 "receivedByMember": "Received by member",
                 "receivedByMemberRequired": "Received by member *",
+                "notSpecified": "Not specified",
                 "noMembers": "No members found."
             },
             "options": {
@@ -430,6 +503,16 @@
                 "holdBalance": "Do not update balances until confirm",
                 "makeRecurring": "Make it recurring",
                 "schedule": "Schedule",
+                "scheduleTypes": {
+                    "daily": "Daily",
+                    "weekly": "Weekly",
+                    "monthly": "Monthly",
+                    "yearly": "Yearly",
+                    "intervalDays": "Every x days",
+                    "intervalMonths": "Every x months",
+                    "monthlyNthWorkDay": "nth work day of the month",
+                    "monthlyNthLastWorkDay": "nth last work day of the month"
+                },
                 "intervalDays": "Every how many days?",
                 "intervalDaysPlaceholder": "e.g. 14",
                 "intervalMonths": "Every how many months?",
@@ -445,6 +528,9 @@
                 "income": "Similar income",
                 "incomeCategory": "Similar income (category)",
                 "incomeSubcategory": "Similar income (subcategory)",
+                "transfers": "Similar transfers",
+                "transfersCategory": "Similar transfers (category)",
+                "transfersSubcategory": "Similar transfers (subcategory)",
                 "loading": "Loading…",
                 "noExpenses": "No expenses yet",
                 "noIncome": "No income yet",
@@ -485,7 +571,9 @@
             "toasts": {
                 "transactionAdded": "Transaction added.",
                 "transactionUpdated": "Transaction updated.",
-                "transactionConfirmed": "Transaction confirmed."
+                "transactionConfirmed": "Transaction confirmed.",
+                "pendingTransactionCanceled": "Pending transaction canceled.",
+                "transactionDeleted": "Transaction deleted."
             },
             "confirmDialogs": {
                 "confirmTitle": "Confirm transaction",
@@ -499,6 +587,21 @@
                 "deleteButton": "Delete",
                 "keepButton": "Keep",
                 "goBack": "Go back"
+            },
+            "page": {
+                "current": "(current)",
+                "notFound": "Transaction not found.",
+                "copyLoadError": "Could not load transaction to copy.",
+                "newTransaction": "New transaction",
+                "goToWallets": "Go to Wallets",
+                "loadingCopy": "Loading transaction to copy…",
+                "chooseType": "Choose type",
+                "backToDashboard": "Back to Dashboard",
+                "chooseTypeSubtitle": "Choose the type of transaction.",
+                "backToTransactions": "Back to Transactions",
+                "changeType": "Change type",
+                "pendingHint": "Balances will not change until you confirm. Confirm or cancel from Dashboard or Home.",
+                "recurringHint": "Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them."
             }
         }
     },
@@ -518,13 +621,144 @@
         "walletName": "Wallet Name",
         "shared": "Shared",
         "personal": "Personal",
-        "noWallets": "No wallets yet"
+        "noWallets": "No wallets yet",
+        "page": {
+            "join": "Join wallet",
+            "create": "Create wallet",
+            "createOne": "Create one",
+            "joinPage": {
+                "title": "Join Wallet",
+                "validation": {
+                    "shareCodeRequired": "Please enter a share code"
+                },
+                "successTitle": "Successfully joined the wallet!",
+                "successRedirect": "Redirecting to wallets...",
+                "shareCodeLabel": "Share Code *",
+                "shareCodePlaceholder": "Enter 8-character code",
+                "shareCodeHint": "Enter the share code provided by the wallet owner",
+                "joining": "Joining…",
+                "joinButton": "Join Wallet"
+            },
+            "edit": {
+                "title": "Edit wallet",
+                "notFound": "Wallet not found or you don't have access",
+                "saving": "Saving…",
+                "sharingType": "Sharing Type *",
+                "share": {
+                    "codeLabel": "Share Code",
+                    "saveFirst": "Please save the wallet with \"Shared\" enabled first, then generate the share code.",
+                    "copied": "Copied!",
+                    "copy": "Copy",
+                    "retry": "Retry",
+                    "none": "No share code available",
+                    "generating": "Generating...",
+                    "generate": "Generate Share Code",
+                    "linkCopied": "Link Copied!",
+                    "copyLink": "Copy Share Link",
+                    "sendEmail": "Send Email",
+                    "hint": "Share this code or link with others. They can use it to join this wallet after signing up."
+                },
+                "split": {
+                    "method": "Split Method *",
+                    "equallyLabel": "Split Equally",
+                    "equallyDesc": "Divide expenses equally among all members",
+                    "byIncomeLabel": "Split by Income",
+                    "byIncomeDesc": "Divide based on each member's monthly income (percentage)",
+                    "membersIncome": "Members Income",
+                    "membersIncomeHint": "Set monthly income for each member to calculate expense splits as a percentage.",
+                    "unknownMember": "Unknown"
+                }
+            },
+            "new": {
+                "nameLabel": "Name *",
+                "namePlaceholder": "e.g. Family, Personal",
+                "sharedLabel": "Shared (e.g. with your spouse)",
+                "sharedHint": "You can add members to a shared wallet later from the wallet settings.",
+                "sharedType": "Shared wallet type",
+                "creating": "Creating…",
+                "type": {
+                    "trackDesc": "Register transactions and account balances",
+                    "splitDesc": "Register transactions and split expenses among members",
+                    "trackAndSplitDesc": "Register transactions and split expenses (based on income)"
+                }
+            },
+            "table": {
+                "type": "Type",
+                "status": "Status",
+                "actions": "Actions"
+            },
+            "type": {
+                "track": "Shared: Track",
+                "split": "Shared: Split",
+                "trackAndSplit": "Shared: Track and Split"
+            },
+            "status": {
+                "deleted": "Deleted",
+                "until": "until",
+                "active": "Active",
+                "inactive": "Inactive"
+            },
+            "actions": {
+                "undoDelete": "Undo delete"
+            }
+        },
+        "details": {
+            "owner": "Owner",
+            "created": "Created",
+            "accounts": "Accounts",
+            "transactions": "Transactions",
+            "members": "Members",
+            "button": "Details",
+            "loadError": "Failed to load details"
+        },
+        "deleteDialog": {
+            "title": "Delete wallet",
+            "messageHard": "Delete wallet \"{name}\"? This wallet has no accounts or transactions and will be permanently deleted.",
+            "accountsPart": "{count} account(s)",
+            "transactionsPart": "{count} transaction(s)",
+            "and": "and",
+            "messageSoft": "Delete wallet \"{name}\"? It contains {parts}. All data will be kept for 30 days — you can undo this action during that period."
+        },
+        "toasts": {
+            "created": "Wallet created.",
+            "createFailed": "Create failed",
+            "updated": "Wallet updated.",
+            "memberIncomeUpdated": "Member income updated.",
+            "permanentlyDeleted": "Wallet permanently deleted.",
+            "deletedUndo": "Wallet deleted. You can undo within 30 days.",
+            "restored": "Wallet \"{name}\" restored."
+        }
     },
     "categories": {
         "title": "Categories",
         "addCategory": "Add Category",
         "categoryName": "Category Name",
-        "noCategories": "No categories yet"
+        "noCategories": "No categories yet",
+        "page": {
+            "inactive": "inactive",
+            "deactivate": "Deactivate"
+        },
+        "modal": {
+            "titleEdit": "Edit category",
+            "titleAdd": "Add category",
+            "titleAddOrSub": "Add category or subcategory",
+            "titleAddSubcategory": "Add subcategory to \"{parentName}\"",
+            "titleAddType": "Add {type} category",
+            "typeLabel": "Type *",
+            "parentOptionalLabel": "Parent (optional)",
+            "topLevelOption": "— Top-level category —",
+            "parentHint": "Leave empty for a top-level category (e.g. Salary, Groceries). Pick one for a subcategory (e.g. Netflix under Streaming).",
+            "noWallet": "Select or create a wallet first.",
+            "saving": "Saving…",
+            "nameLabel": "Name *",
+            "activeLabel": "Active (shown in transaction form)",
+            "notFound": "Not found",
+            "updatedToast": "Category updated.",
+            "addedToast": "Category added.",
+            "subAddedToast": "Subcategory added.",
+            "deactivatedToast": "Category deactivated (transactions preserved).",
+            "deletedToast": "Category deleted."
+        }
     },
     "reports": {
         "title": "Reports",

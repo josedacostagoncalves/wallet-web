@@ -6,8 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 export function LoginForm() {
+  const tAuth = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +32,14 @@ export function LoginForm() {
       return;
     }
     await logActivityAction({ action: "login", payload: {} });
-    showToast("Logged in successfully.");
+    showToast(tAuth("loggedInSuccess"));
     router.push(redirect);
     router.refresh();
   }
 
   return (
     <div className="w-full max-w-sm space-y-6">
-      <h1 className="text-xl font-semibold text-center">Log in</h1>
+      <h1 className="text-xl font-semibold text-center">{tAuth("login")}</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-1">
@@ -73,17 +75,17 @@ export function LoginForm() {
           disabled={loading}
           className="w-full py-2 px-4 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {loading ? "Signing in…" : "Log in"}
+          {loading ? tAuth("signingIn") : tAuth("login")}
         </button>
       </form>
       <p className="text-center text-sm text-slate-600 dark:text-slate-400">
-        Don&apos;t have an account?{" "}
+        {tAuth("dontHaveAccount")} {" "}
         <Link href="/signup" className="text-slate-800 dark:text-slate-200 underline">
-          Sign up
+          {tAuth("signup")}
         </Link>
       </p>
       <p className="text-center text-sm">
-        <Link href="/" className="text-slate-500 hover:underline">← Back</Link>
+        <Link href="/" className="text-slate-500 hover:underline">← {tAuth("back")}</Link>
       </p>
     </div>
   );

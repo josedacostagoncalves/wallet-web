@@ -31,6 +31,7 @@
         "categories": "Categorías",
         "activityLog": "Registro de actividad",
         "settings": "Configuración",
+        "walletShared": "compartida",
         "sidebarControl": "Control de barra lateral",
         "expanded": "Expandida",
         "collapsed": "Contraída",
@@ -42,11 +43,22 @@
         "login": "Iniciar sesión",
         "signup": "Registrarse",
         "logout": "Cerrar sesión",
+        "loggedInSuccess": "Sesión iniciada correctamente.",
+        "notAuthenticated": "No autenticado",
+        "loggedOutSuccess": "Sesión cerrada correctamente.",
         "email": "Correo electrónico",
         "password": "Contraseña",
         "forgotPassword": "¿Olvidó su contraseña?",
         "dontHaveAccount": "¿No tiene una cuenta?",
-        "alreadyHaveAccount": "¿Ya tiene una cuenta?"
+        "alreadyHaveAccount": "¿Ya tiene una cuenta?",
+        "signingIn": "Iniciando sesión...",
+        "creatingAccount": "Creando cuenta...",
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "checkEmail": "Revisa tu correo",
+        "checkEmailMessage": "Enviamos un enlace de confirmación a {email}. Haz clic para activar tu cuenta y luego inicia sesión.",
+        "goToLogin": "Ir a iniciar sesión",
+        "back": "Volver"
     },
     "dashboard": {
         "title": "Panel",
@@ -163,7 +175,7 @@
             "after": "Después"
         }
     },
-    "portfoliio": {
+    "portfolio": {
         "title": "Portafolio",
         "subtitle": "Tus finanzas, en un solo lugar",
         "emptyMessage": "Crea una cartera para empezar a controlar tus finanzas",
@@ -275,7 +287,50 @@
         "accountName": "Nombre de la Cuenta",
         "accountType": "Tipo de Cuenta",
         "balance": "Saldo",
-        "noAccounts": "Aún no hay cuentas"
+        "noAccounts": "Aún no hay cuentas",
+        "page": {
+            "noWallet": "Selecciona o crea una cartera primero.",
+            "addOne": "Añadir una",
+            "table": {
+                "initial": "Inicial",
+                "current": "Actual",
+                "plafond": "Límite",
+                "status": "Estado",
+                "actions": "Acciones"
+            },
+            "status": {
+                "active": "Activa",
+                "inactive": "Inactiva"
+            },
+            "actions": {
+                "details": "Detalles"
+            },
+            "details": {
+                "createdBy": "Creada por",
+                "createdAt": "Creada el",
+                "initialBalance": "Saldo inicial",
+                "plafond": "Límite",
+                "lastUpdate": "Última actualización",
+                "loadError": "Error al cargar los detalles"
+            }
+        },
+        "modal": {
+            "titleEdit": "Editar cuenta",
+            "titleAdd": "Añadir cuenta",
+            "noWallet": "Selecciona o crea una cartera primero.",
+            "notFound": "No encontrado",
+            "invalidInitialBalance": "Saldo inicial no válido",
+            "updatedToast": "Cuenta actualizada.",
+            "addedToast": "Cuenta añadida.",
+            "saving": "Guardando…",
+            "nameLabel": "Nombre *",
+            "plafondLabel": "Límite / crédito (€)",
+            "plafondPlaceholder": "ej.: 2000",
+            "plafondHint": "El importe máximo permitido en esta tarjeta de crédito.",
+            "initialBalanceLabel": "Saldo inicial (€) *",
+            "initialBalanceHint": "Cambiarlo ajustará el saldo actual en la misma diferencia.",
+            "activeLabel": "Activa (se muestra en el formulario de transacciones)"
+        }
     },
     "transactions": {
         "title": "Transacciones",
@@ -356,6 +411,21 @@
                 "confirm": "Eliminar",
                 "cancel": "Mantener"
             },
+            "editModal": {
+                "title": "Editar recurrente",
+                "subtitle": "Los cambios se aplican solo a futuras ejecuciones. Las transacciones pendientes o confirmadas existentes no se modifican.",
+                "notFound": "Regla recurrente no encontrada.",
+                "updatedToast": "Regla recurrente actualizada.",
+                "current": "(actual)",
+                "dayOfWeek": "Día de la semana",
+                "dayOfMonth": "Día del mes (1–31)",
+                "dayOfMonthPlaceholder": "ej.: 15",
+                "endDate": "Fecha de fin (opcional)",
+                "endDateHint": "Déjalo vacío para ejecutar indefinidamente. Si se define, la recurrencia se detiene después de esta fecha.",
+                "activeLabel": "Activa (se ejecuta automáticamente)",
+                "activeHint": "Desmárcala para desactivar la recurrencia. No se crearán nuevas transacciones hasta volver a activarla.",
+                "dayOfMonthValid": "El día del mes debe ser 1–31"
+            },
             "actions": {
                 "copy": "Copiar",
                 "edit": "Editar",
@@ -404,6 +474,8 @@
                 "date": "Fecha *",
                 "description": "Descripción *",
                 "descriptionPlaceholder": "ej.: Compras",
+                "incomeDescriptionPlaceholder": "ej.: Nómina",
+                "transferDescriptionPlaceholder": "ej.: Pago de alquiler",
                 "category": "Categoría *",
                 "selectCategory": "Seleccionar…",
                 "addCategory": "Añadir categoría",
@@ -423,6 +495,7 @@
                 "paidByMemberRequired": "Pagado por miembro *",
                 "receivedByMember": "Recibido por miembro",
                 "receivedByMemberRequired": "Recibido por miembro *",
+                "notSpecified": "No especificado",
                 "noMembers": "No se encontraron miembros."
             },
             "options": {
@@ -430,6 +503,16 @@
                 "holdBalance": "No actualizar saldos hasta confirmar",
                 "makeRecurring": "Hacer recurrente",
                 "schedule": "Programación",
+                "scheduleTypes": {
+                    "daily": "Diario",
+                    "weekly": "Semanal",
+                    "monthly": "Mensual",
+                    "yearly": "Anual",
+                    "intervalDays": "Cada x días",
+                    "intervalMonths": "Cada x meses",
+                    "monthlyNthWorkDay": "n.º día laborable del mes",
+                    "monthlyNthLastWorkDay": "n.º último día laborable del mes"
+                },
                 "intervalDays": "¿Cada cuántos días?",
                 "intervalDaysPlaceholder": "ej.: 14",
                 "intervalMonths": "¿Cada cuántos meses?",
@@ -445,6 +528,9 @@
                 "income": "Ingresos similares",
                 "incomeCategory": "Ingresos similares (categoría)",
                 "incomeSubcategory": "Ingresos similares (subcategoría)",
+                "transfers": "Transferencias similares",
+                "transfersCategory": "Transferencias similares (categoría)",
+                "transfersSubcategory": "Transferencias similares (subcategoría)",
                 "loading": "Cargando…",
                 "noExpenses": "Aún no hay gastos",
                 "noIncome": "Aún no hay ingresos",
@@ -485,7 +571,9 @@
             "toasts": {
                 "transactionAdded": "Transacción añadida.",
                 "transactionUpdated": "Transacción actualizada.",
-                "transactionConfirmed": "Transacción confirmada."
+                "transactionConfirmed": "Transacción confirmada.",
+                "pendingTransactionCanceled": "Transacción pendiente cancelada.",
+                "transactionDeleted": "Transacción eliminada."
             },
             "confirmDialogs": {
                 "confirmTitle": "Confirmar transacción",
@@ -499,6 +587,21 @@
                 "deleteButton": "Eliminar",
                 "keepButton": "Mantener",
                 "goBack": "Volver"
+            },
+            "page": {
+                "current": "(actual)",
+                "notFound": "Transacción no encontrada.",
+                "copyLoadError": "No se pudo cargar la transacción para copiar.",
+                "newTransaction": "Nueva transacción",
+                "goToWallets": "Ir a Carteras",
+                "loadingCopy": "Cargando transacción para copiar…",
+                "chooseType": "Elegir tipo",
+                "backToDashboard": "Volver al panel",
+                "chooseTypeSubtitle": "Elige el tipo de transacción.",
+                "backToTransactions": "Volver a Transacciones",
+                "changeType": "Cambiar tipo",
+                "pendingHint": "Los saldos no cambiarán hasta que confirmes. Puedes confirmar o cancelar desde Dashboard o Home.",
+                "recurringHint": "Las futuras ocurrencias se crearán en la fecha seleccionada y se mostrarán como Pendientes hasta que las confirmes o canceles."
             }
         }
     },
@@ -518,13 +621,144 @@
         "walletName": "Nombre de la Cartera",
         "shared": "Compartida",
         "personal": "Personal",
-        "noWallets": "Aún no hay carteras"
+        "noWallets": "Aún no hay carteras",
+        "page": {
+            "join": "Unirse a cartera",
+            "create": "Crear cartera",
+            "createOne": "Crear una",
+            "joinPage": {
+                "title": "Unirse a cartera",
+                "validation": {
+                    "shareCodeRequired": "Por favor, introduce un código para compartir"
+                },
+                "successTitle": "¡Te uniste a la cartera correctamente!",
+                "successRedirect": "Redirigiendo a carteras...",
+                "shareCodeLabel": "Código para compartir *",
+                "shareCodePlaceholder": "Introduce un código de 8 caracteres",
+                "shareCodeHint": "Introduce el código compartido por el propietario de la cartera",
+                "joining": "Uniéndose…",
+                "joinButton": "Unirse a cartera"
+            },
+            "edit": {
+                "title": "Editar cartera",
+                "notFound": "Cartera no encontrada o no tienes acceso",
+                "saving": "Guardando…",
+                "sharingType": "Tipo de compartición *",
+                "share": {
+                    "codeLabel": "Código para compartir",
+                    "saveFirst": "Guarda primero la cartera con \"Compartida\" activado y luego genera el código.",
+                    "copied": "¡Copiado!",
+                    "copy": "Copiar",
+                    "retry": "Reintentar",
+                    "none": "No hay código disponible",
+                    "generating": "Generando...",
+                    "generate": "Generar código",
+                    "linkCopied": "¡Enlace copiado!",
+                    "copyLink": "Copiar enlace",
+                    "sendEmail": "Enviar correo",
+                    "hint": "Comparte este código o enlace con otras personas. Podrán usarlo para unirse tras registrarse."
+                },
+                "split": {
+                    "method": "Método de división *",
+                    "equallyLabel": "Dividir por igual",
+                    "equallyDesc": "Divide los gastos por igual entre todos los miembros",
+                    "byIncomeLabel": "Dividir por ingresos",
+                    "byIncomeDesc": "Divide según los ingresos mensuales de cada miembro (porcentaje)",
+                    "membersIncome": "Ingresos de miembros",
+                    "membersIncomeHint": "Define ingresos mensuales para calcular la división por porcentaje.",
+                    "unknownMember": "Desconocido"
+                }
+            },
+            "new": {
+                "nameLabel": "Nombre *",
+                "namePlaceholder": "ej.: Familia, Personal",
+                "sharedLabel": "Compartida (p. ej., con tu pareja)",
+                "sharedHint": "Puedes añadir miembros a una cartera compartida más tarde desde la configuración de la cartera.",
+                "sharedType": "Tipo de cartera compartida",
+                "creating": "Creando…",
+                "type": {
+                    "trackDesc": "Registrar transacciones y saldos de cuentas",
+                    "splitDesc": "Registrar transacciones y dividir gastos entre miembros",
+                    "trackAndSplitDesc": "Registrar transacciones y dividir gastos (según ingresos)"
+                }
+            },
+            "table": {
+                "type": "Tipo",
+                "status": "Estado",
+                "actions": "Acciones"
+            },
+            "type": {
+                "track": "Compartida: Seguimiento",
+                "split": "Compartida: Dividir",
+                "trackAndSplit": "Compartida: Seguimiento y Dividir"
+            },
+            "status": {
+                "deleted": "Eliminada",
+                "until": "hasta",
+                "active": "Activa",
+                "inactive": "Inactiva"
+            },
+            "actions": {
+                "undoDelete": "Deshacer eliminación"
+            }
+        },
+        "details": {
+            "owner": "Propietario",
+            "created": "Creada",
+            "accounts": "Cuentas",
+            "transactions": "Transacciones",
+            "members": "Miembros",
+            "button": "Detalles",
+            "loadError": "Error al cargar los detalles"
+        },
+        "deleteDialog": {
+            "title": "Eliminar cartera",
+            "messageHard": "¿Eliminar la cartera \"{name}\"? Esta cartera no tiene cuentas ni transacciones y se eliminará permanentemente.",
+            "accountsPart": "{count} cuenta(s)",
+            "transactionsPart": "{count} transacción(es)",
+            "and": "y",
+            "messageSoft": "¿Eliminar la cartera \"{name}\"? Contiene {parts}. Todos los datos se conservarán durante 30 días; podrás deshacer esta acción durante ese periodo."
+        },
+        "toasts": {
+            "created": "Cartera creada.",
+            "createFailed": "Error al crear",
+            "updated": "Cartera actualizada.",
+            "memberIncomeUpdated": "Ingreso del miembro actualizado.",
+            "permanentlyDeleted": "Cartera eliminada permanentemente.",
+            "deletedUndo": "Cartera eliminada. Puedes deshacerlo en 30 días.",
+            "restored": "Cartera \"{name}\" restaurada."
+        }
     },
     "categories": {
         "title": "Categorías",
         "addCategory": "Añadir Categoría",
         "categoryName": "Nombre de la Categoría",
-        "noCategories": "Aún no hay categorías"
+        "noCategories": "Aún no hay categorías",
+        "page": {
+            "inactive": "inactiva",
+            "deactivate": "Desactivar"
+        },
+        "modal": {
+            "titleEdit": "Editar categoría",
+            "titleAdd": "Añadir categoría",
+            "titleAddOrSub": "Añadir categoría o subcategoría",
+            "titleAddSubcategory": "Añadir subcategoría a \"{parentName}\"",
+            "titleAddType": "Añadir categoría de {type}",
+            "typeLabel": "Tipo *",
+            "parentOptionalLabel": "Padre (opcional)",
+            "topLevelOption": "— Categoría de nivel superior —",
+            "parentHint": "Déjalo vacío para una categoría de nivel superior (p. ej., Salario, Supermercado). Elige una para una subcategoría (p. ej., Netflix en Streaming).",
+            "noWallet": "Selecciona o crea una cartera primero.",
+            "saving": "Guardando…",
+            "nameLabel": "Nombre *",
+            "activeLabel": "Activa (se muestra en el formulario de transacciones)",
+            "notFound": "No encontrado",
+            "updatedToast": "Categoría actualizada.",
+            "addedToast": "Categoría añadida.",
+            "subAddedToast": "Subcategoría añadida.",
+            "deactivatedToast": "Categoría desactivada (transacciones conservadas).",
+            "deletedToast": "Categoría eliminada."
+        }
     },
     "reports": {
         "title": "Informes",

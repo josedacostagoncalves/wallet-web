@@ -22,10 +22,15 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type TransactionType = "income" | "expense" | "transfer";
 
 export default function EditRecurringPage() {
+  const tRecurring = useTranslations("transactions.recurring");
+  const tForm = useTranslations("transactions.form");
+  const tTransactions = useTranslations("transactions");
+  const tCommon = useTranslations("common");
   const params = useParams();
   const id = String(params.id);
   const { showToast } = useToast();
@@ -57,6 +62,29 @@ export default function EditRecurringPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function recurrenceOptionLabel(value: RecurrenceType) {
+    switch (value) {
+      case "daily":
+        return tForm("options.scheduleTypes.daily");
+      case "weekly":
+        return tForm("options.scheduleTypes.weekly");
+      case "monthly":
+        return tForm("options.scheduleTypes.monthly");
+      case "yearly":
+        return tForm("options.scheduleTypes.yearly");
+      case "interval_days":
+        return tForm("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return tForm("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return tForm("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return tForm("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return value;
+    }
+  }
 
   useEffect(() => {
     getRecurringRule(id).then(async (r) => {
@@ -145,13 +173,13 @@ export default function EditRecurringPage() {
     setSaving(true);
     const num = parseFloat(amount.replace(",", "."));
     if (isNaN(num) || num <= 0) {
-      setError("Amount must be a positive number");
+      setError(tForm("validation.amountPositive"));
       setSaving(false);
       return;
     }
     const catId = subcategoryId || categoryId;
     if (!catId) {
-      setError("Please select a category");
+      setError(tForm("validation.categoryRequired"));
       setSaving(false);
       return;
     }
@@ -160,19 +188,19 @@ export default function EditRecurringPage() {
       subcategories.length > 0 &&
       !subcategoryId
     ) {
-      setError("Please select a subcategory");
+      setError(tForm("validation.subcategoryRequired"));
       setSaving(false);
       return;
     }
     if (!description.trim()) {
-      setError("Description is required");
+      setError(tForm("validation.descriptionRequired"));
       setSaving(false);
       return;
     }
     if (recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
       if (isNaN(x) || x < 1) {
-        setError("Please enter a valid number of months (1 or more)");
+        setError(tForm("validation.intervalMonthsValid"));
         setSaving(false);
         return;
       }
@@ -180,7 +208,7 @@ export default function EditRecurringPage() {
     if (recurrenceType === "interval_days") {
       const x = parseInt(intervalDays, 10);
       if (isNaN(x) || x < 1) {
-        setError("Please enter a valid number of days (1 or more)");
+        setError(tForm("validation.intervalDaysValid"));
         setSaving(false);
         return;
       }
@@ -191,7 +219,7 @@ export default function EditRecurringPage() {
     if (isWorkDay) {
       const x = parseInt(workDayIndex, 10);
       if (isNaN(x) || x < 1 || x > 31) {
-        setError("Work day index must be 1–31 (e.g. 3 for 3rd or 3rd last)");
+        setError(tForm("validation.workDayIndexValid"));
         setSaving(false);
         return;
       }
@@ -240,13 +268,13 @@ export default function EditRecurringPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Recurring rule updated.");
+    showToast(tRecurring("editModal.updatedToast"));
     router.push("/transactions");
     router.refresh();
   }
 
   async function handleDelete() {
-    if (!rule || !confirm("Delete this recurring rule? No new runs will be created. Existing transactions are kept.")) return;
+    if (!rule || !confirm(tRecurring("confirmDelete.message"))) return;
     setDeleting(true);
     setError(null);
     const res = await deleteRecurringRule(id);
@@ -256,18 +284,18 @@ export default function EditRecurringPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Recurring rule deleted.");
+    showToast(tRecurring("deleteToast"));
     router.push("/transactions");
     router.refresh();
   }
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
   if (!rule) {
     return (
       <div className="space-y-4">
-        <p className="text-slate-500">Recurring rule not found.</p>
+        <p className="text-slate-500">{tRecurring("editModal.notFound")}</p>
         <Link href="/transactions" className="underline">
-          ← Transactions
+          ← {tTransactions("title")}
         </Link>
       </div>
     );
@@ -283,21 +311,20 @@ export default function EditRecurringPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Edit recurring</h1>
+      <h1 className="text-2xl font-semibold">{tRecurring("editModal.title")}</h1>
       <p className="text-sm text-slate-600 dark:text-slate-400">
-        Changes apply only to future runs. Existing pending or confirmed
-        transactions are not modified.
+        {tRecurring("editModal.subtitle")}
       </p>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Type</label>
+          <label className="block text-sm font-medium mb-1">{tRecurring("table.type")}</label>
           <p className="py-2 capitalize text-slate-600 dark:text-slate-400">
-            {type}
+            {type === "income" ? tTransactions("income") : type === "expense" ? tTransactions("expense") : tTransactions("transfer")}
           </p>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Description *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.description")}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -307,7 +334,7 @@ export default function EditRecurringPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Category *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
           <select
             value={categoryId}
             onChange={(e) => {
@@ -317,7 +344,7 @@ export default function EditRecurringPage() {
             required
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           >
-            <option value="">Select…</option>
+            <option value="">{tForm("fields.selectCategory")}</option>
             {needsExtraCategory && (
               <option value={categoryId}>
                 {currentCategoryName || "(current)"}
@@ -333,7 +360,7 @@ export default function EditRecurringPage() {
         {subOpts.length > 0 && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Subcategory{type === "expense" ? " *" : ""}
+              {type === "expense" ? tForm("fields.subcategoryRequired") : tForm("fields.subcategory")}
             </label>
             <select
               value={subcategoryId}
@@ -342,7 +369,7 @@ export default function EditRecurringPage() {
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
               <option value="">
-                {type === "expense" ? "Select…" : "None"}
+                {type === "expense" ? tForm("fields.selectSubcategory") : tForm("fields.none")}
               </option>
               {needsExtraSub && (
                 <option value={subcategoryId}>
@@ -358,7 +385,7 @@ export default function EditRecurringPage() {
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium mb-1">Amount (€) *</label>
+          <label className="block text-sm font-medium mb-1">{tForm("fields.amount")}</label>
           <input
             type="text"
             inputMode="decimal"
@@ -371,7 +398,7 @@ export default function EditRecurringPage() {
         {type === "income" && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Account (receive) *
+              {tForm("fields.accountTo")}
             </label>
             <select
               value={accountToId}
@@ -379,7 +406,7 @@ export default function EditRecurringPage() {
               required
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">Select…</option>
+              <option value="">{tForm("fields.selectAccount")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
@@ -391,7 +418,7 @@ export default function EditRecurringPage() {
         {type === "expense" && (
           <div>
             <label className="block text-sm font-medium mb-1">
-              Account (pay from) *
+              {tForm("fields.accountFrom")}
             </label>
             <select
               value={accountFromId}
@@ -399,7 +426,7 @@ export default function EditRecurringPage() {
               required
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             >
-              <option value="">Select…</option>
+              <option value="">{tForm("fields.selectAccount")}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
@@ -412,7 +439,7 @@ export default function EditRecurringPage() {
           <>
             <div>
               <label className="block text-sm font-medium mb-1">
-                From account *
+                {tForm("fields.accountTransferFrom")}
               </label>
               <select
                 value={accountFromId}
@@ -420,7 +447,7 @@ export default function EditRecurringPage() {
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -430,7 +457,7 @@ export default function EditRecurringPage() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">
-                To account *
+                {tForm("fields.accountTransferTo")}
               </label>
               <select
                 value={accountToId}
@@ -438,7 +465,7 @@ export default function EditRecurringPage() {
                 required
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               >
-                <option value="">Select…</option>
+                <option value="">{tForm("fields.selectAccount")}</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -449,10 +476,10 @@ export default function EditRecurringPage() {
           </>
         )}
         <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-          <div className="text-sm font-medium">Repeat</div>
+          <div className="text-sm font-medium">{tRecurring("table.repeat")}</div>
           <div className="space-y-3 pl-0">
             <div>
-              <label className="block text-sm font-medium mb-1">Schedule</label>
+              <label className="block text-sm font-medium mb-1">{tForm("options.schedule")}</label>
               <select
                 value={recurrenceType}
                 onChange={(e) => {
@@ -493,7 +520,7 @@ export default function EditRecurringPage() {
                     </option>
                   ) : (
                     <option key={o.value} value={o.value}>
-                      {o.label}
+                      {recurrenceOptionLabel(o.value)}
                     </option>
                   )
                 )}
@@ -502,14 +529,14 @@ export default function EditRecurringPage() {
             {recurrenceType === "interval_days" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Every how many days?
+                  {tForm("options.intervalDays")}
                 </label>
                 <input
                   type="number"
                   min={1}
                   value={intervalDays}
                   onChange={(e) => setIntervalDays(e.target.value)}
-                  placeholder="e.g. 14"
+                  placeholder={tForm("options.intervalDaysPlaceholder")}
                   className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                 />
               </div>
@@ -517,14 +544,14 @@ export default function EditRecurringPage() {
             {recurrenceType === "interval_months" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Every how many months?
+                  {tForm("options.intervalMonths")}
                 </label>
                 <input
                   type="number"
                   min={1}
                   value={intervalMonths}
                   onChange={(e) => setIntervalMonths(e.target.value)}
-                  placeholder="e.g. 3"
+                  placeholder={tForm("options.intervalMonthsPlaceholder")}
                   className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                 />
               </div>
@@ -534,8 +561,8 @@ export default function EditRecurringPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1">
                     {recurrenceType === "monthly_nth_last_work_day"
-                      ? "Nth last work day (e.g. 3 = 3rd last)"
-                      : "Nth work day (e.g. 3 = 3rd work day of month)"}
+                      ? tForm("options.nthLastWorkDay")
+                      : tForm("options.nthWorkDay")}
                   </label>
                   <input
                     type="number"
@@ -543,7 +570,7 @@ export default function EditRecurringPage() {
                     max={31}
                     value={workDayIndex}
                     onChange={(e) => setWorkDayIndex(e.target.value)}
-                    placeholder="e.g. 3"
+                    placeholder={tForm("options.workDayPlaceholder")}
                     className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                   />
                 </div>
@@ -551,7 +578,7 @@ export default function EditRecurringPage() {
             {recurrenceType === "weekly" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Day of week
+                  {tRecurring("editModal.dayOfWeek")}
                 </label>
                 <select
                   value={weekday ?? ""}
@@ -575,7 +602,7 @@ export default function EditRecurringPage() {
             {recurrenceType === "monthly" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Day of month (1–31)
+                  {tRecurring("editModal.dayOfMonth")}
                 </label>
                 <input
                   type="number"
@@ -583,14 +610,14 @@ export default function EditRecurringPage() {
                   max={31}
                   value={dayOfMonth}
                   onChange={(e) => setDayOfMonth(e.target.value)}
-                  placeholder="e.g. 15"
+                  placeholder={tRecurring("editModal.dayOfMonthPlaceholder")}
                   className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                 />
               </div>
             )}
             <div>
               <label className="block text-sm font-medium mb-1">
-                End date (optional)
+                {tRecurring("editModal.endDate")}
               </label>
               <input
                 type="date"
@@ -599,8 +626,7 @@ export default function EditRecurringPage() {
                 className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
               />
               <p className="text-xs text-slate-500 mt-1">
-                Leave empty to run indefinitely. If set, recurring stops after
-                this date.
+                {tRecurring("editModal.endDateHint")}
               </p>
             </div>
           </div>
@@ -631,12 +657,11 @@ export default function EditRecurringPage() {
               onChange={(e) => setIsActive(e.target.checked)}
             />
             <label htmlFor="isActive" className="text-sm font-medium">
-              Active (recurring runs automatically)
+              {tRecurring("editModal.activeLabel")}
             </label>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 pl-6">
-            Uncheck to disable recurring. No new transactions will be created until
-            you turn it back on.
+            {tRecurring("editModal.activeHint")}
           </p>
         </div>
         {error && (
@@ -648,13 +673,13 @@ export default function EditRecurringPage() {
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? tForm("buttons.saving") : tForm("buttons.save")}
           </button>
           <Link
             href="/transactions"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
           <button
             type="button"
@@ -662,7 +687,7 @@ export default function EditRecurringPage() {
             disabled={saving || deleting}
             className="px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {deleting ? tForm("buttons.deleting") : tCommon("delete")}
           </button>
         </div>
       </form>

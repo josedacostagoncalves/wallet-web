@@ -31,6 +31,7 @@
         "categories": "Catégories",
         "activityLog": "Journal d'activité",
         "settings": "Paramètres",
+        "walletShared": "partagé",
         "sidebarControl": "Contrôle de la barre latérale",
         "expanded": "Étendue",
         "collapsed": "Réduite",
@@ -42,11 +43,22 @@
         "login": "Connexion",
         "signup": "S'inscrire",
         "logout": "Déconnexion",
+        "loggedInSuccess": "Connexion réussie.",
+        "notAuthenticated": "Non authentifié",
+        "loggedOutSuccess": "Déconnexion réussie.",
         "email": "Email",
         "password": "Mot de passe",
         "forgotPassword": "Mot de passe oublié ?",
         "dontHaveAccount": "Vous n'avez pas de compte ?",
-        "alreadyHaveAccount": "Vous avez déjà un compte ?"
+        "alreadyHaveAccount": "Vous avez déjà un compte ?",
+        "signingIn": "Connexion en cours...",
+        "creatingAccount": "Création du compte...",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "checkEmail": "Vérifiez votre e-mail",
+        "checkEmailMessage": "Nous avons envoyé un lien de confirmation à {email}. Cliquez dessus pour activer votre compte, puis connectez-vous.",
+        "goToLogin": "Aller à la connexion",
+        "back": "Retour"
     },
     "dashboard": {
         "title": "Tableau de bord",
@@ -163,7 +175,7 @@
             "after": "Après"
         }
     },
-    "portfoliio": {
+    "portfolio": {
         "title": "Portefeuille",
         "subtitle": "Vos finances, en un seul endroit",
         "emptyMessage": "Créez un portefeuille pour commencer à suivre vos finances",
@@ -275,7 +287,50 @@
         "accountName": "Nom du compte",
         "accountType": "Type de compte",
         "balance": "Solde",
-        "noAccounts": "Pas encore de comptes"
+        "noAccounts": "Pas encore de comptes",
+        "page": {
+            "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
+            "addOne": "En ajouter un",
+            "table": {
+                "initial": "Initial",
+                "current": "Actuel",
+                "plafond": "Plafond",
+                "status": "Statut",
+                "actions": "Actions"
+            },
+            "status": {
+                "active": "Actif",
+                "inactive": "Inactif"
+            },
+            "actions": {
+                "details": "Détails"
+            },
+            "details": {
+                "createdBy": "Créé par",
+                "createdAt": "Créé le",
+                "initialBalance": "Solde initial",
+                "plafond": "Plafond",
+                "lastUpdate": "Dernière mise à jour",
+                "loadError": "Échec du chargement des détails"
+            }
+        },
+        "modal": {
+            "titleEdit": "Modifier le compte",
+            "titleAdd": "Ajouter un compte",
+            "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
+            "notFound": "Introuvable",
+            "invalidInitialBalance": "Solde initial invalide",
+            "updatedToast": "Compte mis à jour.",
+            "addedToast": "Compte ajouté.",
+            "saving": "Enregistrement…",
+            "nameLabel": "Nom *",
+            "plafondLabel": "Plafond / limite de crédit (€)",
+            "plafondPlaceholder": "ex.: 2000",
+            "plafondHint": "Le montant maximum autorisé sur cette carte de crédit.",
+            "initialBalanceLabel": "Solde initial (€) *",
+            "initialBalanceHint": "Le modifier ajustera le solde actuel de la même différence.",
+            "activeLabel": "Actif (affiché dans le formulaire de transaction)"
+        }
     },
     "transactions": {
         "title": "Transactions",
@@ -356,6 +411,21 @@
                 "confirm": "Supprimer",
                 "cancel": "Conserver"
             },
+            "editModal": {
+                "title": "Modifier la récurrence",
+                "subtitle": "Les modifications s'appliquent uniquement aux futures exécutions. Les transactions existantes en attente ou confirmées ne sont pas modifiées.",
+                "notFound": "Règle récurrente introuvable.",
+                "updatedToast": "Règle récurrente mise à jour.",
+                "current": "(actuel)",
+                "dayOfWeek": "Jour de la semaine",
+                "dayOfMonth": "Jour du mois (1–31)",
+                "dayOfMonthPlaceholder": "ex.: 15",
+                "endDate": "Date de fin (optionnelle)",
+                "endDateHint": "Laissez vide pour exécuter indéfiniment. Si définie, la récurrence s'arrête après cette date.",
+                "activeLabel": "Actif (s'exécute automatiquement)",
+                "activeHint": "Décochez pour désactiver la récurrence. Aucune nouvelle transaction ne sera créée jusqu'à réactivation.",
+                "dayOfMonthValid": "Le jour du mois doit être compris entre 1 et 31"
+            },
             "actions": {
                 "copy": "Copier",
                 "edit": "Modifier",
@@ -404,6 +474,8 @@
                 "date": "Date *",
                 "description": "Description *",
                 "descriptionPlaceholder": "ex.: Courses",
+                "incomeDescriptionPlaceholder": "ex.: Salaire",
+                "transferDescriptionPlaceholder": "ex.: Paiement du loyer",
                 "category": "Catégorie *",
                 "selectCategory": "Sélectionner…",
                 "addCategory": "Ajouter une catégorie",
@@ -423,6 +495,7 @@
                 "paidByMemberRequired": "Payé par membre *",
                 "receivedByMember": "Reçu par membre",
                 "receivedByMemberRequired": "Reçu par membre *",
+                "notSpecified": "Non spécifié",
                 "noMembers": "Aucun membre trouvé."
             },
             "options": {
@@ -430,6 +503,16 @@
                 "holdBalance": "Ne pas mettre à jour les soldes jusqu'à confirmation",
                 "makeRecurring": "Rendre récurrent",
                 "schedule": "Planification",
+                "scheduleTypes": {
+                    "daily": "Quotidien",
+                    "weekly": "Hebdomadaire",
+                    "monthly": "Mensuel",
+                    "yearly": "Annuel",
+                    "intervalDays": "Tous les x jours",
+                    "intervalMonths": "Tous les x mois",
+                    "monthlyNthWorkDay": "nième jour ouvrable du mois",
+                    "monthlyNthLastWorkDay": "nième dernier jour ouvrable du mois"
+                },
                 "intervalDays": "Tous les combien de jours?",
                 "intervalDaysPlaceholder": "ex.: 14",
                 "intervalMonths": "Tous les combien de mois?",
@@ -445,6 +528,9 @@
                 "income": "Revenus similaires",
                 "incomeCategory": "Revenus similaires (catégorie)",
                 "incomeSubcategory": "Revenus similaires (sous-catégorie)",
+                "transfers": "Transferts similaires",
+                "transfersCategory": "Transferts similaires (catégorie)",
+                "transfersSubcategory": "Transferts similaires (sous-catégorie)",
                 "loading": "Chargement…",
                 "noExpenses": "Pas encore de dépenses",
                 "noIncome": "Pas encore de revenus",
@@ -485,7 +571,9 @@
             "toasts": {
                 "transactionAdded": "Transaction ajoutée.",
                 "transactionUpdated": "Transaction mise à jour.",
-                "transactionConfirmed": "Transaction confirmée."
+                "transactionConfirmed": "Transaction confirmée.",
+                "pendingTransactionCanceled": "Transaction en attente annulée.",
+                "transactionDeleted": "Transaction supprimée."
             },
             "confirmDialogs": {
                 "confirmTitle": "Confirmer la transaction",
@@ -499,6 +587,21 @@
                 "deleteButton": "Supprimer",
                 "keepButton": "Conserver",
                 "goBack": "Retour"
+            },
+            "page": {
+                "current": "(actuel)",
+                "notFound": "Transaction introuvable.",
+                "copyLoadError": "Impossible de charger la transaction à copier.",
+                "newTransaction": "Nouvelle transaction",
+                "goToWallets": "Aller aux Portefeuilles",
+                "loadingCopy": "Chargement de la transaction à copier…",
+                "chooseType": "Choisir le type",
+                "backToDashboard": "Retour au tableau de bord",
+                "chooseTypeSubtitle": "Choisissez le type de transaction.",
+                "backToTransactions": "Retour aux Transactions",
+                "changeType": "Changer le type",
+                "pendingHint": "Les soldes ne changeront pas tant que vous ne confirmez pas. Confirmez ou annulez depuis Dashboard ou Home.",
+                "recurringHint": "Les occurrences futures seront créées à la date sélectionnée et affichées comme En attente jusqu'à confirmation ou annulation."
             }
         }
     },
@@ -518,13 +621,144 @@
         "walletName": "Nom du portefeuille",
         "shared": "Partagé",
         "personal": "Personnel",
-        "noWallets": "Pas encore de portefeuilles"
+        "noWallets": "Pas encore de portefeuilles",
+        "page": {
+            "join": "Rejoindre un portefeuille",
+            "create": "Créer un portefeuille",
+            "createOne": "En créer un",
+            "joinPage": {
+                "title": "Rejoindre un portefeuille",
+                "validation": {
+                    "shareCodeRequired": "Veuillez saisir un code de partage"
+                },
+                "successTitle": "Portefeuille rejoint avec succès !",
+                "successRedirect": "Redirection vers les portefeuilles...",
+                "shareCodeLabel": "Code de partage *",
+                "shareCodePlaceholder": "Entrez un code de 8 caractères",
+                "shareCodeHint": "Entrez le code de partage fourni par le propriétaire du portefeuille",
+                "joining": "Connexion…",
+                "joinButton": "Rejoindre le portefeuille"
+            },
+            "edit": {
+                "title": "Modifier le portefeuille",
+                "notFound": "Portefeuille introuvable ou accès refusé",
+                "saving": "Enregistrement…",
+                "sharingType": "Type de partage *",
+                "share": {
+                    "codeLabel": "Code de partage",
+                    "saveFirst": "Enregistrez d'abord le portefeuille avec \"Partagé\" activé, puis générez le code.",
+                    "copied": "Copié !",
+                    "copy": "Copier",
+                    "retry": "Réessayer",
+                    "none": "Aucun code disponible",
+                    "generating": "Génération...",
+                    "generate": "Générer le code",
+                    "linkCopied": "Lien copié !",
+                    "copyLink": "Copier le lien",
+                    "sendEmail": "Envoyer un e-mail",
+                    "hint": "Partagez ce code ou lien. Les autres pourront l'utiliser pour rejoindre ce portefeuille après inscription."
+                },
+                "split": {
+                    "method": "Méthode de répartition *",
+                    "equallyLabel": "Répartir également",
+                    "equallyDesc": "Répartir les dépenses de manière égale entre les membres",
+                    "byIncomeLabel": "Répartir par revenus",
+                    "byIncomeDesc": "Répartir selon le revenu mensuel de chaque membre (pourcentage)",
+                    "membersIncome": "Revenus des membres",
+                    "membersIncomeHint": "Définissez le revenu mensuel de chaque membre pour calculer la répartition en pourcentage.",
+                    "unknownMember": "Inconnu"
+                }
+            },
+            "new": {
+                "nameLabel": "Nom *",
+                "namePlaceholder": "ex.: Famille, Personnel",
+                "sharedLabel": "Partagé (ex. avec votre conjoint)",
+                "sharedHint": "Vous pouvez ajouter des membres à un portefeuille partagé plus tard depuis les paramètres du portefeuille.",
+                "sharedType": "Type de portefeuille partagé",
+                "creating": "Création…",
+                "type": {
+                    "trackDesc": "Enregistrer les transactions et les soldes des comptes",
+                    "splitDesc": "Enregistrer les transactions et répartir les dépenses entre les membres",
+                    "trackAndSplitDesc": "Enregistrer les transactions et répartir les dépenses (selon les revenus)"
+                }
+            },
+            "table": {
+                "type": "Type",
+                "status": "Statut",
+                "actions": "Actions"
+            },
+            "type": {
+                "track": "Partagé : Suivi",
+                "split": "Partagé : Répartition",
+                "trackAndSplit": "Partagé : Suivi et Répartition"
+            },
+            "status": {
+                "deleted": "Supprimé",
+                "until": "jusqu'au",
+                "active": "Actif",
+                "inactive": "Inactif"
+            },
+            "actions": {
+                "undoDelete": "Annuler la suppression"
+            }
+        },
+        "details": {
+            "owner": "Propriétaire",
+            "created": "Créé",
+            "accounts": "Comptes",
+            "transactions": "Transactions",
+            "members": "Membres",
+            "button": "Détails",
+            "loadError": "Échec du chargement des détails"
+        },
+        "deleteDialog": {
+            "title": "Supprimer le portefeuille",
+            "messageHard": "Supprimer le portefeuille \"{name}\" ? Ce portefeuille n'a ni comptes ni transactions et sera supprimé définitivement.",
+            "accountsPart": "{count} compte(s)",
+            "transactionsPart": "{count} transaction(s)",
+            "and": "et",
+            "messageSoft": "Supprimer le portefeuille \"{name}\" ? Il contient {parts}. Toutes les données seront conservées 30 jours — vous pourrez annuler cette action pendant cette période."
+        },
+        "toasts": {
+            "created": "Portefeuille créé.",
+            "createFailed": "Échec de la création",
+            "updated": "Portefeuille mis à jour.",
+            "memberIncomeUpdated": "Revenu du membre mis à jour.",
+            "permanentlyDeleted": "Portefeuille supprimé définitivement.",
+            "deletedUndo": "Portefeuille supprimé. Vous pouvez annuler dans les 30 jours.",
+            "restored": "Portefeuille \"{name}\" restauré."
+        }
     },
     "categories": {
         "title": "Catégories",
         "addCategory": "Ajouter une catégorie",
         "categoryName": "Nom de la catégorie",
-        "noCategories": "Pas encore de catégories"
+        "noCategories": "Pas encore de catégories",
+        "page": {
+            "inactive": "inactif",
+            "deactivate": "Désactiver"
+        },
+        "modal": {
+            "titleEdit": "Modifier la catégorie",
+            "titleAdd": "Ajouter une catégorie",
+            "titleAddOrSub": "Ajouter une catégorie ou sous-catégorie",
+            "titleAddSubcategory": "Ajouter une sous-catégorie à \"{parentName}\"",
+            "titleAddType": "Ajouter une catégorie de {type}",
+            "typeLabel": "Type *",
+            "parentOptionalLabel": "Parent (optionnel)",
+            "topLevelOption": "— Catégorie de premier niveau —",
+            "parentHint": "Laissez vide pour une catégorie de premier niveau (ex.: Salaire, Courses). Choisissez-en une pour une sous-catégorie (ex.: Netflix sous Streaming).",
+            "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
+            "saving": "Enregistrement…",
+            "nameLabel": "Nom *",
+            "activeLabel": "Actif (affiché dans le formulaire de transaction)",
+            "notFound": "Introuvable",
+            "updatedToast": "Catégorie mise à jour.",
+            "addedToast": "Catégorie ajoutée.",
+            "subAddedToast": "Sous-catégorie ajoutée.",
+            "deactivatedToast": "Catégorie désactivée (transactions préservées).",
+            "deletedToast": "Catégorie supprimée."
+        }
     },
     "reports": {
         "title": "Rapports",

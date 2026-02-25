@@ -14,6 +14,7 @@ import {
 } from "@/app/actions/transactions";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
+import { AvatarImage } from "@/components/AvatarImage";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
@@ -108,6 +109,29 @@ export function ExpenseFormModal({
   const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
+
+  const recurrenceOptionLabel = (value: string, fallback: string) => {
+    switch (value) {
+      case "daily":
+        return t("options.scheduleTypes.daily");
+      case "weekly":
+        return t("options.scheduleTypes.weekly");
+      case "monthly":
+        return t("options.scheduleTypes.monthly");
+      case "yearly":
+        return t("options.scheduleTypes.yearly");
+      case "interval_days":
+        return t("options.scheduleTypes.intervalDays");
+      case "interval_months":
+        return t("options.scheduleTypes.intervalMonths");
+      case "monthly_nth_work_day":
+        return t("options.scheduleTypes.monthlyNthWorkDay");
+      case "monthly_nth_last_work_day":
+        return t("options.scheduleTypes.monthlyNthLastWorkDay");
+      default:
+        return fallback;
+    }
+  };
 
   useEffect(() => {
     if (!open || !currentWalletId) {
@@ -512,7 +536,7 @@ export function ExpenseFormModal({
       showToast(res.error, "error");
       return;
     }
-    showToast(status === "pending" ? "Pending transaction canceled." : "Transaction deleted.");
+    showToast(status === "pending" ? t("toasts.pendingTransactionCanceled") : t("toasts.transactionDeleted"));
     onClose();
     router.push("/transactions");
     router.refresh();
@@ -760,14 +784,16 @@ export function ExpenseFormModal({
                               : "border-slate-300 hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500")
                           }
                         >
-                          {m.avatar_url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={m.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />
-                          ) : (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                              <UserIcon className="w-4 h-4" />
-                            </span>
-                          )}
+                          <AvatarImage
+                            src={m.avatar_url}
+                            size={28}
+                            className="h-7 w-7 rounded-full object-cover"
+                            fallback={
+                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                                <UserIcon className="w-4 h-4" />
+                              </span>
+                            }
+                          />
                           <div className="min-w-0">
                             <div className="text-sm font-medium truncate">{m.display_name}</div>
                           </div>
@@ -798,7 +824,7 @@ export function ExpenseFormModal({
                             if (!e.target.checked) setHoldBalance(true);
                           }}
                         />
-                        <span className="text-sm font-medium">Save as pending</span>
+                        <span className="text-sm font-medium">{t("options.saveAsPending")}</span>
                       </label>
                       {saveAsPending && (
                         <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
@@ -808,7 +834,7 @@ export function ExpenseFormModal({
                             onChange={(e) => setHoldBalance(e.target.checked)}
                           />
                           <span className="text-xs text-slate-600 dark:text-slate-400">
-                            Do not update balances until confirm
+                            {t("options.holdBalance")}
                           </span>
                         </label>
                       )}
@@ -820,12 +846,12 @@ export function ExpenseFormModal({
                       checked={isRecurring}
                       onChange={(e) => setIsRecurring(e.target.checked)}
                     />
-                    <span className="text-sm font-medium">Make it recurring</span>
+                    <span className="text-sm font-medium">{t("options.makeRecurring")}</span>
                   </label>
                   {isRecurring && (
                     <div className="space-y-3 pl-6">
                       <div>
-                        <label className="block text-sm font-medium mb-1">Schedule</label>
+                        <label className="block text-sm font-medium mb-1">{t("options.schedule")}</label>
                         <select
                           value={recurrenceType}
                           onChange={(e) => {
@@ -841,7 +867,7 @@ export function ExpenseFormModal({
                               </option>
                             ) : (
                               <option key={o.value} value={o.value}>
-                                {o.label}
+                                {recurrenceOptionLabel(o.value, o.label)}
                               </option>
                             )
                           )}

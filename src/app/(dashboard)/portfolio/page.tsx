@@ -9,7 +9,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 export default async function PortfolioPage() {
-    const t = await getTranslations("portfoliio");
+    const t = await getTranslations("portfolio");
     const supabase = await createClient();
     const cookie = await getWalletCookie();
 

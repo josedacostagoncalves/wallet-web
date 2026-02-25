@@ -6,6 +6,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type Mode =
   | { kind: "add-category"; type: "income" | "expense" | "transfer" }
@@ -21,6 +22,10 @@ type Props = {
 };
 
 export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
+  const tCategories = useTranslations("categories.modal");
+  const tTransactions = useTranslations("transactions");
+  const tCommon = useTranslations("common");
+  const tForm = useTranslations("transactions.form");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -46,7 +51,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         .then(({ data, error: e }) => {
           setLoadingData(false);
           if (e || !data) {
-            setError(e?.message ?? "Not found");
+            setError(e?.message ?? tCategories("notFound"));
             return;
           }
           setName(data.name);
@@ -56,7 +61,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
       setName("");
       setIsActive(true);
     }
-  }, [open, mode]);
+  }, [open, mode, tCategories]);
 
   // Keyboard & scroll lock
   useEffect(() => {
@@ -91,7 +96,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         showToast(res.error, "error");
         return;
       }
-      showToast("Category updated.");
+      showToast(tCategories("updatedToast"));
     } else if (mode.kind === "add-category") {
       if (!currentWalletId) return;
       const res = await createCategory({
@@ -106,7 +111,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         return;
       }
       newId = res.id;
-      showToast("Category added.");
+      showToast(tCategories("addedToast"));
     } else {
       // add-subcategory
       if (!currentWalletId) return;
@@ -123,7 +128,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         return;
       }
       newId = res.id;
-      showToast("Subcategory added.");
+      showToast(tCategories("subAddedToast"));
     }
 
     onClose();
@@ -134,10 +139,17 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
 
   const title =
     mode.kind === "edit"
-      ? "Edit category"
+      ? tCategories("titleEdit")
       : mode.kind === "add-subcategory"
-        ? `Add subcategory to "${mode.parentName}"`
-        : `Add ${mode.type} category`;
+        ? tCategories("titleAddSubcategory", { parentName: mode.parentName })
+        : tCategories("titleAddType", {
+          type:
+            mode.type === "income"
+              ? tTransactions("income")
+              : mode.type === "expense"
+                ? tTransactions("expense")
+                : tTransactions("transfer"),
+        });
 
   const inputClass =
     "w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 text-sm";
@@ -156,7 +168,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
           onClick={onClose}
           disabled={loading}
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-          aria-label="Close"
+          aria-label={tCommon("close")}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" />
@@ -167,11 +179,11 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         <h2 className="text-lg font-semibold mb-4">{title}</h2>
 
         {loadingData ? (
-          <p className="text-slate-500 text-sm">Loading…</p>
+          <p className="text-slate-500 text-sm">{tCommon("loading")}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
+              <label className="block text-sm font-medium mb-1">{tCategories("nameLabel")}</label>
               <input
                 type="text"
                 value={name}
@@ -190,7 +202,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
                   onChange={(e) => setIsActive(e.target.checked)}
                 />
                 <label htmlFor="catIsActive" className="text-sm">
-                  Active (shown in transaction form)
+                  {tCategories("activeLabel")}
                 </label>
               </div>
             )}
@@ -203,7 +215,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
                 disabled={loading}
                 className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 text-sm"
               >
-                {loading ? "Saving…" : "Save"}
+                {loading ? tForm("buttons.saving") : tCommon("save")}
               </button>
               <button
                 type="button"
@@ -211,7 +223,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
                 disabled={loading}
                 className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm"
               >
-                Cancel
+                {tCommon("cancel")}
               </button>
             </div>
           </form>

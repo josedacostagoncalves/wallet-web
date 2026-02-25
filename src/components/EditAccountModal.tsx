@@ -8,6 +8,7 @@ import type { AccountType } from "@/lib/account-types";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type Props = {
   accountId: string;
@@ -17,6 +18,9 @@ type Props = {
 };
 
 export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
+  const tAccounts = useTranslations("accounts.modal");
+  const tCommon = useTranslations("common");
+  const tForm = useTranslations("transactions.form");
   const { showToast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +49,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
       .then(({ data, error: e }) => {
         setLoading(false);
         if (e || !data) {
-          setError(e?.message ?? "Not found");
+          setError(e?.message ?? tAccounts("notFound"));
           return;
         }
         setName(data.name);
@@ -56,7 +60,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
         setPlafond(data.plafond != null ? String(data.plafond) : "");
         setIsActive(data.is_active);
       });
-  }, [open, accountId]);
+  }, [open, accountId, tAccounts]);
 
   // Keyboard & scroll lock
   useEffect(() => {
@@ -78,7 +82,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
     setSaving(true);
     const num = parseFloat(initialBalance.replace(",", "."));
     if (isNaN(num)) {
-      setError("Invalid initial balance");
+      setError(tAccounts("invalidInitialBalance"));
       setSaving(false);
       return;
     }
@@ -99,7 +103,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
       showToast(res.error, "error");
       return;
     }
-    showToast("Account updated.");
+    showToast(tAccounts("updatedToast"));
     onClose();
     onSaved?.();
   }
@@ -123,7 +127,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
           onClick={onClose}
           disabled={saving}
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-          aria-label="Close"
+          aria-label={tCommon("close")}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" />
@@ -131,16 +135,16 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
           </svg>
         </button>
 
-        <h2 className="text-lg font-semibold mb-4">Edit account</h2>
+        <h2 className="text-lg font-semibold mb-4">{tAccounts("titleEdit")}</h2>
 
         {loading ? (
-          <p className="text-slate-500 text-sm">Loading…</p>
+          <p className="text-slate-500 text-sm">{tCommon("loading")}</p>
         ) : error && !name ? (
           <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Name *</label>
+              <label className="block text-sm font-medium mb-1">{tAccounts("nameLabel")}</label>
               <input
                 type="text"
                 value={name}
@@ -153,24 +157,24 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
             {accountType === "credit_card" && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Plafond / Credit limit (€)
+                  {tAccounts("plafondLabel")}
                 </label>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={plafond}
                   onChange={(e) => setPlafond(e.target.value)}
-                  placeholder="e.g. 2000"
+                  placeholder={tAccounts("plafondPlaceholder")}
                   className={inputClass}
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  The maximum amount allowed on this credit card.
+                  {tAccounts("plafondHint")}
                 </p>
               </div>
             )}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Initial balance (€) *
+                {tAccounts("initialBalanceLabel")}
               </label>
               <input
                 type="text"
@@ -180,8 +184,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 className={inputClass}
               />
               <p className="text-xs text-slate-500 mt-1">
-                Changing this will adjust the current balance by the same
-                difference.
+                {tAccounts("initialBalanceHint")}
               </p>
               {(() => {
                 if (currentBalance == null) return null;
@@ -206,7 +209,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 onChange={(e) => setIsActive(e.target.checked)}
               />
               <label htmlFor="isActiveModal" className="text-sm">
-                Active (shown in transaction form)
+                {tAccounts("activeLabel")}
               </label>
             </div>
             {error && (
@@ -218,7 +221,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 disabled={saving}
                 className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 text-sm"
               >
-                {saving ? "Saving…" : "Save"}
+                {saving ? tForm("buttons.saving") : tCommon("save")}
               </button>
               <button
                 type="button"
@@ -226,7 +229,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 disabled={saving}
                 className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm"
               >
-                Cancel
+                {tCommon("cancel")}
               </button>
             </div>
           </form>

@@ -31,6 +31,7 @@
         "categories": "Categorias",
         "activityLog": "Registo de atividade",
         "settings": "Definições",
+        "walletShared": "partilhada",
         "sidebarControl": "Controlo da barra lateral",
         "expanded": "Expandida",
         "collapsed": "Recolhida",
@@ -42,11 +43,22 @@
         "login": "Entrar",
         "signup": "Registar",
         "logout": "Terminar sessão",
+        "loggedInSuccess": "Sessão iniciada com sucesso.",
+        "notAuthenticated": "Não autenticado",
+        "loggedOutSuccess": "Sessão terminada com sucesso.",
         "email": "Email",
         "password": "Palavra-passe",
         "forgotPassword": "Esqueceu a palavra-passe?",
         "dontHaveAccount": "Não tem uma conta?",
-        "alreadyHaveAccount": "Já tem uma conta?"
+        "alreadyHaveAccount": "Já tem uma conta?",
+        "signingIn": "A iniciar sessão...",
+        "creatingAccount": "A criar conta...",
+        "firstName": "Primeiro nome",
+        "lastName": "Apelido",
+        "checkEmail": "Verifique o seu email",
+        "checkEmailMessage": "Enviámos um link de confirmação para {email}. Clique nele para ativar a sua conta e depois inicie sessão.",
+        "goToLogin": "Ir para iniciar sessão",
+        "back": "Voltar"
     },
     "dashboard": {
         "title": "Painel",
@@ -163,7 +175,7 @@
             "after": "Depois"
         }
     },
-    "portfoliio": {
+    "portfolio": {
         "title": "Portfólio",
         "subtitle": "As suas finanças, num só lugar",
         "emptyMessage": "Crie uma carteira para começar a acompanhar as suas finanças",
@@ -275,7 +287,50 @@
         "accountName": "Nome da Conta",
         "accountType": "Tipo de Conta",
         "balance": "Saldo",
-        "noAccounts": "Ainda não há contas"
+        "noAccounts": "Ainda não há contas",
+        "page": {
+            "noWallet": "Selecione ou crie uma carteira primeiro.",
+            "addOne": "Adicionar uma",
+            "table": {
+                "initial": "Inicial",
+                "current": "Atual",
+                "plafond": "Plafond",
+                "status": "Estado",
+                "actions": "Ações"
+            },
+            "status": {
+                "active": "Ativa",
+                "inactive": "Inativa"
+            },
+            "actions": {
+                "details": "Detalhes"
+            },
+            "details": {
+                "createdBy": "Criada por",
+                "createdAt": "Criada em",
+                "initialBalance": "Saldo inicial",
+                "plafond": "Plafond",
+                "lastUpdate": "Última atualização",
+                "loadError": "Falha ao carregar detalhes"
+            }
+        },
+        "modal": {
+            "titleEdit": "Editar conta",
+            "titleAdd": "Adicionar conta",
+            "noWallet": "Selecione ou crie uma carteira primeiro.",
+            "notFound": "Não encontrado",
+            "invalidInitialBalance": "Saldo inicial inválido",
+            "updatedToast": "Conta atualizada.",
+            "addedToast": "Conta adicionada.",
+            "saving": "A guardar…",
+            "nameLabel": "Nome *",
+            "plafondLabel": "Plafond / limite de crédito (€)",
+            "plafondPlaceholder": "ex.: 2000",
+            "plafondHint": "O montante máximo permitido neste cartão de crédito.",
+            "initialBalanceLabel": "Saldo inicial (€) *",
+            "initialBalanceHint": "Alterar isto ajustará o saldo atual pela mesma diferença.",
+            "activeLabel": "Ativa (mostrada no formulário de transações)"
+        }
     },
     "transactions": {
         "title": "Transações",
@@ -356,6 +411,21 @@
                 "confirm": "Eliminar",
                 "cancel": "Manter"
             },
+            "editModal": {
+                "title": "Editar recorrente",
+                "subtitle": "As alterações aplicam-se apenas a execuções futuras. As transações pendentes ou confirmadas existentes não são modificadas.",
+                "notFound": "Regra recorrente não encontrada.",
+                "updatedToast": "Regra recorrente atualizada.",
+                "current": "(atual)",
+                "dayOfWeek": "Dia da semana",
+                "dayOfMonth": "Dia do mês (1–31)",
+                "dayOfMonthPlaceholder": "ex.: 15",
+                "endDate": "Data de fim (opcional)",
+                "endDateHint": "Deixe em branco para executar indefinidamente. Se definida, a recorrência para após esta data.",
+                "activeLabel": "Ativa (executa automaticamente)",
+                "activeHint": "Desmarque para desativar a recorrência. Não serão criadas novas transações até voltar a ativá-la.",
+                "dayOfMonthValid": "O dia do mês deve ser 1–31"
+            },
             "actions": {
                 "copy": "Copiar",
                 "edit": "Editar",
@@ -404,6 +474,8 @@
                 "date": "Data *",
                 "description": "Descrição *",
                 "descriptionPlaceholder": "ex.: Compras",
+                "incomeDescriptionPlaceholder": "ex.: Salário",
+                "transferDescriptionPlaceholder": "ex.: Pagamento de renda",
                 "category": "Categoria *",
                 "selectCategory": "Selecionar…",
                 "addCategory": "Adicionar categoria",
@@ -423,6 +495,7 @@
                 "paidByMemberRequired": "Pago por membro *",
                 "receivedByMember": "Recebido por membro",
                 "receivedByMemberRequired": "Recebido por membro *",
+                "notSpecified": "Não especificado",
                 "noMembers": "Nenhum membro encontrado."
             },
             "options": {
@@ -430,6 +503,16 @@
                 "holdBalance": "Não atualizar saldos até confirmar",
                 "makeRecurring": "Tornar recorrente",
                 "schedule": "Agendamento",
+                "scheduleTypes": {
+                    "daily": "Diariamente",
+                    "weekly": "Semanalmente",
+                    "monthly": "Mensalmente",
+                    "yearly": "Anualmente",
+                    "intervalDays": "A cada x dias",
+                    "intervalMonths": "A cada x meses",
+                    "monthlyNthWorkDay": "n.º dia útil do mês",
+                    "monthlyNthLastWorkDay": "n.º último dia útil do mês"
+                },
                 "intervalDays": "A cada quantos dias?",
                 "intervalDaysPlaceholder": "ex.: 14",
                 "intervalMonths": "A cada quantos meses?",
@@ -445,6 +528,9 @@
                 "income": "Receitas semelhantes",
                 "incomeCategory": "Receitas semelhantes (categoria)",
                 "incomeSubcategory": "Receitas semelhantes (subcategoria)",
+                "transfers": "Transferências semelhantes",
+                "transfersCategory": "Transferências semelhantes (categoria)",
+                "transfersSubcategory": "Transferências semelhantes (subcategoria)",
                 "loading": "A carregar…",
                 "noExpenses": "Ainda não há despesas",
                 "noIncome": "Ainda não há receitas",
@@ -485,7 +571,9 @@
             "toasts": {
                 "transactionAdded": "Transação adicionada.",
                 "transactionUpdated": "Transação atualizada.",
-                "transactionConfirmed": "Transação confirmada."
+                "transactionConfirmed": "Transação confirmada.",
+                "pendingTransactionCanceled": "Transação pendente cancelada.",
+                "transactionDeleted": "Transação eliminada."
             },
             "confirmDialogs": {
                 "confirmTitle": "Confirmar transação",
@@ -499,6 +587,21 @@
                 "deleteButton": "Eliminar",
                 "keepButton": "Manter",
                 "goBack": "Voltar"
+            },
+            "page": {
+                "current": "(atual)",
+                "notFound": "Transação não encontrada.",
+                "copyLoadError": "Não foi possível carregar a transação para copiar.",
+                "newTransaction": "Nova transação",
+                "goToWallets": "Ir para Carteiras",
+                "loadingCopy": "A carregar transação para copiar…",
+                "chooseType": "Escolher tipo",
+                "backToDashboard": "Voltar ao Dashboard",
+                "chooseTypeSubtitle": "Escolha o tipo de transação.",
+                "backToTransactions": "Voltar às Transações",
+                "changeType": "Alterar tipo",
+                "pendingHint": "Os saldos não serão alterados até confirmar. Confirme ou cancele a partir do Dashboard ou Home.",
+                "recurringHint": "As ocorrências futuras serão criadas na data selecionada e mostradas como Pendentes até confirmar ou cancelar."
             }
         }
     },
@@ -518,13 +621,144 @@
         "walletName": "Nome da Carteira",
         "shared": "Partilhada",
         "personal": "Pessoal",
-        "noWallets": "Ainda não há carteiras"
+        "noWallets": "Ainda não há carteiras",
+        "page": {
+            "join": "Entrar na carteira",
+            "create": "Criar carteira",
+            "createOne": "Criar uma",
+            "joinPage": {
+                "title": "Entrar na carteira",
+                "validation": {
+                    "shareCodeRequired": "Por favor, introduza um código de partilha"
+                },
+                "successTitle": "Entrou na carteira com sucesso!",
+                "successRedirect": "A redirecionar para carteiras...",
+                "shareCodeLabel": "Código de partilha *",
+                "shareCodePlaceholder": "Introduza um código de 8 caracteres",
+                "shareCodeHint": "Introduza o código de partilha fornecido pelo proprietário da carteira",
+                "joining": "A entrar…",
+                "joinButton": "Entrar na carteira"
+            },
+            "edit": {
+                "title": "Editar carteira",
+                "notFound": "Carteira não encontrada ou sem acesso",
+                "saving": "A guardar…",
+                "sharingType": "Tipo de partilha *",
+                "share": {
+                    "codeLabel": "Código de partilha",
+                    "saveFirst": "Guarde primeiro a carteira com \"Partilhada\" ativa e depois gere o código.",
+                    "copied": "Copiado!",
+                    "copy": "Copiar",
+                    "retry": "Tentar novamente",
+                    "none": "Sem código disponível",
+                    "generating": "A gerar...",
+                    "generate": "Gerar código",
+                    "linkCopied": "Link copiado!",
+                    "copyLink": "Copiar link",
+                    "sendEmail": "Enviar e-mail",
+                    "hint": "Partilhe este código ou link com outras pessoas. Podem usá-lo para entrar nesta carteira após registo."
+                },
+                "split": {
+                    "method": "Método de divisão *",
+                    "equallyLabel": "Dividir igualmente",
+                    "equallyDesc": "Dividir despesas igualmente entre todos os membros",
+                    "byIncomeLabel": "Dividir por rendimento",
+                    "byIncomeDesc": "Dividir com base no rendimento mensal de cada membro (percentagem)",
+                    "membersIncome": "Rendimentos dos membros",
+                    "membersIncomeHint": "Defina o rendimento mensal para calcular a divisão por percentagem.",
+                    "unknownMember": "Desconhecido"
+                }
+            },
+            "new": {
+                "nameLabel": "Nome *",
+                "namePlaceholder": "ex.: Família, Pessoal",
+                "sharedLabel": "Partilhada (ex.: com o seu cônjuge)",
+                "sharedHint": "Pode adicionar membros a uma carteira partilhada mais tarde nas definições da carteira.",
+                "sharedType": "Tipo de carteira partilhada",
+                "creating": "A criar…",
+                "type": {
+                    "trackDesc": "Registar transações e saldos das contas",
+                    "splitDesc": "Registar transações e dividir despesas entre membros",
+                    "trackAndSplitDesc": "Registar transações e dividir despesas (com base no rendimento)"
+                }
+            },
+            "table": {
+                "type": "Tipo",
+                "status": "Estado",
+                "actions": "Ações"
+            },
+            "type": {
+                "track": "Partilhada: Monitorizar",
+                "split": "Partilhada: Dividir",
+                "trackAndSplit": "Partilhada: Monitorizar e Dividir"
+            },
+            "status": {
+                "deleted": "Eliminada",
+                "until": "até",
+                "active": "Ativa",
+                "inactive": "Inativa"
+            },
+            "actions": {
+                "undoDelete": "Desfazer eliminação"
+            }
+        },
+        "details": {
+            "owner": "Proprietário",
+            "created": "Criada",
+            "accounts": "Contas",
+            "transactions": "Transações",
+            "members": "Membros",
+            "button": "Detalhes",
+            "loadError": "Falha ao carregar detalhes"
+        },
+        "deleteDialog": {
+            "title": "Eliminar carteira",
+            "messageHard": "Eliminar a carteira \"{name}\"? Esta carteira não tem contas nem transações e será eliminada permanentemente.",
+            "accountsPart": "{count} conta(s)",
+            "transactionsPart": "{count} transação(ões)",
+            "and": "e",
+            "messageSoft": "Eliminar a carteira \"{name}\"? Contém {parts}. Todos os dados serão mantidos durante 30 dias — pode desfazer esta ação durante esse período."
+        },
+        "toasts": {
+            "created": "Carteira criada.",
+            "createFailed": "Falha ao criar",
+            "updated": "Carteira atualizada.",
+            "memberIncomeUpdated": "Rendimento do membro atualizado.",
+            "permanentlyDeleted": "Carteira eliminada permanentemente.",
+            "deletedUndo": "Carteira eliminada. Pode desfazer dentro de 30 dias.",
+            "restored": "Carteira \"{name}\" restaurada."
+        }
     },
     "categories": {
         "title": "Categorias",
         "addCategory": "Adicionar Categoria",
         "categoryName": "Nome da Categoria",
-        "noCategories": "Ainda não há categorias"
+        "noCategories": "Ainda não há categorias",
+        "page": {
+            "inactive": "inativa",
+            "deactivate": "Desativar"
+        },
+        "modal": {
+            "titleEdit": "Editar categoria",
+            "titleAdd": "Adicionar categoria",
+            "titleAddOrSub": "Adicionar categoria ou subcategoria",
+            "titleAddSubcategory": "Adicionar subcategoria a \"{parentName}\"",
+            "titleAddType": "Adicionar categoria de {type}",
+            "typeLabel": "Tipo *",
+            "parentOptionalLabel": "Pai (opcional)",
+            "topLevelOption": "— Categoria de nível superior —",
+            "parentHint": "Deixe em branco para uma categoria de nível superior (ex.: Salário, Supermercado). Escolha uma para uma subcategoria (ex.: Netflix em Streaming).",
+            "noWallet": "Selecione ou crie uma carteira primeiro.",
+            "saving": "A guardar…",
+            "nameLabel": "Nome *",
+            "activeLabel": "Ativa (mostrada no formulário de transações)",
+            "notFound": "Não encontrado",
+            "updatedToast": "Categoria atualizada.",
+            "addedToast": "Categoria adicionada.",
+            "subAddedToast": "Subcategoria adicionada.",
+            "deactivatedToast": "Categoria desativada (transações preservadas).",
+            "deletedToast": "Categoria eliminada."
+        }
     },
     "reports": {
         "title": "Relatórios",

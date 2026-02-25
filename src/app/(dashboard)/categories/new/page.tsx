@@ -7,8 +7,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
 
 export default function NewCategoryPage() {
+  const tCategories = useTranslations("categories.modal");
+  const tTransactions = useTranslations("transactions");
+  const tCommon = useTranslations("common");
+  const tNavigation = useTranslations("navigation");
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
@@ -53,7 +58,7 @@ export default function NewCategoryPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast(parentId ? "Subcategory added." : "Category added.");
+    showToast(parentId ? tCategories("subAddedToast") : tCategories("addedToast"));
     router.push("/categories");
     router.refresh();
   }
@@ -61,49 +66,49 @@ export default function NewCategoryPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">Add category</h1>
+        <h1 className="text-2xl font-semibold">{tCategories("titleAdd")}</h1>
         <p className="text-slate-600 dark:text-slate-400">
-          Select or create a wallet first.
+          {tCategories("noWallet")}
         </p>
-        <Link href="/wallets" className="underline">Wallets</Link>
+        <Link href="/wallets" className="underline">{tNavigation("wallets")}</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Add category or subcategory</h1>
+      <h1 className="text-2xl font-semibold">{tCategories("titleAddOrSub")}</h1>
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Type *</label>
+          <label className="block text-sm font-medium mb-1">{tCategories("typeLabel")}</label>
           <select
             value={type}
             onChange={(e) => setType(e.target.value as "income" | "expense" | "transfer")}
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           >
-            <option value="income">Income</option>
-            <option value="expense">Expense</option>
-            <option value="transfer">Transfer</option>
+            <option value="income">{tTransactions("income")}</option>
+            <option value="expense">{tTransactions("expense")}</option>
+            <option value="transfer">{tTransactions("transfer")}</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Parent (optional)</label>
+          <label className="block text-sm font-medium mb-1">{tCategories("parentOptionalLabel")}</label>
           <select
             value={parentId}
             onChange={(e) => setParentId(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           >
-            <option value="">— Top-level category —</option>
+            <option value="">{tCategories("topLevelOption")}</option>
             {parents.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
           <p className="text-xs text-slate-500 mt-1">
-            Leave empty for a top-level category (e.g. Salary, Groceries). Pick one for a subcategory (e.g. Netflix under Streaming).
+            {tCategories("parentHint")}
           </p>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">{tCategories("nameLabel")}</label>
           <input
             type="text"
             value={name}
@@ -119,13 +124,13 @@ export default function NewCategoryPage() {
             disabled={loading}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {loading ? "Saving…" : "Save"}
+            {loading ? tCategories("saving") : tCommon("save")}
           </button>
           <Link
             href="/categories"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
         </div>
       </form>

@@ -9,8 +9,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useTranslations } from "next-intl";
 
 export default function EditAccountPage() {
+  const tAccounts = useTranslations("accounts.modal");
+  const tCommon = useTranslations("common");
+  const tNavigation = useTranslations("navigation");
   const params = useParams();
   const id = String(params.id);
   const { showToast } = useToast();
@@ -36,7 +40,7 @@ export default function EditAccountPage() {
       .then(({ data, error: e }) => {
         setLoading(false);
         if (e || !data) {
-          setError(e?.message ?? "Not found");
+          setError(e?.message ?? tAccounts("notFound"));
           return;
         }
         setName(data.name);
@@ -49,7 +53,7 @@ export default function EditAccountPage() {
         setPlafond(data.plafond != null ? String(data.plafond) : "");
         setIsActive(data.is_active);
       });
-  }, [id]);
+  }, [id, tAccounts]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +61,7 @@ export default function EditAccountPage() {
     setSaving(true);
     const num = parseFloat(initialBalance.replace(",", "."));
     if (isNaN(num)) {
-      setError("Invalid initial balance");
+      setError(tAccounts("invalidInitialBalance"));
       setSaving(false);
       return;
     }
@@ -78,27 +82,27 @@ export default function EditAccountPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast("Account updated.");
+    showToast(tAccounts("updatedToast"));
     router.push("/accounts");
     router.refresh();
   }
 
-  if (loading) return <p className="text-slate-500">Loading…</p>;
+  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
   if (error) {
     return (
       <div className="space-y-4">
         <p className="text-red-600 dark:text-red-400">{error}</p>
-        <Link href="/accounts" className="underline">← Accounts</Link>
+        <Link href="/accounts" className="underline">← {tNavigation("accounts")}</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Edit account</h1>
+      <h1 className="text-2xl font-semibold">{tAccounts("titleEdit")}</h1>
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Name *</label>
+          <label className="block text-sm font-medium mb-1">{tAccounts("nameLabel")}</label>
           <input
             type="text"
             value={name}
@@ -110,22 +114,22 @@ export default function EditAccountPage() {
         <AccountTypeSelect value={accountType} onChange={setAccountType} />
         {accountType === "credit_card" && (
           <div>
-            <label className="block text-sm font-medium mb-1">Plafond / Credit limit (€)</label>
+            <label className="block text-sm font-medium mb-1">{tAccounts("plafondLabel")}</label>
             <input
               type="text"
               inputMode="decimal"
               value={plafond}
               onChange={(e) => setPlafond(e.target.value)}
-              placeholder="e.g. 2000"
+              placeholder={tAccounts("plafondPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
             <p className="text-xs text-slate-500 mt-1">
-              The maximum amount allowed on this credit card.
+              {tAccounts("plafondHint")}
             </p>
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium mb-1">Initial balance (€) *</label>
+          <label className="block text-sm font-medium mb-1">{tAccounts("initialBalanceLabel")}</label>
           <input
             type="text"
             inputMode="decimal"
@@ -134,7 +138,7 @@ export default function EditAccountPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
           <p className="text-xs text-slate-500 mt-1">
-            Changing this will adjust the current balance by the same difference.
+            {tAccounts("initialBalanceHint")}
           </p>
           {(() => {
             if (currentBalance == null) return null;
@@ -153,7 +157,7 @@ export default function EditAccountPage() {
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
           />
-          <label htmlFor="isActive">Active (shown in transaction form)</label>
+          <label htmlFor="isActive">{tAccounts("activeLabel")}</label>
         </div>
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex gap-3">
@@ -162,13 +166,13 @@ export default function EditAccountPage() {
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? tAccounts("saving") : tCommon("save")}
           </button>
           <Link
             href="/accounts"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600"
           >
-            Cancel
+            {tCommon("cancel")}
           </Link>
         </div>
       </form>

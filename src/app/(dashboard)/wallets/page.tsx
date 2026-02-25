@@ -8,13 +8,16 @@ import {
   type WalletDetails,
 } from "@/app/actions/wallets";
 import { EditIcon, DeleteIcon } from "@/components/ActionIcons";
+import { AvatarImage } from "@/components/AvatarImage";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { UserIcon } from "@/components/UserIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 interface Wallet {
   id: string;
@@ -49,26 +52,6 @@ function InfoIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function UserIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-slate-400"
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
 /* ─── Details Popup ─── */
 
 function WalletDetailsPopup({
@@ -80,6 +63,8 @@ function WalletDetailsPopup({
   walletName: string;
   onClose: () => void;
 }) {
+  const tWallets = useTranslations("wallets");
+  const tCommon = useTranslations("common");
   const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -111,7 +96,7 @@ function WalletDetailsPopup({
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-          aria-label="Close"
+          aria-label={tCommon("close")}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18" />
@@ -124,35 +109,33 @@ function WalletDetailsPopup({
         {/* Summary info */}
         <div className="grid grid-cols-2 gap-3 text-xs">
           <div className="space-y-0.5">
-            <div className="text-slate-500">Owner</div>
+            <div className="text-slate-500">{tWallets("details.owner")}</div>
             <div className="flex items-center gap-2 font-medium">
-              {details.owner?.avatar_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={details.owner.avatar_url}
-                  alt=""
-                  className="h-5 w-5 rounded-full object-cover"
-                />
-              ) : (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <UserIcon />
-                </span>
-              )}
+              <AvatarImage
+                src={details.owner?.avatar_url}
+                size={20}
+                className="h-5 w-5 rounded-full object-cover"
+                fallback={
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                    <UserIcon className="w-4 h-4 text-slate-400" />
+                  </span>
+                }
+              />
               {ownerName}
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Created</div>
+            <div className="text-slate-500">{tWallets("details.created")}</div>
             <div className="font-medium">
               {new Date(details.created_at).toLocaleDateString("pt-PT")}
             </div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Accounts</div>
+            <div className="text-slate-500">{tWallets("details.accounts")}</div>
             <div className="font-medium">{details.accountCount}</div>
           </div>
           <div className="space-y-0.5">
-            <div className="text-slate-500">Transactions</div>
+            <div className="text-slate-500">{tWallets("details.transactions")}</div>
             <div className="font-medium">{details.transactionCount}</div>
           </div>
         </div>
@@ -160,7 +143,7 @@ function WalletDetailsPopup({
         {/* Members (shared wallets) */}
         {details.is_shared && details.members.length > 0 && (
           <div className="space-y-2">
-            <h3 className="text-xs font-medium text-slate-500">Members</h3>
+            <h3 className="text-xs font-medium text-slate-500">{tWallets("details.members")}</h3>
             <div className="space-y-2">
               {details.members.map((m) => {
                 const name =
@@ -170,18 +153,16 @@ function WalletDetailsPopup({
                     key={m.user_id}
                     className="flex items-center gap-3 rounded-lg border border-slate-100 dark:border-slate-700 p-2"
                   >
-                    {m.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={m.avatar_url}
-                        alt=""
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                        <UserIcon />
-                      </span>
-                    )}
+                    <AvatarImage
+                      src={m.avatar_url}
+                      size={32}
+                      className="h-8 w-8 rounded-full object-cover"
+                      fallback={
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+                          <UserIcon className="w-4 h-4 text-slate-400" />
+                        </span>
+                      }
+                    />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">
                         {name}
@@ -206,6 +187,8 @@ function WalletDetailsPopup({
 
 export default function WalletsPage() {
   const router = useRouter();
+  const tWallets = useTranslations("wallets");
+  const tCommon = useTranslations("common");
   const { showToast } = useToast();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,7 +250,7 @@ export default function WalletsPage() {
     const res = await getWalletDetails(w.id);
     setLoadingDetails(null);
     if (res.error || !res.details) {
-      showToast(res.error ?? "Failed to load details", "error");
+      showToast(res.error ?? tWallets("details.loadError"), "error");
       return;
     }
     setDetailsPopup({ walletName: w.name, details: res.details });
@@ -281,20 +264,23 @@ export default function WalletsPage() {
     }
     if (!usage.hasData) {
       setDeleteMsg(
-        `Delete wallet "${w.name}"? This wallet has no accounts or transactions and will be permanently deleted.`
+        tWallets("deleteDialog.messageHard", { name: w.name })
       );
     } else {
       const parts: string[] = [];
       if (usage.accountCount > 0)
         parts.push(
-          `${usage.accountCount} account${usage.accountCount > 1 ? "s" : ""}`
+          tWallets("deleteDialog.accountsPart", { count: usage.accountCount })
         );
       if (usage.transactionCount > 0)
         parts.push(
-          `${usage.transactionCount} transaction${usage.transactionCount > 1 ? "s" : ""}`
+          tWallets("deleteDialog.transactionsPart", { count: usage.transactionCount })
         );
       setDeleteMsg(
-        `Delete wallet "${w.name}"? It contains ${parts.join(" and ")}. All data will be kept for 30 days — you can undo this action during that period.`
+        tWallets("deleteDialog.messageSoft", {
+          name: w.name,
+          parts: parts.join(` ${tWallets("deleteDialog.and")} `),
+        })
       );
     }
     setDeleteTarget(w);
@@ -311,9 +297,9 @@ export default function WalletsPage() {
       return;
     }
     if (res.hardDeleted) {
-      showToast("Wallet permanently deleted.");
+      showToast(tWallets("toasts.permanentlyDeleted"));
     } else {
-      showToast("Wallet deleted. You can undo within 30 days.");
+      showToast(tWallets("toasts.deletedUndo"));
     }
     await loadWallets();
     router.refresh();
@@ -325,16 +311,24 @@ export default function WalletsPage() {
       showToast(res.error, "error");
       return;
     }
-    showToast(`Wallet "${w.name}" restored.`);
+    showToast(tWallets("toasts.restored", { name: w.name }));
     await loadWallets();
     router.refresh();
+  }
+
+  function walletTypeLabel(w: Wallet) {
+    if (!w.is_shared) return tWallets("personal");
+    if (w.shared_option === "track") return tWallets("page.type.track");
+    if (w.shared_option === "split") return tWallets("page.type.split");
+    if (w.shared_option === "track_and_split") return tWallets("page.type.trackAndSplit");
+    return tWallets("shared");
   }
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Wallets</h1>
-        <p className="text-slate-500">Loading…</p>
+        <h1 className="text-2xl font-semibold">{tWallets("title")}</h1>
+        <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
   }
@@ -342,19 +336,19 @@ export default function WalletsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Wallets</h1>
+        <h1 className="text-2xl font-semibold">{tWallets("title")}</h1>
         <div className="flex gap-3">
           <Link
             href="/wallets/join"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
-            Join wallet
+            {tWallets("page.join")}
           </Link>
           <Link
             href="/wallets/new"
             className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
           >
-            Create wallet
+            {tWallets("page.create")}
           </Link>
         </div>
       </div>
@@ -362,9 +356,9 @@ export default function WalletsPage() {
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         {wallets.length === 0 ? (
           <div className="p-6 text-slate-500">
-            No wallets.{" "}
+            {tWallets("noWallets")}.{" "}
             <Link href="/wallets/new" className="underline">
-              Create one
+              {tWallets("page.createOne")}
             </Link>
           </div>
         ) : (
@@ -372,16 +366,16 @@ export default function WalletsPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="text-left p-3 font-medium text-slate-600">
-                  Name
+                  {tWallets("walletName")}
                 </th>
                 <th className="text-left p-3 font-medium text-slate-600">
-                  Type
+                  {tWallets("page.table.type")}
                 </th>
                 <th className="text-left p-3 font-medium text-slate-600">
-                  Status
+                  {tWallets("page.table.status")}
                 </th>
                 <th className="text-left p-3 font-medium text-slate-600 w-28">
-                  Actions
+                  {tWallets("page.table.actions")}
                 </th>
               </tr>
             </thead>
@@ -400,27 +394,15 @@ export default function WalletsPage() {
                   >
                     <td className="p-3 font-medium">{w.name}</td>
                     <td className="p-3">
-                      {w.is_shared ? (
-                        w.shared_option === "track" ? (
-                          "Shared: Track"
-                        ) : w.shared_option === "split" ? (
-                          "Shared: Split"
-                        ) : w.shared_option === "track_and_split" ? (
-                          "Shared: Track and Split"
-                        ) : (
-                          "Shared"
-                        )
-                      ) : (
-                        "Personal"
-                      )}
+                      {walletTypeLabel(w)}
                     </td>
                     <td className="p-3">
                       {isSoftDeleted ? (
                         <span className="text-red-600 dark:text-red-400">
-                          Deleted
+                          {tWallets("page.status.deleted")}
                           {w.delete_after && (
                             <span className="text-[10px] ml-1 text-slate-500">
-                              (until{" "}
+                              ({tWallets("page.status.until")} {" "}
                               {new Date(w.delete_after).toLocaleDateString(
                                 "pt-PT"
                               )}
@@ -429,9 +411,9 @@ export default function WalletsPage() {
                           )}
                         </span>
                       ) : w.is_active ? (
-                        <span className="text-green-600">Active</span>
+                        <span className="text-green-600">{tWallets("page.status.active")}</span>
                       ) : (
-                        <span className="text-slate-500">Inactive</span>
+                        <span className="text-slate-500">{tWallets("page.status.inactive")}</span>
                       )}
                     </td>
                     <td className="p-3">
@@ -440,14 +422,14 @@ export default function WalletsPage() {
                           onClick={() => handleUndo(w)}
                           className="text-xs text-blue-600 hover:underline font-medium"
                         >
-                          Undo delete
+                          {tWallets("page.actions.undoDelete")}
                         </button>
                       ) : (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleInfoClick(w)}
                             className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                            title="Details"
+                            title={tWallets("details.button")}
                             disabled={loadingDetails === w.id}
                           >
                             {loadingDetails === w.id ? (
@@ -459,14 +441,14 @@ export default function WalletsPage() {
                           <Link
                             href={`/wallets/${w.id}/edit`}
                             className="text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
-                            title="Edit"
+                            title={tCommon("edit")}
                           >
                             <EditIcon className="w-4 h-4" />
                           </Link>
                           <button
                             onClick={() => handleDeleteClick(w)}
                             className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete"
+                            title={tCommon("delete")}
                           >
                             <DeleteIcon className="w-4 h-4" />
                           </button>
@@ -495,10 +477,10 @@ export default function WalletsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        title="Delete wallet"
+        title={tWallets("deleteDialog.title")}
         message={deleteMsg}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
+        confirmLabel={tCommon("delete")}
+        cancelLabel={tCommon("cancel")}
         variant="cancel"
         loading={deleting}
       />
