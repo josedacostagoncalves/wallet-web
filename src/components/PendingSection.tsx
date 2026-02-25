@@ -43,15 +43,15 @@ export function PendingSection({ pending }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((x) => !x)}
-        className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
+        className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         aria-expanded={expanded}
         aria-label={expanded ? t("collapse") : t("expand")}
       >
-        <span className="text-lg font-medium text-slate-800">{t("title")}</span>
+        <span className="text-lg font-medium text-slate-800 dark:text-slate-100">{t("title")}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -62,56 +62,58 @@ export function PendingSection({ pending }: Props) {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`text-slate-500 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
+          className={`text-slate-500 dark:text-slate-400 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
           aria-hidden
         >
           <path d="m9 18 6-6-6-6" />
         </svg>
       </button>
       {expanded && (
-        <div className="overflow-x-auto border-t border-slate-200">
+        <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
           {pending.length === 0 ? (
             <div className="p-6 text-xs text-slate-500">{t("empty")}</div>
           ) : (
-            <table className="w-full text-xs min-w-[640px]">
-              <thead className="bg-slate-100">
+            <table className="w-full text-xs min-w-[640px] bg-white dark:bg-slate-950 border-collapse">
+              <thead className="bg-slate-100 dark:bg-slate-900/50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.date")}</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.description")}</th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.date")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                     {t("table.categorySubcategory")}
                   </th>
-                  <th className="px-4 py-3 text-left font-medium text-slate-600">{t("table.fromTo")}</th>
-                  <th className="px-4 py-3 text-right font-medium text-slate-600">{t("table.amount")}</th>
+                  <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.fromTo")}</th>
+                  <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
                   <th className="px-4 py-3 w-24" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {pending.map((p) => (
-                  <tr key={p.id} className={`hover:bg-slate-50/50 ${p.holdBalance ? "bg-amber-100" : "bg-amber-50"}`}>
+                  <tr key={p.id} className={`${p.holdBalance ? "bg-amber-100 dark:bg-amber-900/30" : "bg-amber-50 dark:bg-amber-900/20"} hover:bg-amber-100/80 dark:hover:bg-amber-900/40`}>
                     <td className="px-4 py-3">
                       <TransactionTypeIcon
                         type={p.type as "income" | "expense" | "transfer"}
                         label={tType(p.type as "income" | "expense" | "transfer")}
                       />
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{p.date}</td>
-                    <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.date}</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
                       {p.description || "—"}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {formatCategorySubcategory(p.categoryLabel, p.subcategoryLabel)}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {formatFromTo(p.accountFromName, p.accountToName)}
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-mono ${p.type === "income"
-                        ? "text-green-600"
+                        ? "text-green-600 dark:text-green-400"
                         : p.type === "expense"
-                          ? "text-red-600"
-                          : ""
+                          ? "text-red-600 dark:text-red-400"
+                          : p.type === "transfer"
+                            ? "text-blue-600 dark:text-blue-400"
+                            : ""
                         }`}
                     >
                       {p.type === "income" ? "+" : p.type === "expense" ? "−" : ""}

@@ -114,13 +114,12 @@
             "seeAll": "Ver todo",
             "total": "Total",
             "accountEvolution": "Evolución de la cuenta",
+            "accountEvolutionSubtitle": "Tendencia del saldo y extracto de la cuenta",
+            "balanceLabel": "Saldo",
             "close": "Cerrar",
             "ranges": {
-                "last30Days": "Últimos 30 días",
-                "last3Months": "Últimos 3 meses",
-                "last6Months": "Últimos 6 meses",
-                "lastYear": "Último año",
-                "all": "Todo",
+                "thisMonth": "Este mes",
+                "thisYear": "Este año",
                 "custom": "Personalizado"
             },
             "to": "a",
@@ -608,12 +607,70 @@
     "activity": {
         "title": "Registro de actividad",
         "table": {
-            "when": "Cuándo",
-            "action": "Acción",
-            "entity": "Entidad",
-            "details": "Detalles"
+            "date": "Fecha",
+            "activity": "Actividad",
+            "description": "Descripción"
         },
-        "empty": "Aún no hay actividad."
+        "empty": "Aún no hay actividad.",
+        "unknownUser": "Usuario desconocido",
+        "activityByUser": "{name} {action}.",
+        "badges": {
+            "created": "Creado",
+            "edited": "Editado",
+            "confirmed": "Confirmado",
+            "deleted": "Eliminado",
+            "deactivated": "Desactivado",
+            "updated": "Actualizado"
+        },
+        "actions": {
+            "transactionCreate": "creó una transacción",
+            "transactionEdit": "editó una transacción",
+            "transactionDelete": "eliminó una transacción",
+            "transactionConfirm": "confirmó una transacción",
+            "accountCreate": "creó una cuenta",
+            "accountEdit": "editó una cuenta",
+            "categoryCreate": "creó una categoría",
+            "categoryEdit": "editó una categoría",
+            "categoryDeactivate": "desactivó una categoría",
+            "categoryDelete": "eliminó una categoría",
+            "walletCreate": "creó una cartera",
+            "walletEdit": "editó una cartera",
+            "walletJoin": "se unió a una cartera",
+            "walletDelete": "eliminó una cartera",
+            "walletRestore": "restauró una cartera",
+            "walletMemberUpdate": "actualizó un miembro de la cartera",
+            "generic": "realizó una acción"
+        },
+        "types": {
+            "income": "Ingreso",
+            "expense": "Gasto",
+            "transfer": "Transferencia",
+            "transaction": "Transacción"
+        },
+        "descriptions": {
+            "transactionOfDay": "{type} del día {date}",
+            "transactionCreated": "{subject}: Importe {amount}.",
+            "transactionUpdated": "{subject}: Se actualizaron los detalles.",
+            "transactionAmountChanged": "{subject}: El importe cambió de {from} a {to}.",
+            "transactionAmountUpdated": "{subject}: Importe actualizado a {to}.",
+            "transactionDeleted": "{subject}: Se eliminó el importe {amount}.",
+            "transactionDeletedSimple": "{subject}: Se eliminó la transacción.",
+            "transactionConfirmed": "{subject}: Se confirmó el importe {amount}.",
+            "transactionConfirmedSimple": "{subject}: Se confirmó la transacción.",
+            "accountCreated": "Se creó la cuenta.",
+            "accountEdited": "Se actualizaron los detalles de la cuenta.",
+            "categoryCreated": "Se creó la categoría.",
+            "categoryEdited": "Se actualizaron los detalles de la categoría.",
+            "categoryDeactivated": "Se desactivó la categoría.",
+            "categoryDeleted": "Se eliminó la categoría.",
+            "walletCreated": "Se creó la cartera.",
+            "walletEdited": "Se actualizaron los ajustes de la cartera.",
+            "walletJoined": "El usuario se unió a una cartera.",
+            "walletDeleted": "Se eliminó la cartera.",
+            "walletRestored": "Se restauró la cartera.",
+            "walletMemberUpdated": "Se actualizaron los datos del miembro.",
+            "generic": "Acción registrada."
+        }
     },
     "wallets": {
         "title": "Carteras",
@@ -809,6 +866,7 @@
         "expenses": "Gastos",
         "category": "Categoría",
         "total": "Total",
+        "averageMonthlyValue": "Promedio",
         "noData": "Sin datos de {type} para este período",
         "reorder": "Reordenar categorías",
         "hideValues": "Ocultar valores",

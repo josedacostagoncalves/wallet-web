@@ -114,13 +114,12 @@
             "seeAll": "See all",
             "total": "Total",
             "accountEvolution": "Account evolution",
+            "accountEvolutionSubtitle": "Balance trend and account statement",
+            "balanceLabel": "Balance",
             "close": "Close",
             "ranges": {
-                "last30Days": "Last 30 days",
-                "last3Months": "Last 3 months",
-                "last6Months": "Last 6 months",
-                "lastYear": "Last year",
-                "all": "All",
+                "thisMonth": "This month",
+                "thisYear": "This year",
                 "custom": "Custom"
             },
             "to": "to",
@@ -608,12 +607,70 @@
     "activity": {
         "title": "Activity log",
         "table": {
-            "when": "When",
-            "action": "Action",
-            "entity": "Entity",
-            "details": "Details"
+            "date": "Date",
+            "activity": "Activity",
+            "description": "Description"
         },
-        "empty": "No activity yet."
+        "empty": "No activity yet.",
+        "unknownUser": "Unknown user",
+        "activityByUser": "{name} {action}.",
+        "badges": {
+            "created": "Created",
+            "edited": "Edited",
+            "confirmed": "Confirmed",
+            "deleted": "Deleted",
+            "deactivated": "Deactivated",
+            "updated": "Updated"
+        },
+        "actions": {
+            "transactionCreate": "created a transaction",
+            "transactionEdit": "edited a transaction",
+            "transactionDelete": "deleted a transaction",
+            "transactionConfirm": "confirmed a transaction",
+            "accountCreate": "created an account",
+            "accountEdit": "edited an account",
+            "categoryCreate": "created a category",
+            "categoryEdit": "edited a category",
+            "categoryDeactivate": "deactivated a category",
+            "categoryDelete": "deleted a category",
+            "walletCreate": "created a wallet",
+            "walletEdit": "edited a wallet",
+            "walletJoin": "joined a wallet",
+            "walletDelete": "deleted a wallet",
+            "walletRestore": "restored a wallet",
+            "walletMemberUpdate": "updated a wallet member",
+            "generic": "performed an action"
+        },
+        "types": {
+            "income": "Income",
+            "expense": "Expense",
+            "transfer": "Transfer",
+            "transaction": "Transaction"
+        },
+        "descriptions": {
+            "transactionOfDay": "{type} of day {date}",
+            "transactionCreated": "{subject}: Amount {amount}.",
+            "transactionUpdated": "{subject}: Details updated.",
+            "transactionAmountChanged": "{subject}: Amount changed from {from} to {to}.",
+            "transactionAmountUpdated": "{subject}: Amount updated to {to}.",
+            "transactionDeleted": "{subject}: Amount {amount} was deleted.",
+            "transactionDeletedSimple": "{subject}: Transaction was deleted.",
+            "transactionConfirmed": "{subject}: Amount {amount} was confirmed.",
+            "transactionConfirmedSimple": "{subject}: Transaction was confirmed.",
+            "accountCreated": "Account was created.",
+            "accountEdited": "Account details were updated.",
+            "categoryCreated": "Category was created.",
+            "categoryEdited": "Category details were updated.",
+            "categoryDeactivated": "Category was deactivated.",
+            "categoryDeleted": "Category was deleted.",
+            "walletCreated": "Wallet was created.",
+            "walletEdited": "Wallet settings were updated.",
+            "walletJoined": "User joined a wallet.",
+            "walletDeleted": "Wallet was deleted.",
+            "walletRestored": "Wallet was restored.",
+            "walletMemberUpdated": "Member details were updated.",
+            "generic": "Action recorded."
+        }
     },
     "wallets": {
         "title": "Wallets",
@@ -809,6 +866,7 @@
         "expenses": "Expenses",
         "category": "Category",
         "total": "Total",
+        "averageMonthlyValue": "Average",
         "noData": "No {type} data for this period",
         "reorder": "Reorder categories",
         "hideValues": "Hide values",

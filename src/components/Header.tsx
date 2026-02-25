@@ -35,12 +35,12 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[rgb(25,25,25)]">
+    <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur">
       <div className="relative w-full px-4 h-14 flex items-center justify-between gap-4">
         {/* Icon + Hello */}
         <div className="flex items-center gap-4 min-w-0 shrink-0">
           <JWalletIcon className="w-8 h-8 shrink-0" variant="v2" />
-          <span className="font-bold text-white truncate">
+          <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
             {greeting}
           </span>
         </div>
@@ -49,7 +49,7 @@ export function Header() {
             <div className="relative">
               <button
                 onClick={() => setWalletOpen((o) => !o)}
-                className="px-3 py-1.5 rounded-lg border border-white/30 text-sm font-bold text-white hover:bg-white/10 whitespace-nowrap"
+                className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 whitespace-nowrap"
               >
                 {currentWallet?.name ?? tNav('selectWallet')} ▾
               </button>
@@ -89,7 +89,7 @@ export function Header() {
           <div className="relative">
             <button
               onClick={() => setMenuOpen((o) => !o)}
-              className="p-2 rounded-lg font-bold text-white hover:bg-white/10"
+              className="p-2 rounded-lg font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
               aria-label="Menu"
             >
               ⋮

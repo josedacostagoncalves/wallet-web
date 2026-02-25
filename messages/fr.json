@@ -114,13 +114,12 @@
             "seeAll": "Voir tout",
             "total": "Total",
             "accountEvolution": "Évolution du compte",
+            "accountEvolutionSubtitle": "Tendance du solde et relevé du compte",
+            "balanceLabel": "Solde",
             "close": "Fermer",
             "ranges": {
-                "last30Days": "30 derniers jours",
-                "last3Months": "3 derniers mois",
-                "last6Months": "6 derniers mois",
-                "lastYear": "Dernière année",
-                "all": "Tout",
+                "thisMonth": "Ce mois",
+                "thisYear": "Cette année",
                 "custom": "Personnalisé"
             },
             "to": "à",
@@ -608,12 +607,70 @@
     "activity": {
         "title": "Journal d'activité",
         "table": {
-            "when": "Quand",
-            "action": "Action",
-            "entity": "Entité",
-            "details": "Détails"
+            "date": "Date",
+            "activity": "Activité",
+            "description": "Description"
         },
-        "empty": "Aucune activité pour le moment."
+        "empty": "Aucune activité pour le moment.",
+        "unknownUser": "Utilisateur inconnu",
+        "activityByUser": "{name} {action}.",
+        "badges": {
+            "created": "Créé",
+            "edited": "Modifié",
+            "confirmed": "Confirmé",
+            "deleted": "Supprimé",
+            "deactivated": "Désactivé",
+            "updated": "Mis à jour"
+        },
+        "actions": {
+            "transactionCreate": "a créé une transaction",
+            "transactionEdit": "a modifié une transaction",
+            "transactionDelete": "a supprimé une transaction",
+            "transactionConfirm": "a confirmé une transaction",
+            "accountCreate": "a créé un compte",
+            "accountEdit": "a modifié un compte",
+            "categoryCreate": "a créé une catégorie",
+            "categoryEdit": "a modifié une catégorie",
+            "categoryDeactivate": "a désactivé une catégorie",
+            "categoryDelete": "a supprimé une catégorie",
+            "walletCreate": "a créé un portefeuille",
+            "walletEdit": "a modifié un portefeuille",
+            "walletJoin": "a rejoint un portefeuille",
+            "walletDelete": "a supprimé un portefeuille",
+            "walletRestore": "a restauré un portefeuille",
+            "walletMemberUpdate": "a mis à jour un membre du portefeuille",
+            "generic": "a effectué une action"
+        },
+        "types": {
+            "income": "Revenu",
+            "expense": "Dépense",
+            "transfer": "Transfert",
+            "transaction": "Transaction"
+        },
+        "descriptions": {
+            "transactionOfDay": "{type} du jour {date}",
+            "transactionCreated": "{subject} : Montant {amount}.",
+            "transactionUpdated": "{subject} : Détails mis à jour.",
+            "transactionAmountChanged": "{subject} : Montant modifié de {from} à {to}.",
+            "transactionAmountUpdated": "{subject} : Montant mis à jour à {to}.",
+            "transactionDeleted": "{subject} : Le montant {amount} a été supprimé.",
+            "transactionDeletedSimple": "{subject} : La transaction a été supprimée.",
+            "transactionConfirmed": "{subject} : Le montant {amount} a été confirmé.",
+            "transactionConfirmedSimple": "{subject} : La transaction a été confirmée.",
+            "accountCreated": "Le compte a été créé.",
+            "accountEdited": "Les détails du compte ont été mis à jour.",
+            "categoryCreated": "La catégorie a été créée.",
+            "categoryEdited": "Les détails de la catégorie ont été mis à jour.",
+            "categoryDeactivated": "La catégorie a été désactivée.",
+            "categoryDeleted": "La catégorie a été supprimée.",
+            "walletCreated": "Le portefeuille a été créé.",
+            "walletEdited": "Les paramètres du portefeuille ont été mis à jour.",
+            "walletJoined": "L'utilisateur a rejoint un portefeuille.",
+            "walletDeleted": "Le portefeuille a été supprimé.",
+            "walletRestored": "Le portefeuille a été restauré.",
+            "walletMemberUpdated": "Les informations du membre ont été mises à jour.",
+            "generic": "Action enregistrée."
+        }
     },
     "wallets": {
         "title": "Portefeuilles",
@@ -809,6 +866,7 @@
         "expenses": "Dépenses",
         "category": "Catégorie",
         "total": "Total",
+        "averageMonthlyValue": "Moyenne",
         "noData": "Aucune donnée de {type} pour cette période",
         "reorder": "Réorganiser les catégories",
         "hideValues": "Masquer les valeurs",

@@ -43,7 +43,7 @@ type Props = {
 };
 
 const inputClass =
-  "w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
+  "w-full text-sm px-2.5 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
 
 export function ExpenseFormModal({
   open,
@@ -587,11 +587,11 @@ export function ExpenseFormModal({
         onClick={() => !loading && !loadingData && onClose()}
       />
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl"
+        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-6 pt-6 pb-2 border-b border-slate-200 dark:border-slate-700">
-          <h2 id="expense-modal-title" className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+        <div className="shrink-0 px-5 pt-5 pb-2 border-b border-slate-200 dark:border-slate-700">
+          <h2 id="expense-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
             {isEdit
               ? status === "pending"
                 ? t("editPendingExpense")
@@ -604,12 +604,12 @@ export function ExpenseFormModal({
           className="flex flex-col min-h-0 flex-1 overflow-y-auto"
         >
           {loadingData && (
-            <div className="px-6 py-4 text-sm text-slate-500">{t("loading")}</div>
+            <div className="px-5 py-3 text-xs text-slate-500">{t("loading")}</div>
           )}
-          <div className="p-6 flex flex-col sm:flex-row gap-6 sm:gap-8 items-stretch">
-            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-4">
+          <div className="p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-stretch">
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-3">
               <div>
-                <label className="block text-sm font-medium mb-1">{t("fields.date")}</label>
+                <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
                 <input
                   type="date"
                   value={date}
@@ -619,7 +619,7 @@ export function ExpenseFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t("fields.description")}</label>
+                <label className="block text-xs font-medium mb-1">{t("fields.description")}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -630,7 +630,7 @@ export function ExpenseFormModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t("fields.category")}</label>
+                <label className="block text-xs font-medium mb-1">{t("fields.category")}</label>
                 <div className="flex items-center gap-1.5">
                   <select
                     value={categoryId}
@@ -659,7 +659,7 @@ export function ExpenseFormModal({
               </div>
               {(subcategories.length > 0 || categoryId) && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-xs font-medium mb-1">
                     {subcategories.length > 0 ? t("fields.subcategoryRequired") : t("fields.subcategory")}
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -693,7 +693,7 @@ export function ExpenseFormModal({
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium mb-1">{t("fields.amount")}</label>
+                <label className="block text-xs font-medium mb-1">{t("fields.amount")}</label>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -706,7 +706,7 @@ export function ExpenseFormModal({
               </div>
               {!isSplitOnly && (
                 <div>
-                  <label className="block text-sm font-medium mb-1">{t("fields.accountFrom")}</label>
+                  <label className="block text-xs font-medium mb-1">{t("fields.accountFrom")}</label>
                   <select
                     value={accountFromId}
                     onChange={(e) => setAccountFromId(e.target.value)}
@@ -763,7 +763,7 @@ export function ExpenseFormModal({
               )}
               {isSplitWallet && (
                 <div>
-                  <label className="block text-sm font-medium mb-2">
+                  <label className="block text-xs font-medium mb-2">
                     {walletSharedOption !== null ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
                   </label>
                   <div className="space-y-2">
@@ -824,7 +824,7 @@ export function ExpenseFormModal({
                             if (!e.target.checked) setHoldBalance(true);
                           }}
                         />
-                        <span className="text-sm font-medium">{t("options.saveAsPending")}</span>
+                        <span className="text-xs font-medium">{t("options.saveAsPending")}</span>
                       </label>
                       {saveAsPending && (
                         <label className="flex items-center gap-2 cursor-pointer pl-6 -mt-1">
@@ -846,12 +846,12 @@ export function ExpenseFormModal({
                       checked={isRecurring}
                       onChange={(e) => setIsRecurring(e.target.checked)}
                     />
-                    <span className="text-sm font-medium">{t("options.makeRecurring")}</span>
+                    <span className="text-xs font-medium">{t("options.makeRecurring")}</span>
                   </label>
                   {isRecurring && (
                     <div className="space-y-3 pl-6">
                       <div>
-                        <label className="block text-sm font-medium mb-1">{t("options.schedule")}</label>
+                        <label className="block text-xs font-medium mb-1">{t("options.schedule")}</label>
                         <select
                           value={recurrenceType}
                           onChange={(e) => {
@@ -875,7 +875,7 @@ export function ExpenseFormModal({
                       </div>
                       {recurrenceType === "interval_days" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">{t("options.intervalDays")}</label>
+                          <label className="block text-xs font-medium mb-1">{t("options.intervalDays")}</label>
                           <input
                             type="number"
                             min={1}
@@ -888,7 +888,7 @@ export function ExpenseFormModal({
                       )}
                       {recurrenceType === "interval_months" && (
                         <div>
-                          <label className="block text-sm font-medium mb-1">{t("options.intervalMonths")}</label>
+                          <label className="block text-xs font-medium mb-1">{t("options.intervalMonths")}</label>
                           <input
                             type="number"
                             min={1}
@@ -902,7 +902,7 @@ export function ExpenseFormModal({
                       {(recurrenceType === "monthly_nth_work_day" ||
                         recurrenceType === "monthly_nth_last_work_day") && (
                           <div>
-                            <label className="block text-sm font-medium mb-1">
+                            <label className="block text-xs font-medium mb-1">
                               {recurrenceType === "monthly_nth_last_work_day"
                                 ? t("options.nthLastWorkDay")
                                 : t("options.nthWorkDay")}
@@ -923,7 +923,7 @@ export function ExpenseFormModal({
                 </div>
               )}
               {error && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               )}
             </div>
             <div className="w-full sm:min-w-0 sm:w-1/2 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
@@ -983,12 +983,12 @@ export function ExpenseFormModal({
               </div>
             </div>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="shrink-0 flex flex-wrap gap-2 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
             <button
               type="button"
               onClick={onClose}
               disabled={loading || loadingData}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {t("buttons.cancel")}
             </button>
@@ -998,7 +998,7 @@ export function ExpenseFormModal({
                   type="button"
                   onClick={() => setDialog("confirm")}
                   disabled={loading || loadingData}
-                  className="px-4 py-2 rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
+                  className="px-3 py-1.5 text-sm rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
                 >
                   {loading ? t("buttons.confirming") : t("buttons.confirm")}
                 </button>
@@ -1006,26 +1006,16 @@ export function ExpenseFormModal({
                   type="button"
                   onClick={() => setDialog("cancel")}
                   disabled={loading || loadingData}
-                  className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  className="px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
                   {loading ? t("buttons.cancelling") : t("buttons.cancelPending")}
                 </button>
               </>
             )}
-            {isEdit && status === "confirmed" && (
-              <button
-                type="button"
-                onClick={() => setDialog("delete")}
-                disabled={loading || loadingData}
-                className="px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-              >
-                {loading ? t("buttons.deleting") : t("buttons.delete")}
-              </button>
-            )}
             <button
               type="submit"
               disabled={loading || loadingData}
-              className="px-4 py-2 rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
               {loading ? t("buttons.saving") : t("buttons.save")}
             </button>

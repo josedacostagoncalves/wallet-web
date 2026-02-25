@@ -448,6 +448,27 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         return acc;
     }, {});
     const grandTotal = data.reduce((sum, row) => sum + row.total, 0);
+    const elapsedMonthCount = (() => {
+        if (!dateRange) return 1;
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        const now = new Date();
+        const effectiveEnd = now < end ? now : end;
+
+        if (effectiveEnd < start) return 0;
+
+        return (
+            (effectiveEnd.getFullYear() - start.getFullYear()) * 12 +
+            (effectiveEnd.getMonth() - start.getMonth()) +
+            1
+        );
+    })();
+    const monthWeight = 1.5;
+    const summaryWeight = 2;
+    const widthUnit = 70 / (dateColumns.length * monthWeight + summaryWeight * 2);
+    const monthlyColumnWidth = `${widthUnit * monthWeight}%`;
+    const summaryColumnWidth = `${widthUnit * summaryWeight}%`;
+    const categoryWidth = orderEditing ? "calc(30% - 40px)" : "30%";
 
     return (
         <div className="relative" onMouseLeave={() => setHoverPreview(null)}>
@@ -520,14 +541,23 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     </div>
                 </div>
             )}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
-                <table className="w-full text-xs bg-white dark:bg-slate-950 border-collapse">
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <table className="w-full table-fixed text-xs bg-white dark:bg-slate-950 border-collapse">
+                    <colgroup>
+                        {orderEditing && <col style={{ width: "40px" }} />}
+                        <col style={{ width: categoryWidth }} />
+                        {dateColumns.map((col) => (
+                            <col key={col.key} style={{ width: monthlyColumnWidth }} />
+                        ))}
+                        <col style={{ width: summaryColumnWidth }} />
+                        <col style={{ width: summaryColumnWidth }} />
+                    </colgroup>
                     <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 sticky top-0">
                         <tr>
                             {orderEditing && (
                                 <th className="px-3 py-3 w-10" />
                             )}
-                            <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300 min-w-[120px]">
+                            <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                                 {t("category")}
                             </th>
                             {dateColumns.map((col) => (
@@ -538,7 +568,10 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     {col.label}
                                 </th>
                             ))}
-                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300 min-w-[65px]">
+                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                                {t("averageMonthlyValue")}
+                            </th>
+                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
                                 {t("total")}
                             </th>
                         </tr>
@@ -629,6 +662,16 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 : "text-red-600 dark:text-red-400"
                                                 }`}
                                         >
+                                            {elapsedMonthCount > 0
+                                                ? (hideBalances ? MASK : formatCurrency(row.total / elapsedMonthCount))
+                                                : "—"}
+                                        </td>
+                                        <td
+                                            className={`px-3 py-3 text-right font-mono font-semibold ${type === "income"
+                                                ? "text-green-600 dark:text-green-400"
+                                                : "text-red-600 dark:text-red-400"
+                                                }`}
+                                        >
                                             {hideBalances ? MASK : formatCurrency(row.total)}
                                         </td>
                                     </tr>
@@ -689,6 +732,16 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                             : "text-red-600 dark:text-red-400"
                                                             }`}
                                                     >
+                                                        {elapsedMonthCount > 0
+                                                            ? (hideBalances ? MASK : formatCurrency(subcategory.total / elapsedMonthCount))
+                                                            : "—"}
+                                                    </td>
+                                                    <td
+                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${type === "income"
+                                                            ? "text-green-600 dark:text-green-400"
+                                                            : "text-red-600 dark:text-red-400"
+                                                            }`}
+                                                    >
                                                         {hideBalances ? MASK : formatCurrency(subcategory.total)}
                                                     </td>
                                                 </tr>
@@ -700,7 +753,8 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     </tbody>
                     <tfoot className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                         <tr>
-                            <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100 min-w-[120px]">
+                            {orderEditing && <td className="px-3 py-3" />}
+                            <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100">
                                 {t("total")}
                             </td>
                             {dateColumns.map((col) => {
@@ -719,6 +773,16 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     </td>
                                 );
                             })}
+                            <td
+                                className={`px-3 py-3 text-right font-mono font-bold ${type === "income"
+                                    ? "text-green-700 dark:text-green-300"
+                                    : "text-red-700 dark:text-red-300"
+                                    }`}
+                            >
+                                {elapsedMonthCount > 0
+                                    ? (hideBalances ? MASK : formatCurrency(grandTotal / elapsedMonthCount))
+                                    : "—"}
+                            </td>
                             <td
                                 className={`px-3 py-3 text-right font-mono font-bold ${type === "income"
                                     ? "text-green-700 dark:text-green-300"

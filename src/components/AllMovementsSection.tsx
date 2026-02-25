@@ -214,15 +214,15 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
   }, [filterOpen]);
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
       <button
         type="button"
         onClick={() => setExpanded((x) => !x)}
-        className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
+        className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         aria-expanded={expanded}
         aria-label={expanded ? t("collapse") : t("expand")}
       >
-        <span className="text-lg font-medium text-slate-800">{t("title")}</span>
+        <span className="text-lg font-medium text-slate-800 dark:text-slate-100">{t("title")}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -233,7 +233,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`text-slate-500 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
+          className={`text-slate-500 dark:text-slate-400 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
           aria-hidden
         >
           <path d="m9 18 6-6-6-6" />
@@ -242,7 +242,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
       {expanded && (
         <>
           {confirmed.length > 0 && (
-            <div className="px-4 py-2 border-t border-slate-200 bg-slate-50/80">
+            <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/30">
               <div className="flex gap-2 items-center">
                 <label htmlFor="all-movements-search" className="sr-only">
                   {t("searchLabel")}
@@ -254,7 +254,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder={t("searchPlaceholder")}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pl-9 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 pl-9 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500"
                     aria-label={t("searchLabel")}
                   />
                   <span
@@ -270,7 +270,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                     <button
                       type="button"
                       onClick={() => setSearch("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-600 dark:hover:text-slate-300"
                       aria-label={t("clearSearch")}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -286,8 +286,8 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                     type="button"
                     onClick={() => setFilterOpen((o) => !o)}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${hasActiveFilter
-                      ? "border-slate-500 bg-slate-100 text-slate-800"
-                      : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+                      ? "border-slate-500 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+                      : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                       }`}
                     aria-expanded={filterOpen}
                     aria-haspopup="dialog"
@@ -300,7 +300,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                     <button
                       type="button"
                       onClick={clearFilter}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 bg-white hover:bg-slate-50"
+                      className="rounded-lg border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800"
                     >
                       {t("clearAllFilters")}
                     </button>
@@ -314,13 +314,13 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                       ref={popoverRef}
                       role="dialog"
                       aria-label={t("filterLabel")}
-                      className="fixed z-[200] w-80 max-h-[min(400px,calc(100vh-32px))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-lg"
+                      className="fixed z-[200] w-80 max-h-[min(400px,calc(100vh-32px))] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-lg"
                       style={{ top: popoverStyle.top, left: popoverStyle.left }}
                     >
-                      <h4 className="text-sm font-semibold text-slate-800 mb-3">{t("filterDialog.title")}</h4>
+                      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">{t("filterDialog.title")}</h4>
                       <div className="space-y-4">
                         <div>
-                          <p className="text-xs font-medium text-slate-600 mb-2">{t("filterDialog.type")}</p>
+                          <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">{t("filterDialog.type")}</p>
                           <div className="flex flex-wrap gap-3">
                             {(["income", "expense", "transfer"] as const).map((type) => (
                               <label key={type} className="flex items-center gap-2 cursor-pointer">
@@ -330,35 +330,35 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                   onChange={() => toggleType(type)}
                                   className="rounded border-slate-300"
                                 />
-                                <span className="text-sm text-slate-700">{tType(type)}</span>
+                                <span className="text-sm text-slate-700 dark:text-slate-200">{tType(type)}</span>
                               </label>
                             ))}
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label htmlFor="filter-date-from" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.fromDate")}</label>
+                            <label htmlFor="filter-date-from" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{t("filterDialog.fromDate")}</label>
                             <input
                               id="filter-date-from"
                               type="date"
                               value={filter.dateFrom}
                               onChange={(e) => setFilter((f) => ({ ...f, dateFrom: e.target.value }))}
-                              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
                             />
                           </div>
                           <div>
-                            <label htmlFor="filter-date-to" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.toDate")}</label>
+                            <label htmlFor="filter-date-to" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{t("filterDialog.toDate")}</label>
                             <input
                               id="filter-date-to"
                               type="date"
                               value={filter.dateTo}
                               onChange={(e) => setFilter((f) => ({ ...f, dateTo: e.target.value }))}
-                              className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                              className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
                             />
                           </div>
                         </div>
                         <div>
-                          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.category")}</label>
+                          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{t("filterDialog.category")}</label>
                           <select
                             id="filter-category"
                             value={filter.category}
@@ -369,7 +369,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                 subcategory: "",
                               }))
                             }
-                            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
                           >
                             <option value="">{t("filterDialog.all")}</option>
                             {categories.map((c) => (
@@ -378,12 +378,12 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                           </select>
                         </div>
                         <div>
-                          <label htmlFor="filter-subcategory" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.subcategory")}</label>
+                          <label htmlFor="filter-subcategory" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">{t("filterDialog.subcategory")}</label>
                           <select
                             id="filter-subcategory"
                             value={filter.subcategory}
                             onChange={(e) => setFilter((f) => ({ ...f, subcategory: e.target.value }))}
-                            className="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
+                            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
                           >
                             <option value="">{t("filterDialog.all")}</option>
                             {subcategories.map((s) => (
@@ -392,7 +392,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                           </select>
                         </div>
                         <div>
-                          <p className="text-xs font-medium text-slate-600 mb-2">{t("filterDialog.amountRange")}</p>
+                          <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">{t("filterDialog.amountRange")}</p>
                           {(() => {
                             const cap = Math.max(1, maxAmount);
                             const minVal = filter.amountMin.trim()
@@ -410,8 +410,8 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                               <div className="space-y-4">
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
-                                    <label htmlFor="filter-amount-min" className="text-xs text-slate-600">{t("filterDialog.min")}</label>
-                                    <span className="text-xs font-mono text-slate-700">{fmt(safeMin)} €</span>
+                                    <label htmlFor="filter-amount-min" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.min")}</label>
+                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMin)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-min"
@@ -432,13 +432,13 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                         };
                                       });
                                     }}
-                                    className="w-full h-2 rounded-lg bg-slate-200 accent-slate-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-700 [&::-webkit-slider-thumb]:cursor-pointer"
+                                    className="w-full h-2 rounded-lg bg-slate-200 dark:bg-slate-700 accent-slate-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-700 [&::-webkit-slider-thumb]:cursor-pointer"
                                   />
                                 </div>
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
-                                    <label htmlFor="filter-amount-max" className="text-xs text-slate-600">{t("filterDialog.max")}</label>
-                                    <span className="text-xs font-mono text-slate-700">{fmt(safeMax)} €</span>
+                                    <label htmlFor="filter-amount-max" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.max")}</label>
+                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMax)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-max"
@@ -459,13 +459,13 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                         };
                                       });
                                     }}
-                                    className="w-full h-2 rounded-lg bg-slate-200 accent-slate-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-700 [&::-webkit-slider-thumb]:cursor-pointer"
+                                    className="w-full h-2 rounded-lg bg-slate-200 dark:bg-slate-700 accent-slate-700 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-700 [&::-webkit-slider-thumb]:cursor-pointer"
                                   />
                                 </div>
                               </div>
                             );
                           })()}
-                          <p className="text-xs text-slate-500 mt-1">{t("filterDialog.amountHint")}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{t("filterDialog.amountHint")}</p>
                         </div>
                       </div>
                     </div>,
@@ -474,7 +474,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
               </div>
             </div>
           )}
-          <div className="overflow-x-auto border-t border-slate-200">
+          <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
             {confirmed.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
                 {t.rich("empty", {
@@ -517,36 +517,36 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                 )}
               </div>
             ) : (
-              <table className="w-full text-xs min-w-[640px]">
-                <thead className="bg-slate-100">
+              <table className="w-full text-xs min-w-[640px] bg-white dark:bg-slate-950 border-collapse">
+                <thead className="bg-slate-100 dark:bg-slate-900/50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">{t("table.date")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">{t("table.description")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.date")}</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.categorySubcategory")}
                     </th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600">
+                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
                       {isSplitOnly ? t("table.paidBy") : t("table.fromTo")}
                     </th>
-                    <th className="px-4 py-2 text-right font-medium text-slate-600">{t("table.amount")}</th>
+                    <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
                     <th className="px-4 py-2 w-24" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {filtered.map((t) => (
                     <tr key={t.id} className={transactionRowBgClass(t.type)}>
                       <td className="px-4 py-2">
                         <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} />
                       </td>
-                      <td className="px-4 py-2 text-slate-600">{t.date}</td>
-                      <td className="px-4 py-2 text-slate-700 max-w-[180px] truncate">
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{t.date}</td>
+                      <td className="px-4 py-2 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
                         {t.description || "—"}
                       </td>
-                      <td className="px-4 py-2 text-slate-600">
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
                         {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
                       </td>
-                      <td className="px-4 py-2 text-slate-600">
+                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
                         {isSplitOnly ? (
                           t.paidByMemberName ? (
                             <div className="flex items-center gap-2 min-w-0">
@@ -560,7 +560,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                   </span>
                                 }
                               />
-                              <span className="truncate text-sm font-medium text-slate-700">
+                              <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
                                 {t.paidByMemberName}
                               </span>
                             </div>
@@ -573,10 +573,12 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                       </td>
                       <td
                         className={`px-4 py-2 text-right font-mono ${t.type === "income"
-                          ? "text-green-600"
+                          ? "text-green-600 dark:text-green-400"
                           : t.type === "expense"
-                            ? "text-red-600"
-                            : ""
+                            ? "text-red-600 dark:text-red-400"
+                            : t.type === "transfer"
+                              ? "text-blue-600 dark:text-blue-400"
+                              : ""
                           }`}
                       >
                         {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}

@@ -26,6 +26,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -44,14 +45,11 @@ type Account = {
 
 const MASK = "••••••";
 
-type RangeKey = "30d" | "3m" | "6m" | "1y" | "all" | "custom";
+type RangeKey = "thisMonth" | "thisYear" | "custom";
 
 const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
-  { key: "30d", labelKey: "last30Days" },
-  { key: "3m", labelKey: "last3Months" },
-  { key: "6m", labelKey: "last6Months" },
-  { key: "1y", labelKey: "lastYear" },
-  { key: "all", labelKey: "all" },
+  { key: "thisMonth", labelKey: "thisMonth" },
+  { key: "thisYear", labelKey: "thisYear" },
   { key: "custom", labelKey: "custom" },
 ];
 
@@ -129,14 +127,12 @@ export function AccountsSection({
   const [transactionsByAccount, setTransactionsByAccount] = useState<Record<string, TransactionsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [chartAccountId, setChartAccountId] = useState<string | null>(null);
-  const [chartRange, setChartRange] = useState<RangeKey>("30d");
+  const [chartRange, setChartRange] = useState<RangeKey>("thisMonth");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [balanceSeries, setBalanceSeries] = useState<AccountBalancePoint[]>([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
-  const [balanceOldest, setBalanceOldest] = useState<string | null>(null);
   const [modalTransactions, setModalTransactions] = useState<TransactionByAccountRow[]>([]);
-  const [modalTransactionsFull, setModalTransactionsFull] = useState(false);
   const [modalTransactionsLoading, setModalTransactionsLoading] = useState(false);
   const [showModalTransactions, setShowModalTransactions] = useState(false);
   const [modalFilter, setModalFilter] = useState<"day" | "period" | "all">("period");
@@ -153,28 +149,14 @@ export function AccountsSection({
     const fromDate = (d: Date) => d.toISOString().slice(0, 10);
 
     switch (chartRange) {
-      case "30d": {
-        const d = new Date(today);
-        d.setDate(d.getDate() - 29);
+      case "thisMonth": {
+        const d = new Date(today.getFullYear(), today.getMonth(), 1);
         return { from: fromDate(d), to: end };
       }
-      case "3m": {
-        const d = new Date(today);
-        d.setMonth(d.getMonth() - 3);
+      case "thisYear": {
+        const d = new Date(today.getFullYear(), 0, 1);
         return { from: fromDate(d), to: end };
       }
-      case "6m": {
-        const d = new Date(today);
-        d.setMonth(d.getMonth() - 6);
-        return { from: fromDate(d), to: end };
-      }
-      case "1y": {
-        const d = new Date(today);
-        d.setFullYear(d.getFullYear() - 1);
-        return { from: fromDate(d), to: end };
-      }
-      case "all":
-        return { from: undefined, to: undefined };
       case "custom":
         if (!customFrom || !customTo) return null;
         return { from: customFrom, to: customTo };
@@ -184,6 +166,67 @@ export function AccountsSection({
   }, [chartRange, customFrom, customTo]);
 
   const activePeriod = useMemo(() => resolveRangeDates(), [resolveRangeDates]);
+  const displaySeries = useMemo(() => {
+    if (balanceSeries.length === 0) return [];
+    if (!activePeriod?.from || !activePeriod?.to) return balanceSeries;
+
+    const sorted = [...balanceSeries].sort((a, b) => a.date.localeCompare(b.date));
+    const byDate = new Map(sorted.map((point) => [point.date, point.balance]));
+    const firstBalance = sorted[0]?.balance ?? 0;
+
+    let carryBalance = firstBalance;
+    for (const point of sorted) {
+      if (point.date <= activePeriod.from) {
+        carryBalance = point.balance;
+      } else {
+        break;
+      }
+    }
+
+    const result: AccountBalancePoint[] = [];
+    const cursor = new Date(activePeriod.from);
+    const end = new Date(activePeriod.to);
+
+    while (cursor <= end) {
+      const dateKey = cursor.toISOString().slice(0, 10);
+      const balance = byDate.get(dateKey);
+      if (balance != null) carryBalance = balance;
+      result.push({ date: dateKey, balance: carryBalance });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return result;
+  }, [balanceSeries, activePeriod]);
+  const xAxisMonthTicks = useMemo(() => {
+    if (displaySeries.length === 0) return [];
+    const monthStarts: string[] = [];
+    const seen = new Set<string>();
+
+    for (const point of displaySeries) {
+      const monthKey = point.date.slice(0, 7);
+      if (!seen.has(monthKey) && point.date.endsWith("-01")) {
+        seen.add(monthKey);
+        monthStarts.push(point.date);
+      }
+    }
+
+    // If the selected range starts mid-month, ensure first visible month is represented.
+    const firstDate = displaySeries[0]?.date;
+    if (firstDate) {
+      const firstMonthKey = firstDate.slice(0, 7);
+      if (!seen.has(firstMonthKey)) monthStarts.unshift(firstDate);
+    }
+
+    return monthStarts;
+  }, [displaySeries]);
+  const periodMinBalance = useMemo(() => {
+    if (displaySeries.length === 0) return null;
+    return displaySeries.reduce((min, p) => Math.min(min, p.balance), displaySeries[0].balance);
+  }, [displaySeries]);
+  const periodMaxBalance = useMemo(() => {
+    if (displaySeries.length === 0) return null;
+    return displaySeries.reduce((max, p) => Math.max(max, p.balance), displaySeries[0].balance);
+  }, [displaySeries]);
 
   useEffect(() => {
     if (orderEditing) setExpandedId(null);
@@ -199,7 +242,6 @@ export function AccountsSection({
         toDate,
       });
       setModalTransactions(list);
-      setModalTransactionsFull(full);
       setModalTransactionsLoading(false);
     },
     [currentWalletId]
@@ -208,16 +250,14 @@ export function AccountsSection({
   const openChart = useCallback(
     (accountId: string) => {
       setChartAccountId(accountId);
-      setChartRange("30d");
+      setChartRange("thisMonth");
       setCustomFrom("");
       setCustomTo("");
       setBalanceSeries([]);
-      setBalanceOldest(null);
-      setShowModalTransactions(false);
-      setModalFilter("period");
+      setShowModalTransactions(true);
+      setModalFilter("all");
       setSelectedDay(null);
       setModalTransactions([]);
-      setModalTransactionsFull(false);
       setModalTransactionsLoading(false);
     },
     []
@@ -261,10 +301,14 @@ export function AccountsSection({
     )
       .then((res) => {
         setBalanceSeries(res.series);
-        setBalanceOldest(res.oldestDate);
       })
       .finally(() => setBalanceLoading(false));
   }, [chartAccountId, currentWalletId, resolveRangeDates]);
+
+  useEffect(() => {
+    if (!chartAccountId || !showModalTransactions || modalFilter !== "all") return;
+    applyModalFilter("all", undefined, true);
+  }, [chartAccountId, showModalTransactions, modalFilter, applyModalFilter]);
 
   async function loadTransactions(accountId: string, limit: number) {
     if (!currentWalletId) return;
@@ -655,15 +699,13 @@ export function AccountsSection({
           >
             <div className="absolute inset-0 bg-slate-900/50" />
             <div
-              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6"
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold">{t("accountEvolution")}</h3>
-                  {chartAccount && (
-                    <p className="text-sm text-slate-500">{chartAccount.name}</p>
-                  )}
+                  <h3 className="text-lg font-semibold">{chartAccount?.name ?? t("accountEvolution")}</h3>
+                  <p className="text-sm text-slate-500">{t("accountEvolutionSubtitle")}</p>
                 </div>
                 <button
                   type="button"
@@ -681,7 +723,7 @@ export function AccountsSection({
                     type="button"
                     onClick={() => setChartRange(opt.key)}
                     className={
-                      "rounded-lg px-3 py-1.5 text-xs border " +
+                      "rounded-lg px-3 py-1.5 text-[11px] border " +
                       (chartRange === opt.key
                         ? "border-slate-700 bg-slate-900 text-white"
                         : "border-slate-200 dark:border-slate-700 text-slate-600")
@@ -696,21 +738,16 @@ export function AccountsSection({
                       type="date"
                       value={customFrom}
                       onChange={(e) => setCustomFrom(e.target.value)}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
                     />
-                    <span className="text-xs text-slate-500">{t("to")}</span>
+                    <span className="text-[11px] text-slate-500">{t("to")}</span>
                     <input
                       type="date"
                       value={customTo}
                       onChange={(e) => setCustomTo(e.target.value)}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-xs"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
                     />
                   </div>
-                )}
-                {chartRange === "all" && balanceOldest && (
-                  <span className="text-xs text-slate-500">
-                    {t("fromDate", { date: new Date(balanceOldest).toLocaleDateString("pt-PT") })}
-                  </span>
                 )}
               </div>
 
@@ -719,7 +756,7 @@ export function AccountsSection({
                   <div className="h-64 flex items-center justify-center text-slate-500">
                     {t("loadingEvolution")}
                   </div>
-                ) : balanceSeries.length === 0 ? (
+                ) : displaySeries.length === 0 ? (
                   <div className="h-64 flex items-center justify-center text-slate-500">
                     {t("noBalanceData")}
                   </div>
@@ -727,7 +764,8 @@ export function AccountsSection({
                   <div className="h-64 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
-                        data={balanceSeries}
+                        data={displaySeries}
+                        margin={{ top: 8, right: 22, left: 14, bottom: 4 }}
                         onClick={(e) => {
                           const label = (e as { activeLabel?: string } | null)?.activeLabel;
                           if (label) applyModalFilter("day", label, true);
@@ -736,19 +774,44 @@ export function AccountsSection({
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                           dataKey="date"
-                          tickFormatter={(v) => v.slice(5)}
+                          ticks={xAxisMonthTicks}
+                          tickFormatter={(v) =>
+                            new Date(`${String(v)}T00:00:00`).toLocaleDateString("pt-PT", {
+                              month: "2-digit",
+                              year: "2-digit",
+                            })
+                          }
+                          tick={{ fontSize: 10 }}
+                          interval={0}
+                          minTickGap={24}
+                          padding={{ left: 8, right: 8 }}
                         />
                         <YAxis
-                          tickFormatter={(v: number) => formatCurrency(v)}
+                          tickFormatter={(v: number) => `${formatCurrency(v)} €`}
                           width={80}
+                          tick={{ fontSize: 10 }}
                         />
+                        {periodMaxBalance != null && (
+                          <ReferenceLine
+                            y={periodMaxBalance}
+                            stroke="#16a34a"
+                            strokeDasharray="4 4"
+                            ifOverflow="extendDomain"
+                          />
+                        )}
+                        {periodMinBalance != null && (
+                          <ReferenceLine
+                            y={periodMinBalance}
+                            stroke="#dc2626"
+                            strokeDasharray="4 4"
+                            ifOverflow="extendDomain"
+                          />
+                        )}
                         <Tooltip
-                          formatter={(value: number) =>
-                            `${formatCurrency(value)} €`
-                          }
-                          labelFormatter={(label) =>
-                            new Date(label).toLocaleDateString("pt-PT")
-                          }
+                          formatter={(value: number) => [`${formatCurrency(value)} €`, t("balanceLabel")]}
+                          labelFormatter={(label) => String(label)}
+                          itemStyle={{ fontSize: 11 }}
+                          labelStyle={{ fontSize: 11 }}
                         />
                         <Line
                           type="monotone"
@@ -766,7 +829,7 @@ export function AccountsSection({
               <div className="mt-6 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-700">{t("transactions")}</h4>
+                    <h4 className="text-xs font-semibold text-slate-700">{t("transactions")}</h4>
                     {modalFilter === "day" && selectedDay && (
                       <p className="text-xs text-slate-500">
                         {t("day", { date: new Date(selectedDay).toLocaleDateString("pt-PT") })}
@@ -784,65 +847,29 @@ export function AccountsSection({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => applyModalFilter("period")}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      onClick={() => applyModalFilter("period", undefined, true)}
+                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                     >
                       {t("showPeriod")}
                     </button>
                     <button
                       type="button"
-                      onClick={() => applyModalFilter("all")}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      onClick={() => applyModalFilter("all", undefined, true)}
+                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
                     >
                       {t("showAll")}
                     </button>
-                    {showModalTransactions && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowModalTransactions(false);
-                          setSelectedDay(null);
-                          setModalFilter("period");
-                          setModalTransactions([]);
-                          setModalTransactionsFull(false);
-                          setModalTransactionsLoading(false);
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
-                      >
-                        {t("clearCollapse")}
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {!showModalTransactions ? (
-                  <p className="text-xs text-slate-500">
-                    {t("selectDayHint")}
-                  </p>
-                ) : modalTransactionsLoading ? (
+                {modalTransactionsLoading ? (
                   <p className="text-xs text-slate-500">{t("loading")}</p>
                 ) : modalTransactions.length === 0 ? (
                   <p className="text-xs text-slate-500">{t("noTransactionsForAccount")}</p>
                 ) : (
                   <>
-                    <div className="flex items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!chartAccountId) return;
-                          applyModalFilter(
-                            modalFilter,
-                            selectedDay ?? undefined,
-                            !modalTransactionsFull
-                          );
-                        }}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
-                      >
-                        {modalTransactionsFull ? t("showLess") : t("showAllTransactions")}
-                      </button>
-                    </div>
                     <div className="rounded-lg border border-slate-200 overflow-x-auto">
-                      <table className="w-full text-xs min-w-[640px]">
+                      <table className="w-full text-[11px] min-w-[640px]">
                         <thead className="bg-slate-100">
                           <tr>
                             <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">{t("type")}</th>

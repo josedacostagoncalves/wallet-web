@@ -11,8 +11,8 @@
 }
 
 .dark {
-  --background: #0f172a;
-  --foreground: #e2e8f0;
+  --background: #1b1d23;
+  --foreground: #e5e7eb;
 }
 
 body {
@@ -20,6 +20,86 @@ body {
   background: var(--background);
   font-family: var(--font-app);
   overflow-x: hidden;
+}
+
+/* Cursor-like neutral dark palette for slate utilities */
+.dark .dark\:bg-slate-950 {
+  background-color: #1f2127 !important;
+}
+.dark .dark\:bg-slate-900 {
+  background-color: #252830 !important;
+}
+.dark .dark\:bg-slate-900\/50 {
+  background-color: rgba(37, 40, 48, 0.7) !important;
+}
+.dark .dark\:bg-slate-950\/40 {
+  background-color: rgba(31, 33, 39, 0.7) !important;
+}
+.dark .dark\:bg-slate-900\/30 {
+  background-color: rgba(37, 40, 48, 0.5) !important;
+}
+.dark .dark\:bg-slate-900\/20 {
+  background-color: rgba(37, 40, 48, 0.35) !important;
+}
+.dark .dark\:bg-slate-900\/10 {
+  background-color: rgba(37, 40, 48, 0.2) !important;
+}
+.dark .dark\:bg-slate-800 {
+  background-color: #2a2e36 !important;
+}
+.dark .dark\:bg-slate-800\/50 {
+  background-color: rgba(42, 46, 54, 0.6) !important;
+}
+.dark .dark\:bg-slate-700\/50 {
+  background-color: rgba(56, 60, 70, 0.6) !important;
+}
+
+.dark .dark\:border-slate-900,
+.dark .dark\:border-slate-800 {
+  border-color: #3a3f4a !important;
+}
+.dark .dark\:border-slate-700 {
+  border-color: #4a505d !important;
+}
+.dark .dark\:border-slate-600 {
+  border-color: #5a6170 !important;
+}
+.dark .dark\:ring-slate-600 {
+  --tw-ring-color: #5a6170 !important;
+}
+.dark .dark\:ring-slate-700 {
+  --tw-ring-color: #4a505d !important;
+}
+
+.dark .dark\:text-slate-100 {
+  color: #f3f4f6 !important;
+}
+.dark .dark\:text-slate-200 {
+  color: #e5e7eb !important;
+}
+.dark .dark\:text-slate-300 {
+  color: #d1d5db !important;
+}
+.dark .dark\:text-slate-400 {
+  color: #9ca3af !important;
+}
+.dark .dark\:text-slate-500 {
+  color: #6b7280 !important;
+}
+
+.dark .dark\:divide-slate-900 > :not([hidden]) ~ :not([hidden]),
+.dark .dark\:divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #3a3f4a !important;
+}
+
+.dark .dark\:hover\:bg-slate-800:hover {
+  background-color: #2f333d !important;
+}
+.dark .dark\:hover\:bg-slate-700:hover {
+  background-color: #3a404b !important;
+}
+.dark .dark\:hover\:bg-slate-900:hover {
+  background-color: #2a2e36 !important;
 }
 
 @keyframes toast-in {

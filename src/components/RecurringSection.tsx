@@ -57,7 +57,7 @@ export function RecurringSection({ recurring }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
       {recurring.length === 0 ? (
         <div className="p-6 text-slate-500 text-xs">
           {t.rich("empty", {
@@ -73,11 +73,11 @@ export function RecurringSection({ recurring }: Props) {
           <button
             type="button"
             onClick={() => setExpanded((x) => !x)}
-            className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 hover:bg-slate-100 transition-colors"
+            className="w-full flex items-center justify-between gap-4 px-4 py-3 text-left bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-expanded={expanded}
             aria-label={expanded ? t("collapse") : t("expand")}
           >
-            <span className="text-lg font-medium text-slate-800">
+            <span className="text-lg font-medium text-slate-800 dark:text-slate-100">
               {t("title")}
             </span>
             <svg
@@ -90,40 +90,40 @@ export function RecurringSection({ recurring }: Props) {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`text-slate-500 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
+              className={`text-slate-500 dark:text-slate-400 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
               aria-hidden
             >
               <path d="m9 18 6-6-6-6" />
             </svg>
           </button>
           {expanded && (
-            <div className="overflow-x-auto border-t border-slate-200">
-              <table className="w-full text-xs min-w-[640px]">
-                <thead className="bg-slate-100">
+            <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
+              <table className="w-full text-xs min-w-[640px] bg-white dark:bg-slate-950 border-collapse">
+                <thead className="bg-slate-100 dark:bg-slate-900/50">
                   <tr>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600 w-10">{t("table.type")}</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.nextRun")}
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.description")}
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.categorySubcategory")}
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.fromTo")}
                     </th>
-                    <th className="px-4 py-3 text-right font-medium text-slate-600">
+                    <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
                       {t("table.amount")}
                     </th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">
+                    <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
                       {t("table.repeat")}
                     </th>
                     <th className="px-4 py-3 w-24" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                   {recurring.map((r) => (
                     <tr
                       key={r.id}
@@ -135,7 +135,7 @@ export function RecurringSection({ recurring }: Props) {
                           label={tType(r.type as "income" | "expense" | "transfer")}
                         />
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {r.isStopped ? (
                           <span
                             className="text-amber-700 dark:text-amber-400"
@@ -150,21 +150,23 @@ export function RecurringSection({ recurring }: Props) {
                           r.nextRunDate
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-700 max-w-[180px] truncate">
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
                         {r.description}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {formatCategorySubcategory(r.categoryLabel, r.subcategoryLabel)}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                         {formatFromTo(r.accountFromName, r.accountToName)}
                       </td>
                       <td
                         className={`px-4 py-3 text-right font-mono ${r.type === "income"
-                          ? "text-green-600"
+                          ? "text-green-600 dark:text-green-400"
                           : r.type === "expense"
-                            ? "text-red-600"
-                            : ""
+                            ? "text-red-600 dark:text-red-400"
+                            : r.type === "transfer"
+                              ? "text-blue-600 dark:text-blue-400"
+                              : ""
                           }`}
                       >
                         {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
@@ -174,14 +176,14 @@ export function RecurringSection({ recurring }: Props) {
                         })}{" "}
                         €
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{r.repeatLabel}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.repeatLabel}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1 whitespace-nowrap">
                           {r.isActive && (
                             <button
                               type="button"
                               onClick={() => openCopyRecurring(r.id)}
-                              className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                              className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                               title={t("actions.copy")}
                               aria-label={t("actions.copy")}
                             >
@@ -191,7 +193,7 @@ export function RecurringSection({ recurring }: Props) {
                           <button
                             type="button"
                             onClick={() => openEditRecurring(r.id)}
-                            className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors"
+                            className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                             title={t("actions.edit")}
                             aria-label={t("actions.edit")}
                           >
@@ -201,7 +203,7 @@ export function RecurringSection({ recurring }: Props) {
                             type="button"
                             onClick={() => setDeleteDialogId(r.id)}
                             disabled={!!deletingId}
-                            className="p-1.5 rounded text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 transition-colors"
+                            className="p-1.5 rounded text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 transition-colors"
                             title={t("actions.delete")}
                             aria-label={t("actions.delete")}
                           >
