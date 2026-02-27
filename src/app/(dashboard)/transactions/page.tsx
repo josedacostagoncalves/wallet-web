@@ -33,6 +33,8 @@ export default async function TransactionsPage() {
         account_from_id: string | null;
         account_to_id: string | null;
         paid_by_member_id: string | null;
+        received_by_member_id: string | null;
+        split_method_override: "equally" | "by_income" | "manual" | null;
         status?: string | null;
         hold_balance?: boolean;
         category: CategoryRow | null;
@@ -50,12 +52,15 @@ export default async function TransactionsPage() {
         accountToName: string;
         paidByMemberName: string | null;
         paidByMemberAvatar: string | null;
+        receivedByMemberName: string | null;
+        receivedByMemberAvatar: string | null;
+        splitMethod: "equally" | "by_income" | "manual" | null;
         status: "confirmed" | "pending";
     };
     let transactions: TxDisplay[] = [];
     let pending: PendingRow[] = [];
     let recurring: RecurringRow[] = [];
-    let isSplitOnlyWallet = false;
+    let isSplitWallet = false;
 
     if (currentWalletId) {
         await ensureRecurringGenerated(currentWalletId);
@@ -73,6 +78,7 @@ export default async function TransactionsPage() {
                 .from("transactions")
                 .select(
                     "id, date, type, amount, description, account_from_id, account_to_id, paid_by_member_id, status, hold_balance, " +
+                    "received_by_member_id, split_method_override, " +
                     "category:categories(name, parent_id)"
                 )
                 .eq("wallet_id", currentWalletId)
@@ -85,21 +91,34 @@ export default async function TransactionsPage() {
                 .order("next_run_date", { ascending: true }),
             supabase
                 .from("wallets")
-                .select("shared_option, split_type")
+                .select("shared_option, split_type, default_split_method")
                 .eq("id", currentWalletId)
                 .single(),
             supabase
                 .from("wallet_members")
-                .select("user_id, profiles(first_name, last_name, avatar_url, email)")
+                .select("user_id, member_name")
                 .eq("wallet_id", currentWalletId),
         ]);
         const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
         const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
+        const memberIds = (memberList ?? []).map((m: any) => m.user_id);
+        let profileRows: any[] = [];
+        if (memberIds.length) {
+            const profilesRes = await supabase
+                .from("profiles")
+                .select("id, first_name, last_name, avatar_url")
+                .in("id", memberIds);
+            profileRows = profilesRes.data ?? [];
+        }
+        const profilesById = new Map((profileRows ?? []).map((p: any) => [p.id, p]));
         const membersMap = new Map<string, { name: string; avatar_url: string | null }>();
         for (const m of (memberList ?? []) as any[]) {
-            const profile = m.profiles as any;
+            const profile = profilesById.get(m.user_id) as any;
             const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-            const displayName = fullName || profile?.email || m.user_id;
+            const displayName =
+                fullName ||
+                m.member_name ||
+                "Member";
             membersMap.set(m.user_id, { name: displayName, avatar_url: profile?.avatar_url ?? null });
         }
         let walletSharedOption = walletInfo?.shared_option ?? null;
@@ -110,8 +129,16 @@ export default async function TransactionsPage() {
             else if (normalized === "split_income") walletSharedOption = "track_and_split";
             else walletSharedOption = normalized;
         }
-        isSplitOnlyWallet =
-            walletSharedOption === "split" || (!walletSharedOption && !!walletInfo?.split_type);
+        isSplitWallet =
+            walletSharedOption === "split" ||
+            walletSharedOption === "track_and_split" ||
+            (!walletSharedOption && !!walletInfo?.split_type);
+        const defaultSplitMethod =
+            walletInfo?.default_split_method === "manual" || walletInfo?.default_split_method === "by_income"
+                ? walletInfo.default_split_method
+                : walletInfo?.split_type === "by_income"
+                    ? "by_income"
+                    : "equally";
         const rows = (tx ?? []) as unknown as TxRow[];
         const allTx = rows.map((t) => {
             const c = t.category;
@@ -122,6 +149,11 @@ export default async function TransactionsPage() {
             const accountFromName = t.account_from_id ? (accountsMap.get(t.account_from_id) ?? "—") : "—";
             const accountToName = t.account_to_id ? (accountsMap.get(t.account_to_id) ?? "—") : "—";
             const paidBy = t.paid_by_member_id ? membersMap.get(t.paid_by_member_id) : null;
+            const receivedBy = t.received_by_member_id ? membersMap.get(t.received_by_member_id) : null;
+            const splitMethod =
+                isSplitWallet && t.type === "expense"
+                    ? (t.split_method_override ?? defaultSplitMethod)
+                    : null;
             const status = (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending";
             return {
                 id: t.id,
@@ -136,6 +168,9 @@ export default async function TransactionsPage() {
                 accountToName,
                 paidByMemberName: paidBy?.name ?? null,
                 paidByMemberAvatar: paidBy?.avatar_url ?? null,
+                receivedByMemberName: receivedBy?.name ?? null,
+                receivedByMemberAvatar: receivedBy?.avatar_url ?? null,
+                splitMethod,
                 status,
                 holdBalance: !!t.hold_balance,
             };
@@ -216,7 +251,7 @@ export default async function TransactionsPage() {
 
     const confirmed = transactions
         .filter((t) => t.status === "confirmed")
-        .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, paidByMemberName, paidByMemberAvatar }) => ({
+        .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, paidByMemberName, paidByMemberAvatar, receivedByMemberName, receivedByMemberAvatar, splitMethod }) => ({
             id,
             date,
             type,
@@ -228,6 +263,9 @@ export default async function TransactionsPage() {
             accountToName,
             paidByMemberName,
             paidByMemberAvatar,
+            receivedByMemberName,
+            receivedByMemberAvatar,
+            splitMethod,
         }));
 
     return (
@@ -253,7 +291,7 @@ export default async function TransactionsPage() {
                         <PendingSection pending={pending} />
                     </section>
                     <section>
-                        <AllTransactionsSection confirmed={confirmed} isSplitOnly={isSplitOnlyWallet} />
+                        <AllTransactionsSection confirmed={confirmed} isSplitOnly={isSplitWallet} />
                     </section>
                 </div>
             )}

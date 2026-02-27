@@ -194,3 +194,192 @@ export async function deleteCategory(id: string): Promise<{ error?: string; deac
   });
   return {};
 }
+
+export type CopyableCategoryGroup = {
+  wallet_id: string;
+  wallet_name: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    children: Array<{ id: string; name: string }>;
+  }>;
+};
+
+export async function getCopyableCategories(
+  targetWalletId: string,
+  type: "income" | "expense" | "transfer"
+): Promise<{ groups?: CopyableCategoryGroup[]; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: memberships, error: memberErr } = await supabase
+    .from("wallet_members")
+    .select("wallet_id, wallets(name)")
+    .eq("user_id", user.id);
+  if (memberErr) return { error: memberErr.message };
+
+  const walletRows = (memberships ?? [])
+    .map((m: any) => ({
+      wallet_id: m.wallet_id as string,
+      wallet_name: (Array.isArray(m.wallets) ? m.wallets[0]?.name : m.wallets?.name) as string | undefined,
+    }))
+    .filter((w) => w.wallet_id && w.wallet_id !== targetWalletId);
+  if (walletRows.length === 0) return { groups: [] };
+
+  const walletIds = walletRows.map((w) => w.wallet_id);
+  const { data: cats, error: catErr } = await supabase
+    .from("categories")
+    .select("id, name, parent_id, wallet_id")
+    .in("wallet_id", walletIds)
+    .eq("type", type)
+    .order("name");
+  if (catErr) return { error: catErr.message };
+
+  const byWallet = new Map<string, { roots: Map<string, { id: string; name: string; children: Array<{ id: string; name: string }> }>; byId: Map<string, { id: string; name: string; parent_id: string | null }> }>();
+  for (const w of walletRows) {
+    byWallet.set(w.wallet_id, { roots: new Map(), byId: new Map() });
+  }
+  for (const c of (cats ?? []) as Array<{ id: string; name: string; parent_id: string | null; wallet_id: string }>) {
+    const slot = byWallet.get(c.wallet_id);
+    if (!slot) continue;
+    slot.byId.set(c.id, { id: c.id, name: c.name, parent_id: c.parent_id });
+    if (!c.parent_id) slot.roots.set(c.id, { id: c.id, name: c.name, children: [] });
+  }
+  for (const c of (cats ?? []) as Array<{ id: string; name: string; parent_id: string | null; wallet_id: string }>) {
+    if (!c.parent_id) continue;
+    const slot = byWallet.get(c.wallet_id);
+    const root = slot?.roots.get(c.parent_id);
+    if (root) root.children.push({ id: c.id, name: c.name });
+  }
+
+  const groups: CopyableCategoryGroup[] = walletRows
+    .map((w) => ({
+      wallet_id: w.wallet_id,
+      wallet_name: w.wallet_name ?? "Wallet",
+      categories: Array.from(byWallet.get(w.wallet_id)?.roots.values() ?? []),
+    }))
+    .filter((g) => g.categories.length > 0);
+  return { groups };
+}
+
+export async function copyCategoriesToWallet(params: {
+  target_wallet_id: string;
+  source_wallet_id: string;
+  type: "income" | "expense" | "transfer";
+  root_category_ids: string[];
+}): Promise<{ copiedCount?: number; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+  if (!params.root_category_ids.length) return { copiedCount: 0 };
+
+  const { data: memberships } = await supabase
+    .from("wallet_members")
+    .select("wallet_id")
+    .eq("user_id", user.id)
+    .in("wallet_id", [params.target_wallet_id, params.source_wallet_id]);
+  const allowed = new Set((memberships ?? []).map((m) => m.wallet_id));
+  if (!allowed.has(params.target_wallet_id) || !allowed.has(params.source_wallet_id)) {
+    return { error: "No access to one of the wallets" };
+  }
+
+  const { data: sourceRoots, error: sourceErr } = await supabase
+    .from("categories")
+    .select("id, name")
+    .eq("wallet_id", params.source_wallet_id)
+    .eq("type", params.type)
+    .is("parent_id", null)
+    .in("id", params.root_category_ids);
+  if (sourceErr) return { error: sourceErr.message };
+  if (!sourceRoots?.length) return { copiedCount: 0 };
+
+  const sourceRootIds = sourceRoots.map((r) => r.id);
+  const { data: sourceChildren } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("wallet_id", params.source_wallet_id)
+    .eq("type", params.type)
+    .in("parent_id", sourceRootIds);
+
+  const { data: targetExisting } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("wallet_id", params.target_wallet_id)
+    .eq("type", params.type);
+  const existingRoots = new Map(
+    (targetExisting ?? [])
+      .filter((c) => c.parent_id == null)
+      .map((c) => [c.name.trim().toLowerCase(), c.id])
+  );
+
+  let copiedCount = 0;
+  const rootMap = new Map<string, string>();
+  for (const root of sourceRoots) {
+    const key = root.name.trim().toLowerCase();
+    if (existingRoots.has(key)) {
+      rootMap.set(root.id, existingRoots.get(key)!);
+      continue;
+    }
+    const { data: inserted, error: insErr } = await supabase
+      .from("categories")
+      .insert({
+        wallet_id: params.target_wallet_id,
+        name: root.name,
+        type: params.type,
+        parent_id: null,
+        created_by: user.id,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    if (insErr) return { error: insErr.message };
+    copiedCount++;
+    if (inserted?.id) rootMap.set(root.id, inserted.id);
+  }
+
+  const existingChildrenByParent = new Map<string, Set<string>>();
+  for (const c of targetExisting ?? []) {
+    if (!c.parent_id) continue;
+    const key = c.parent_id;
+    if (!existingChildrenByParent.has(key)) existingChildrenByParent.set(key, new Set());
+    existingChildrenByParent.get(key)!.add(c.name.trim().toLowerCase());
+  }
+
+  for (const child of sourceChildren ?? []) {
+    const targetParentId = rootMap.get(child.parent_id);
+    if (!targetParentId) continue;
+    const key = child.name.trim().toLowerCase();
+    const set = existingChildrenByParent.get(targetParentId) ?? new Set<string>();
+    if (set.has(key)) continue;
+    const { error: childErr } = await supabase.from("categories").insert({
+      wallet_id: params.target_wallet_id,
+      name: child.name,
+      type: params.type,
+      parent_id: targetParentId,
+      created_by: user.id,
+      is_active: true,
+    });
+    if (childErr) return { error: childErr.message };
+    set.add(key);
+    existingChildrenByParent.set(targetParentId, set);
+    copiedCount++;
+  }
+
+  await logActivity(supabase, {
+    action: "category_copy",
+    entity_type: "category",
+    wallet_id: params.target_wallet_id,
+    payload: {
+      source_wallet_id: params.source_wallet_id,
+      type: params.type,
+      copied_count: copiedCount,
+    },
+  });
+
+  return { copiedCount };
+}

@@ -14,13 +14,11 @@ import {
 } from "@/app/actions/transactions";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
-import { AvatarImage } from "@/components/AvatarImage";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { UserIcon } from "@/components/UserIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
@@ -43,7 +41,7 @@ type Props = {
 };
 
 const inputClass =
-  "w-full text-sm px-2.5 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
+  "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
 
 export function ExpenseFormModal({
   open,
@@ -72,6 +70,12 @@ export function ExpenseFormModal({
   const [paidByMemberId, setPaidByMemberId] = useState<string | null>(null);
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
+  const [walletTrackingMode, setWalletTrackingMode] = useState<string | null>(null);
+  const [walletDefaultSplitMethod, setWalletDefaultSplitMethod] = useState<
+    "equally" | "by_income" | "manual"
+  >("equally");
+  const [splitMethod, setSplitMethod] = useState<"equally" | "by_income" | "manual">("equally");
+  const [manualSplits, setManualSplits] = useState<Array<{ member_id: string; percentage: string }>>([]);
   const [walletMembers, setWalletMembers] = useState<
     {
       id: string;
@@ -93,7 +97,7 @@ export function ExpenseFormModal({
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [status, setStatus] = useState<"confirmed" | "pending">("confirmed");
-  const [dialog, setDialog] = useState<"confirm" | "cancel" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   const [recentSimilar, setRecentSimilar] = useState<
     { id: string; date: string; description: string | null; amount: number }[]
   >([]);
@@ -162,6 +166,22 @@ export function ExpenseFormModal({
         setAmount(String(m.amount));
         setDescription(m.description ?? "");
         setAccountFromId(m.account_from_id ?? "");
+        setPaidByMemberId(m.paid_by_member_id ?? null);
+        if (
+          m.split_method_override === "equally" ||
+          m.split_method_override === "by_income" ||
+          m.split_method_override === "manual"
+        ) {
+          setSplitMethod(m.split_method_override);
+        }
+        if (Array.isArray(m.manual_splits)) {
+          setManualSplits(
+            m.manual_splits.map((s: { member_id: string; percentage: number }) => ({
+              member_id: s.member_id,
+              percentage: String(s.percentage),
+            }))
+          );
+        }
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
@@ -181,6 +201,22 @@ export function ExpenseFormModal({
         setAmount(String(m.amount));
         setDescription(m.description ?? "");
         setAccountFromId(m.account_from_id ?? "");
+        setPaidByMemberId(m.paid_by_member_id ?? null);
+        if (
+          m.split_method_override === "equally" ||
+          m.split_method_override === "by_income" ||
+          m.split_method_override === "manual"
+        ) {
+          setSplitMethod(m.split_method_override);
+        }
+        if (Array.isArray(m.manual_splits)) {
+          setManualSplits(
+            m.manual_splits.map((s: { member_id: string; percentage: number }) => ({
+              member_id: s.member_id,
+              percentage: String(s.percentage),
+            }))
+          );
+        }
         setCategoryId(catId);
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
@@ -302,6 +338,8 @@ export function ExpenseFormModal({
     setAmount("");
     setAccountFromId("");
     setPaidByMemberId(null);
+    setSplitMethod("equally");
+    setManualSplits([]);
     setSaveAsPending(false);
     setHoldBalance(true);
     setIsRecurring(false);
@@ -326,6 +364,13 @@ export function ExpenseFormModal({
         const members = result.members ?? [];
         setWalletSharedOption(sharedOption);
         setWalletSplitType(result.split_type ?? null);
+        setWalletTrackingMode(result.tracking_mode ?? null);
+        const defaultSplitMethod =
+          result.default_split_method === "by_income" || result.default_split_method === "manual"
+            ? result.default_split_method
+            : "equally";
+        setWalletDefaultSplitMethod(defaultSplitMethod);
+        if (!isEdit) setSplitMethod(defaultSplitMethod);
         setWalletMembers(members);
 
         // Auto-select current user for split wallet member field (only once per modal open)
@@ -357,7 +402,26 @@ export function ExpenseFormModal({
   }, [open, currentWalletId, onClose, loading, loadingData, resetForm, mode, transactionId, copyFromTransactionId, copyFromRecurringId]);
 
   const isSplitOnly = walletSharedOption === "split" || (!walletSharedOption && !!walletSplitType);
+  const isBasicTracking = walletTrackingMode === "basic" || (!walletTrackingMode && isSplitOnly);
+  const requiresAccounts = !isBasicTracking;
   const isSplitWallet = walletSharedOption === "track_and_split" || isSplitOnly;
+  const effectiveSplitMethod = isSplitWallet ? splitMethod : "equally";
+
+  useEffect(() => {
+    if (!isSplitWallet) return;
+    if (!manualSplits.length && walletMembers.length > 0) {
+      const equalShare = (100 / walletMembers.length).toFixed(2);
+      setManualSplits(walletMembers.map((m) => ({ member_id: m.user_id, percentage: equalShare })));
+      return;
+    }
+    const memberIds = new Set(walletMembers.map((m) => m.user_id));
+    setManualSplits((prev) => {
+      const byId = new Map(prev.map((s) => [s.member_id, s.percentage]));
+      return walletMembers
+        .filter((m) => memberIds.has(m.user_id))
+        .map((m) => ({ member_id: m.user_id, percentage: byId.get(m.user_id) ?? "0" }));
+    });
+  }, [isSplitWallet, walletMembers, manualSplits.length]);
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -368,10 +432,14 @@ export function ExpenseFormModal({
     if (!description.trim()) return t("validation.descriptionRequired");
 
     // Account required for 'track' and 'track_and_split' wallets, not for 'split'
-    if (!isSplitOnly && !accountFromId) return t("validation.accountFromRequired");
+    if (requiresAccounts && !accountFromId) return t("validation.accountFromRequired");
 
     // Member required for 'split' and 'track_and_split' wallets
     if (isSplitWallet && !paidByMemberId) return t("validation.memberPaidRequired");
+    if (isSplitWallet && effectiveSplitMethod === "manual") {
+      const total = manualSplits.reduce((sum, s) => sum + (parseFloat(s.percentage.replace(",", ".")) || 0), 0);
+      if (Math.abs(total - 100) > 0.01) return t("validation.manualSplitTotal");
+    }
 
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
@@ -431,6 +499,15 @@ export function ExpenseFormModal({
             : null,
         work_day_index: isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
         paid_by_member_id: paidByMemberId,
+        received_by_member_id: null,
+        split_method_override: isSplitWallet ? effectiveSplitMethod : null,
+        manual_splits:
+          isSplitWallet && effectiveSplitMethod === "manual"
+            ? manualSplits.map((s) => ({
+              member_id: s.member_id,
+              percentage: parseFloat(s.percentage.replace(",", ".")) || 0,
+            }))
+            : [],
       });
       setLoading(false);
       if (res.error) {
@@ -467,6 +544,15 @@ export function ExpenseFormModal({
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
       paid_by_member_id: paidByMemberId,
+      received_by_member_id: null,
+      split_method_override: isSplitWallet ? effectiveSplitMethod : null,
+      manual_splits:
+        isSplitWallet && effectiveSplitMethod === "manual"
+          ? manualSplits.map((s) => ({
+            member_id: s.member_id,
+            percentage: parseFloat(s.percentage.replace(",", ".")) || 0,
+          }))
+          : [],
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
     });
@@ -504,6 +590,16 @@ export function ExpenseFormModal({
       account_to_id: null,
       description: description.trim(),
       is_recurring: false,
+      paid_by_member_id: paidByMemberId,
+      received_by_member_id: null,
+      split_method_override: isSplitWallet ? effectiveSplitMethod : null,
+      manual_splits:
+        isSplitWallet && effectiveSplitMethod === "manual"
+          ? manualSplits.map((s) => ({
+            member_id: s.member_id,
+            percentage: parseFloat(s.percentage.replace(",", ".")) || 0,
+          }))
+          : [],
     });
     if (up.error) {
       setError(up.error);
@@ -587,11 +683,11 @@ export function ExpenseFormModal({
         onClick={() => !loading && !loadingData && onClose()}
       />
       <div
-        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-sm"
+        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-xs"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-5 pt-5 pb-2 border-b border-slate-200 dark:border-slate-700">
-          <h2 id="expense-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <div className="shrink-0 px-4 pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+          <h2 id="expense-modal-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {isEdit
               ? status === "pending"
                 ? t("editPendingExpense")
@@ -606,8 +702,8 @@ export function ExpenseFormModal({
           {loadingData && (
             <div className="px-5 py-3 text-xs text-slate-500">{t("loading")}</div>
           )}
-          <div className="p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-stretch">
-            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-3">
+          <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
                 <input
@@ -704,13 +800,13 @@ export function ExpenseFormModal({
                   className={inputClass}
                 />
               </div>
-              {!isSplitOnly && (
+              {requiresAccounts && (
                 <div>
                   <label className="block text-xs font-medium mb-1">{t("fields.accountFrom")}</label>
                   <select
                     value={accountFromId}
                     onChange={(e) => setAccountFromId(e.target.value)}
-                    required={!isSplitOnly}
+                    required={requiresAccounts}
                     className={inputClass}
                   >
                     <option value="">{t("fields.selectAccount")}</option>
@@ -766,49 +862,73 @@ export function ExpenseFormModal({
                   <label className="block text-xs font-medium mb-2">
                     {walletSharedOption !== null ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
                   </label>
-                  <div className="space-y-2">
-                    {walletMembers.length === 0 && (
-                      <div className="text-xs text-slate-500">{t("fields.noMembers")}</div>
-                    )}
-                    {walletMembers.map((m) => {
-                      const isSelected = paidByMemberId === m.user_id;
-                      return (
-                        <button
-                          key={m.id}
-                          type="button"
-                          onClick={() => setPaidByMemberId(m.user_id)}
-                          className={
-                            "w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-colors " +
-                            (isSelected
-                              ? "border-slate-800 bg-slate-800/5"
-                              : "border-slate-300 hover:border-slate-400 dark:border-slate-600 dark:hover:border-slate-500")
-                          }
-                        >
-                          <AvatarImage
-                            src={m.avatar_url}
-                            size={28}
-                            className="h-7 w-7 rounded-full object-cover"
-                            fallback={
-                              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                                <UserIcon className="w-4 h-4" />
-                              </span>
-                            }
-                          />
-                          <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{m.display_name}</div>
+                  <select
+                    value={paidByMemberId ?? ""}
+                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
+                    required={isSplitWallet}
+                    className={inputClass}
+                  >
+                    <option value="">Select user</option>
+                    {walletMembers.map((m) => (
+                      <option key={m.id} value={m.user_id}>
+                        {m.display_name}
+                      </option>
+                    ))}
+                  </select>
+                  {walletMembers.length === 0 && (
+                    <div className="text-xs text-slate-500 mt-1">{t("fields.noMembers")}</div>
+                  )}
+                </div>
+              )}
+              {isSplitWallet && (
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 space-y-2">
+                  <label className="block text-xs font-medium">{t("fields.splitMethod")}</label>
+                  <select
+                    value={splitMethod}
+                    onChange={(e) => setSplitMethod(e.target.value as "equally" | "by_income" | "manual")}
+                    className={inputClass}
+                  >
+                    <option value="equally">
+                      {t("fields.splitMethodEqually")}
+                    </option>
+                    <option value="by_income">
+                      {t("fields.splitMethodByIncome")}
+                    </option>
+                    <option value="manual">
+                      {t("fields.splitMethodManual")}
+                    </option>
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    {t("fields.defaultSplitMethodHint", { method: walletDefaultSplitMethod })}
+                  </p>
+                  {effectiveSplitMethod === "manual" && (
+                    <div className="space-y-2">
+                      {walletMembers.map((m) => {
+                        const current = manualSplits.find((s) => s.member_id === m.user_id)?.percentage ?? "0";
+                        return (
+                          <div key={m.user_id} className="flex items-center gap-2">
+                            <div className="flex-1 truncate">{m.display_name}</div>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={current}
+                              onChange={(e) =>
+                                setManualSplits((prev) =>
+                                  prev.map((s) =>
+                                    s.member_id === m.user_id ? { ...s, percentage: e.target.value } : s
+                                  )
+                                )
+                              }
+                              className="w-24 text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                            />
+                            <span>%</span>
                           </div>
-                        </button>
-                      );
-                    })}
-                    <input
-                      type="hidden"
-                      required={isSplitWallet}
-                      value={paidByMemberId ?? ""}
-                      onChange={() => {
-                        return;
-                      }}
-                    />
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
               {(!isEdit || status !== "pending") && (
@@ -936,7 +1056,7 @@ export function ExpenseFormModal({
                       : t("similar.expensesCategory")}
                 </h3>
               </div>
-              <div className="p-4 min-h-[140px] max-h-[480px] overflow-y-auto">
+              <div className="p-3 min-h-[120px] max-h-[360px] overflow-y-auto">
                 {loadingSimilar ? (
                   <p className="text-xs text-slate-500">{t("similar.loading")}</p>
                 ) : recentSimilar.length === 0 ? (
@@ -983,12 +1103,12 @@ export function ExpenseFormModal({
               </div>
             </div>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-2 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="shrink-0 flex flex-wrap gap-2 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
             <button
               type="button"
               onClick={onClose}
               disabled={loading || loadingData}
-              className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {t("buttons.cancel")}
             </button>
@@ -998,7 +1118,7 @@ export function ExpenseFormModal({
                   type="button"
                   onClick={() => setDialog("confirm")}
                   disabled={loading || loadingData}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
                 >
                   {loading ? t("buttons.confirming") : t("buttons.confirm")}
                 </button>
@@ -1006,7 +1126,7 @@ export function ExpenseFormModal({
                   type="button"
                   onClick={() => setDialog("cancel")}
                   disabled={loading || loadingData}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
                   {loading ? t("buttons.cancelling") : t("buttons.cancelPending")}
                 </button>
@@ -1015,7 +1135,7 @@ export function ExpenseFormModal({
             <button
               type="submit"
               disabled={loading || loadingData}
-              className="px-3 py-1.5 text-sm rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
               {loading ? t("buttons.saving") : t("buttons.save")}
             </button>
@@ -1041,17 +1161,6 @@ export function ExpenseFormModal({
         title={t("confirmDialogs.cancelTitle")}
         message={t("confirmDialogs.cancelMessage")}
         confirmLabel={t("confirmDialogs.cancelButton")}
-        cancelLabel={t("confirmDialogs.keepButton")}
-        variant="cancel"
-        loading={loading}
-      />
-      <ConfirmDialog
-        open={dialog === "delete"}
-        onClose={() => setDialog(null)}
-        onConfirm={handleDelete}
-        title={t("confirmDialogs.deleteTitle")}
-        message={t("confirmDialogs.deleteMessage")}
-        confirmLabel={t("confirmDialogs.deleteButton")}
         cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}

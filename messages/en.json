@@ -28,6 +28,7 @@
         "statements": "Balance sheet",
         "wallets": "Wallets",
         "accounts": "Accounts",
+        "users": "Users",
         "categories": "Categories",
         "activityLog": "Activity log",
         "settings": "Settings",
@@ -289,6 +290,7 @@
         "noAccounts": "No accounts yet",
         "page": {
             "noWallet": "Select or create a wallet first.",
+            "fullTrackingOnly": "This wallet uses Basic tracking. Accounts are available only for Full tracking wallets.",
             "addOne": "Add one",
             "table": {
                 "initial": "Initial",
@@ -329,6 +331,32 @@
             "initialBalanceLabel": "Initial balance (€) *",
             "initialBalanceHint": "Changing this will adjust the current balance by the same difference.",
             "activeLabel": "Active (shown in transaction form)"
+        }
+    },
+    "users": {
+        "title": "Users",
+        "addUser": "Add user",
+        "noUsers": "No users yet.",
+        "roles": {
+            "owner": "Owner",
+            "member": "Member"
+        },
+        "table": {
+            "name": "Name",
+            "role": "Role",
+            "balance": "Balance",
+            "actions": "Actions"
+        },
+        "page": {
+            "noWallet": "Select or create a wallet first.",
+            "onlySplitWallets": "Users are available only for shared split wallets.",
+            "namePlaceholder": "e.g. John Doe",
+            "adding": "Adding…",
+            "removing": "Removing…"
+        },
+        "toasts": {
+            "added": "User added.",
+            "removed": "User removed."
         }
     },
     "transactions": {
@@ -494,6 +522,11 @@
                 "paidByMemberRequired": "Paid by member *",
                 "receivedByMember": "Received by member",
                 "receivedByMemberRequired": "Received by member *",
+                "splitMethod": "Split method",
+                "splitMethodEqually": "Equally by all members",
+                "splitMethodByIncome": "Depending on incomes",
+                "splitMethodManual": "Manually defined percentages",
+                "defaultSplitMethodHint": "Wallet default split method: {method}",
                 "notSpecified": "Not specified",
                 "noMembers": "No members found."
             },
@@ -563,6 +596,7 @@
                 "accountsDifferent": "From and To accounts must be different",
                 "memberPaidRequired": "Please select a member who paid",
                 "memberReceivedRequired": "Please select a member who received",
+                "manualSplitTotal": "Manual split percentages must sum 100%",
                 "intervalMonthsValid": "Please enter a valid number of months (1 or more)",
                 "intervalDaysValid": "Please enter a valid number of days (1 or more)",
                 "workDayIndexValid": "Work day index must be 1–31"
@@ -724,11 +758,49 @@
                     "membersIncome": "Members Income",
                     "membersIncomeHint": "Set monthly income for each member to calculate expense splits as a percentage.",
                     "unknownMember": "Unknown"
+                },
+                "members": {
+                    "title": "Members",
+                    "hint": "Owner can add or remove members in split wallets. Balance shows each member settlement.",
+                    "namePlaceholder": "Member name",
+                    "add": "Add user",
+                    "adding": "Adding…",
+                    "remove": "Remove",
+                    "removing": "Removing…",
+                    "owner": "Owner",
+                    "member": "Member"
                 }
             },
             "new": {
                 "nameLabel": "Name *",
                 "namePlaceholder": "e.g. Family, Personal",
+                "walletOwnership": "Wallet type",
+                "ownership": {
+                    "personal": "Personal",
+                    "personalDesc": "Only you use this wallet.",
+                    "shared": "Shared",
+                    "sharedDesc": "Multiple members use this wallet."
+                },
+                "trackingMode": "Tracking mode",
+                "tracking": {
+                    "full": "Full tracking",
+                    "fullDesc": "Transactions + account balances. Accounts are required for transactions.",
+                    "basic": "Basic tracking",
+                    "basicDesc": "Transactions history and statements only. No account balances control."
+                },
+                "sharedSplitMode": "Shared transactions mode",
+                "split": {
+                    "none": "No splitting",
+                    "noneDesc": "Transactions are not split between members.",
+                    "enabled": "Splitting",
+                    "enabledDesc": "Expense/Income can be assigned to members and split."
+                },
+                "defaultSplitMethod": "Default split method",
+                "splitMethod": {
+                    "equally": "Equally",
+                    "byIncome": "By income",
+                    "manual": "Manual"
+                },
                 "sharedLabel": "Shared (e.g. with your spouse)",
                 "sharedHint": "You can add members to a shared wallet later from the wallet settings.",
                 "sharedType": "Shared wallet type",
@@ -781,6 +853,8 @@
             "createFailed": "Create failed",
             "updated": "Wallet updated.",
             "memberIncomeUpdated": "Member income updated.",
+            "memberAdded": "Member added.",
+            "memberRemoved": "Member removed.",
             "permanentlyDeleted": "Wallet permanently deleted.",
             "deletedUndo": "Wallet deleted. You can undo within 30 days.",
             "restored": "Wallet \"{name}\" restored."
@@ -793,7 +867,12 @@
         "noCategories": "No categories yet",
         "page": {
             "inactive": "inactive",
-            "deactivate": "Deactivate"
+            "deactivate": "Deactivate",
+            "copyFromWallet": "Copy from another wallet",
+            "copyTitle": "Copy categories",
+            "noCopySources": "No categories available in your other wallets.",
+            "sourceWallet": "Source wallet",
+            "copySelected": "Copy selected"
         },
         "modal": {
             "titleEdit": "Edit category",
@@ -862,8 +941,14 @@
         "title": "Balance sheet",
         "description": "View income and expenses organized by category",
         "year": "Year",
+        "view": "View",
+        "viewModes": {
+            "incomeExpenses": "Incomes and Expenses",
+            "savingsInvestments": "Savings and Investments"
+        },
         "income": "Income",
         "expenses": "Expenses",
+        "savingsAndInvestments": "Savings and Investments",
         "category": "Category",
         "total": "Total",
         "averageMonthlyValue": "Average",

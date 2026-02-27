@@ -28,6 +28,7 @@
         "statements": "Bilan",
         "wallets": "Portefeuilles",
         "accounts": "Comptes",
+        "users": "Utilisateurs",
         "categories": "Catégories",
         "activityLog": "Journal d'activité",
         "settings": "Paramètres",
@@ -289,6 +290,7 @@
         "noAccounts": "Pas encore de comptes",
         "page": {
             "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
+            "fullTrackingOnly": "Ce portefeuille utilise le mode Basique. Les comptes sont disponibles uniquement en mode Complet.",
             "addOne": "En ajouter un",
             "table": {
                 "initial": "Initial",
@@ -329,6 +331,32 @@
             "initialBalanceLabel": "Solde initial (€) *",
             "initialBalanceHint": "Le modifier ajustera le solde actuel de la même différence.",
             "activeLabel": "Actif (affiché dans le formulaire de transaction)"
+        }
+    },
+    "users": {
+        "title": "Utilisateurs",
+        "addUser": "Ajouter un utilisateur",
+        "noUsers": "Aucun utilisateur pour le moment.",
+        "roles": {
+            "owner": "Propriétaire",
+            "member": "Membre"
+        },
+        "table": {
+            "name": "Nom",
+            "role": "Rôle",
+            "balance": "Solde",
+            "actions": "Actions"
+        },
+        "page": {
+            "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
+            "onlySplitWallets": "Utilisateurs disponibles uniquement pour les portefeuilles partagés avec répartition.",
+            "namePlaceholder": "ex.: Jean Dupont",
+            "adding": "Ajout…",
+            "removing": "Retrait…"
+        },
+        "toasts": {
+            "added": "Utilisateur ajouté.",
+            "removed": "Utilisateur supprimé."
         }
     },
     "transactions": {
@@ -494,6 +522,11 @@
                 "paidByMemberRequired": "Payé par membre *",
                 "receivedByMember": "Reçu par membre",
                 "receivedByMemberRequired": "Reçu par membre *",
+                "splitMethod": "Méthode de répartition",
+                "splitMethodEqually": "Également entre tous les membres",
+                "splitMethodByIncome": "Selon les revenus",
+                "splitMethodManual": "Pourcentages définis manuellement",
+                "defaultSplitMethodHint": "Méthode par défaut du portefeuille: {method}",
                 "notSpecified": "Non spécifié",
                 "noMembers": "Aucun membre trouvé."
             },
@@ -563,6 +596,7 @@
                 "accountsDifferent": "Les comptes De et À doivent être différents",
                 "memberPaidRequired": "Veuillez sélectionner le membre qui a payé",
                 "memberReceivedRequired": "Veuillez sélectionner le membre qui a reçu",
+                "manualSplitTotal": "Les pourcentages manuels doivent totaliser 100%",
                 "intervalMonthsValid": "Veuillez saisir un nombre valide de mois (1 ou plus)",
                 "intervalDaysValid": "Veuillez saisir un nombre valide de jours (1 ou plus)",
                 "workDayIndexValid": "L'indice du jour ouvrable doit être 1–31"
@@ -724,11 +758,49 @@
                     "membersIncome": "Revenus des membres",
                     "membersIncomeHint": "Définissez le revenu mensuel de chaque membre pour calculer la répartition en pourcentage.",
                     "unknownMember": "Inconnu"
+                },
+                "members": {
+                    "title": "Membres",
+                    "hint": "Le propriétaire peut ajouter ou retirer des membres dans les portefeuilles avec répartition. Le solde montre l'ajustement de chaque membre.",
+                    "namePlaceholder": "Nom du membre",
+                    "add": "Ajouter un utilisateur",
+                    "adding": "Ajout…",
+                    "remove": "Retirer",
+                    "removing": "Retrait…",
+                    "owner": "Propriétaire",
+                    "member": "Membre"
                 }
             },
             "new": {
                 "nameLabel": "Nom *",
                 "namePlaceholder": "ex.: Famille, Personnel",
+                "walletOwnership": "Type de portefeuille",
+                "ownership": {
+                    "personal": "Personnel",
+                    "personalDesc": "Vous seul utilisez ce portefeuille.",
+                    "shared": "Partagé",
+                    "sharedDesc": "Plusieurs membres utilisent ce portefeuille."
+                },
+                "trackingMode": "Mode de suivi",
+                "tracking": {
+                    "full": "Complet",
+                    "fullDesc": "Transactions + soldes des comptes. Comptes obligatoires.",
+                    "basic": "Basique",
+                    "basicDesc": "Historique des transactions et relevés uniquement. Sans gestion de soldes."
+                },
+                "sharedSplitMode": "Mode des transactions partagées",
+                "split": {
+                    "none": "Sans répartition",
+                    "noneDesc": "Les transactions ne sont pas réparties entre membres.",
+                    "enabled": "Avec répartition",
+                    "enabledDesc": "Dépense/Revenu peut être attribué et réparti entre membres."
+                },
+                "defaultSplitMethod": "Méthode de répartition par défaut",
+                "splitMethod": {
+                    "equally": "Également",
+                    "byIncome": "Selon revenus",
+                    "manual": "Manuel"
+                },
                 "sharedLabel": "Partagé (ex. avec votre conjoint)",
                 "sharedHint": "Vous pouvez ajouter des membres à un portefeuille partagé plus tard depuis les paramètres du portefeuille.",
                 "sharedType": "Type de portefeuille partagé",
@@ -781,6 +853,8 @@
             "createFailed": "Échec de la création",
             "updated": "Portefeuille mis à jour.",
             "memberIncomeUpdated": "Revenu du membre mis à jour.",
+            "memberAdded": "Membre ajouté.",
+            "memberRemoved": "Membre retiré.",
             "permanentlyDeleted": "Portefeuille supprimé définitivement.",
             "deletedUndo": "Portefeuille supprimé. Vous pouvez annuler dans les 30 jours.",
             "restored": "Portefeuille \"{name}\" restauré."
@@ -793,7 +867,12 @@
         "noCategories": "Pas encore de catégories",
         "page": {
             "inactive": "inactif",
-            "deactivate": "Désactiver"
+            "deactivate": "Désactiver",
+            "copyFromWallet": "Copier depuis un autre portefeuille",
+            "copyTitle": "Copier des catégories",
+            "noCopySources": "Aucune catégorie disponible dans vos autres portefeuilles.",
+            "sourceWallet": "Portefeuille source",
+            "copySelected": "Copier la sélection"
         },
         "modal": {
             "titleEdit": "Modifier la catégorie",
@@ -862,8 +941,14 @@
         "title": "Bilan",
         "description": "Voir les revenus et les dépenses organisés par catégorie",
         "year": "Année",
+        "view": "Vue",
+        "viewModes": {
+            "incomeExpenses": "Revenus et Dépenses",
+            "savingsInvestments": "Épargne et Investissements"
+        },
         "income": "Revenus",
         "expenses": "Dépenses",
+        "savingsAndInvestments": "Épargne et Investissements",
         "category": "Catégorie",
         "total": "Total",
         "averageMonthlyValue": "Moyenne",

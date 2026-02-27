@@ -254,7 +254,7 @@ export async function saveAccountsTableDisplayOptions(
 
 /* ---------- Statements table order ---------- */
 
-export type StatementsTableOrderKey = "income" | "expense";
+export type StatementsTableOrderKey = "income" | "expense" | "savings_investments";
 
 function statementsOrderKey(tableKey: StatementsTableOrderKey) {
   return `${STATEMENTS_ORDER_PREFIX}${tableKey}`;

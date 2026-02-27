@@ -11,10 +11,15 @@ import {
 async function getWalletShareFlags(
   supabase: Awaited<ReturnType<typeof createClient>>,
   walletId: string
-): Promise<{ isSplitOnly: boolean }> {
+): Promise<{
+  isSplitOnly: boolean;
+  isBasicTracking: boolean;
+  isSplitWallet: boolean;
+  defaultSplitMethod: "equally" | "by_income" | "manual";
+}> {
   const { data: wallet } = await supabase
     .from("wallets")
-    .select("shared_option, split_type")
+    .select("shared_option, split_type, tracking_mode, split_mode, default_split_method")
     .eq("id", walletId)
     .single();
 
@@ -29,7 +34,67 @@ async function getWalletShareFlags(
 
   const hasSplitType = !!wallet?.split_type;
   const isSplitOnly = sharedOption === "split" || (!sharedOption && hasSplitType);
-  return { isSplitOnly };
+  const isBasicTracking = wallet?.tracking_mode === "basic" || (!wallet?.tracking_mode && isSplitOnly);
+  const isSplitWallet =
+    wallet?.split_mode === "split" ||
+    sharedOption === "split" ||
+    sharedOption === "track_and_split" ||
+    hasSplitType;
+  const defaultSplitMethod =
+    (wallet?.default_split_method as "equally" | "by_income" | "manual" | null) ??
+    (wallet?.split_type === "by_income" ? "by_income" : "equally");
+  return { isSplitOnly, isBasicTracking, isSplitWallet, defaultSplitMethod };
+}
+
+type SplitMethod = "equally" | "by_income" | "manual";
+
+type ManualSplitInput = {
+  member_id: string;
+  percentage: number;
+};
+
+function normalizeSplitMethod(value: string | null | undefined): SplitMethod | null {
+  if (value === "equally" || value === "by_income" || value === "manual") return value;
+  return null;
+}
+
+function validateManualSplits(splits: ManualSplitInput[]): { error?: string } {
+  if (!splits.length) return { error: "Manual split requires percentages per member" };
+  const normalized = splits.map((s) => ({
+    member_id: s.member_id,
+    percentage: Number(s.percentage),
+  }));
+  if (normalized.some((s) => !s.member_id || Number.isNaN(s.percentage) || s.percentage < 0 || s.percentage > 100)) {
+    return { error: "Manual split percentages must be between 0 and 100" };
+  }
+  const total = normalized.reduce((sum, s) => sum + s.percentage, 0);
+  if (Math.abs(total - 100) > 0.01) return { error: "Manual split percentages must sum 100%" };
+  return {};
+}
+
+async function saveTransactionSplits(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  transactionId: string,
+  splitMethod: SplitMethod,
+  manualSplits: ManualSplitInput[]
+): Promise<{ error?: string }> {
+  const { error: delErr } = await supabase
+    .from("transaction_splits")
+    .delete()
+    .eq("transaction_id", transactionId);
+  if (delErr) return { error: delErr.message };
+
+  if (splitMethod !== "manual") return {};
+  if (!manualSplits.length) return { error: "Manual split requires percentages per member" };
+
+  const payload = manualSplits.map((s) => ({
+    transaction_id: transactionId,
+    member_id: s.member_id,
+    percentage: Number(s.percentage),
+  }));
+  const { error: insErr } = await supabase.from("transaction_splits").insert(payload);
+  if (insErr) return { error: insErr.message };
+  return {};
 }
 
 async function updateBalance(
@@ -408,6 +473,9 @@ export async function createTransaction(params: {
   status?: "confirmed" | "pending";
   hold_balance?: boolean;
   paid_by_member_id?: string | null;
+  received_by_member_id?: string | null;
+  split_method_override?: SplitMethod | null;
+  manual_splits?: ManualSplitInput[];
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -435,17 +503,21 @@ export async function createTransaction(params: {
     status = "confirmed",
     hold_balance = false,
     paid_by_member_id = null,
+    received_by_member_id = null,
+    split_method_override = null,
+    manual_splits = [],
   } = params;
 
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
 
-  const { isSplitOnly } = await getWalletShareFlags(supabase, wallet_id);
-  if (!isSplitOnly && type === "income" && !normalizedAccountToId)
+  const { isBasicTracking, isSplitWallet, defaultSplitMethod } = await getWalletShareFlags(supabase, wallet_id);
+  const requiresAccounts = !isBasicTracking;
+  if (requiresAccounts && type === "income" && !normalizedAccountToId)
     return { error: "Account to receive is required for income" };
-  if (!isSplitOnly && type === "expense" && !normalizedAccountFromId)
+  if (requiresAccounts && type === "expense" && !normalizedAccountFromId)
     return { error: "Account to pay from is required for expense" };
-  if (type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
+  if (requiresAccounts && type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
     return { error: "From and to accounts are required for transfer" };
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
@@ -459,6 +531,34 @@ export async function createTransaction(params: {
     recurrence_type === "monthly_nth_last_work_day";
   if (is_recurring && isWorkDay && (work_day_index == null || work_day_index < 1 || work_day_index > 31))
     return { error: "Work day index (1–31) is required for work day recurrence" };
+
+  const effectiveSplitMethod = normalizeSplitMethod(split_method_override) ?? defaultSplitMethod;
+  const normalizedPaidByMemberId =
+    !isSplitWallet || type === "income" ? null : paid_by_member_id;
+  const normalizedReceivedByMemberId =
+    !isSplitWallet || type === "expense" ? null : received_by_member_id;
+  if (isSplitWallet && type === "expense" && !normalizedPaidByMemberId) {
+    return { error: "From user is required in split wallets" };
+  }
+  if (isSplitWallet && type === "income" && !normalizedReceivedByMemberId) {
+    return { error: "To user is required in split wallets" };
+  }
+  if (isSplitWallet && type === "transfer" && (!normalizedPaidByMemberId || !normalizedReceivedByMemberId)) {
+    return { error: "From and to users are required in split wallets" };
+  }
+  if (
+    isSplitWallet &&
+    type === "transfer" &&
+    normalizedPaidByMemberId &&
+    normalizedReceivedByMemberId &&
+    normalizedPaidByMemberId === normalizedReceivedByMemberId
+  ) {
+    return { error: "From and to users must be different in transfer" };
+  }
+  if (isSplitWallet && type === "expense" && effectiveSplitMethod === "manual") {
+    const manualValidation = validateManualSplits(manual_splits);
+    if (manualValidation.error) return manualValidation;
+  }
 
   let ruleId: string | null = null;
   if (is_recurring) {
@@ -517,7 +617,9 @@ export async function createTransaction(params: {
       status,
       recurring_rule_id: ruleId,
       hold_balance: effectiveHold,
-      paid_by_member_id,
+      paid_by_member_id: normalizedPaidByMemberId,
+      received_by_member_id: normalizedReceivedByMemberId,
+      split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
     })
     .select("id")
     .single();
@@ -525,9 +627,19 @@ export async function createTransaction(params: {
   if (insertErr) return { error: insertErr.message };
   if (!t) return { error: "Insert failed" };
 
+  if (isSplitWallet && type === "expense") {
+    const saveSplitsResult = await saveTransactionSplits(
+      supabase,
+      t.id,
+      effectiveSplitMethod,
+      manual_splits
+    );
+    if (saveSplitsResult.error) return saveSplitsResult;
+  }
+
   // Update balances if confirmed, or if pending but NOT holding balance
   const shouldUpdateBalance =
-    !isSplitOnly && (status === "confirmed" || (status === "pending" && !effectiveHold));
+    requiresAccounts && (status === "confirmed" || (status === "pending" && !effectiveHold));
   if (shouldUpdateBalance) {
     if (type === "income") {
       const e = await updateBalance(supabase, normalizedAccountToId!, amount);
@@ -590,6 +702,10 @@ export async function getTransaction(id: string) {
     .eq("id", id)
     .single();
   if (error || !data) return null;
+  const { data: manualSplits } = await supabase
+    .from("transaction_splits")
+    .select("member_id, percentage")
+    .eq("transaction_id", id);
   const c = data.category as { id: string; name: string; type: string; parent_id: string | null } | null;
   return {
     id: data.id,
@@ -603,6 +719,13 @@ export async function getTransaction(id: string) {
     amount: Number(data.amount),
     account_from_id: data.account_from_id,
     account_to_id: data.account_to_id,
+    paid_by_member_id: data.paid_by_member_id,
+    received_by_member_id: data.received_by_member_id,
+    split_method_override: data.split_method_override,
+    manual_splits: (manualSplits ?? []).map((s) => ({
+      member_id: s.member_id,
+      percentage: Number(s.percentage),
+    })),
     description: data.description,
     status: (data.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
     hold_balance: !!data.hold_balance,
@@ -625,6 +748,9 @@ export async function updateTransaction(
     interval_days?: number | null;
     work_day_index?: number | null;
     paid_by_member_id?: string | null;
+    received_by_member_id?: string | null;
+    split_method_override?: SplitMethod | null;
+    manual_splits?: ManualSplitInput[];
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -654,24 +780,60 @@ export async function updateTransaction(
     interval_days = null,
     work_day_index = null,
     paid_by_member_id = null,
+    received_by_member_id = null,
+    split_method_override = null,
+    manual_splits = [],
   } = params;
 
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
 
-  const { isSplitOnly: isSplitOnlyForUpdate } = await getWalletShareFlags(
+  const {
+    isBasicTracking: isBasicTrackingForUpdate,
+    isSplitWallet,
+    defaultSplitMethod,
+  } = await getWalletShareFlags(
     supabase,
     old.wallet_id
   );
-  if (!isSplitOnlyForUpdate && type === "income" && !normalizedAccountToId)
+  const requiresAccountsForUpdate = !isBasicTrackingForUpdate;
+  if (requiresAccountsForUpdate && type === "income" && !normalizedAccountToId)
     return { error: "Account to receive is required for income" };
-  if (!isSplitOnlyForUpdate && type === "expense" && !normalizedAccountFromId)
+  if (requiresAccountsForUpdate && type === "expense" && !normalizedAccountFromId)
     return { error: "Account to pay from is required for expense" };
-  if (type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
+  if (requiresAccountsForUpdate && type === "transfer" && (!normalizedAccountFromId || !normalizedAccountToId))
     return { error: "From and to accounts are required for transfer" };
   if (amount <= 0) return { error: "Amount must be positive" };
   const desc = description == null ? "" : String(description).trim();
   if (!desc) return { error: "Description is required" };
+
+  const effectiveSplitMethod = normalizeSplitMethod(split_method_override) ?? defaultSplitMethod;
+  const normalizedPaidByMemberId =
+    !isSplitWallet || type === "income" ? null : paid_by_member_id;
+  const normalizedReceivedByMemberId =
+    !isSplitWallet || type === "expense" ? null : received_by_member_id;
+  if (isSplitWallet && type === "expense" && !normalizedPaidByMemberId) {
+    return { error: "From user is required in split wallets" };
+  }
+  if (isSplitWallet && type === "income" && !normalizedReceivedByMemberId) {
+    return { error: "To user is required in split wallets" };
+  }
+  if (isSplitWallet && type === "transfer" && (!normalizedPaidByMemberId || !normalizedReceivedByMemberId)) {
+    return { error: "From and to users are required in split wallets" };
+  }
+  if (
+    isSplitWallet &&
+    type === "transfer" &&
+    normalizedPaidByMemberId &&
+    normalizedReceivedByMemberId &&
+    normalizedPaidByMemberId === normalizedReceivedByMemberId
+  ) {
+    return { error: "From and to users must be different in transfer" };
+  }
+  if (isSplitWallet && type === "expense" && effectiveSplitMethod === "manual") {
+    const manualValidation = validateManualSplits(manual_splits);
+    if (manualValidation.error) return manualValidation;
+  }
 
   const isPending = old.status === "pending";
   if (isPending) {
@@ -683,13 +845,26 @@ export async function updateTransaction(
       account_from_id: normalizedAccountFromId,
       account_to_id: normalizedAccountToId,
       description: desc,
-      paid_by_member_id,
+      paid_by_member_id: normalizedPaidByMemberId,
+      received_by_member_id: normalizedReceivedByMemberId,
+      split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
     };
     const { error: upErr } = await supabase
       .from("transactions")
       .update(updatePayload)
       .eq("id", id);
     if (upErr) return { error: upErr.message };
+    if (isSplitWallet && type === "expense") {
+      const saveSplitsResult = await saveTransactionSplits(
+        supabase,
+        id,
+        effectiveSplitMethod,
+        manual_splits
+      );
+      if (saveSplitsResult.error) return saveSplitsResult;
+    } else {
+      await supabase.from("transaction_splits").delete().eq("transaction_id", id);
+    }
     await logActivity(supabase, {
       action: "transaction_edit",
       entity_type: "transaction",
@@ -746,21 +921,23 @@ export async function updateTransaction(
     ruleId = rule.id;
   }
 
-  const undo = undoEffect(
-    old.type,
-    Number(old.amount),
-    old.account_from_id,
-    old.account_to_id
-  );
-  for (const { id: aid, delta } of undo) {
-    const e = await updateBalance(supabase, aid, delta);
-    if (e.error) return e;
-  }
+  if (requiresAccountsForUpdate) {
+    const undo = undoEffect(
+      old.type,
+      Number(old.amount),
+      old.account_from_id,
+      old.account_to_id
+    );
+    for (const { id: aid, delta } of undo) {
+      const e = await updateBalance(supabase, aid, delta);
+      if (e.error) return e;
+    }
 
-  const apply = applyEffect(type, amount, account_from_id, account_to_id);
-  for (const { id: aid, delta } of apply) {
-    const e = await updateBalance(supabase, aid, delta);
-    if (e.error) return e;
+    const apply = applyEffect(type, amount, account_from_id, account_to_id);
+    for (const { id: aid, delta } of apply) {
+      const e = await updateBalance(supabase, aid, delta);
+      if (e.error) return e;
+    }
   }
 
   const updatePayload: {
@@ -773,15 +950,19 @@ export async function updateTransaction(
     description: string;
     recurring_rule_id?: string | null;
     paid_by_member_id: string | null;
+    received_by_member_id: string | null;
+    split_method_override: string | null;
   } = {
     type,
     category_id,
     date,
     amount,
-    account_from_id,
-    account_to_id,
+    account_from_id: normalizedAccountFromId,
+    account_to_id: normalizedAccountToId,
     description: desc,
-    paid_by_member_id,
+    paid_by_member_id: normalizedPaidByMemberId,
+    received_by_member_id: normalizedReceivedByMemberId,
+    split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
   };
   if (ruleId != null) updatePayload.recurring_rule_id = ruleId;
 
@@ -791,6 +972,18 @@ export async function updateTransaction(
     .eq("id", id);
 
   if (upErr) return { error: upErr.message };
+
+  if (isSplitWallet && type === "expense") {
+    const saveSplitsResult = await saveTransactionSplits(
+      supabase,
+      id,
+      effectiveSplitMethod,
+      manual_splits
+    );
+    if (saveSplitsResult.error) return saveSplitsResult;
+  } else {
+    await supabase.from("transaction_splits").delete().eq("transaction_id", id);
+  }
 
   await logActivity(supabase, {
     action: "transaction_edit",

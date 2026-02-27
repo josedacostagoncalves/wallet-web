@@ -41,7 +41,7 @@ type Props = {
 };
 
 const inputClass =
-  "w-full text-sm px-2.5 py-1.5 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
+  "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
 
 export function TransferFormModal({
   open,
@@ -69,8 +69,10 @@ export function TransferFormModal({
   const [accountFromId, setAccountFromId] = useState("");
   const [accountToId, setAccountToId] = useState("");
   const [paidByMemberId, setPaidByMemberId] = useState<string | null>(null);
+  const [receivedByMemberId, setReceivedByMemberId] = useState<string | null>(null);
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
+  const [walletTrackingMode, setWalletTrackingMode] = useState<string | null>(null);
   const [walletMembers, setWalletMembers] = useState<
     {
       id: string;
@@ -92,7 +94,7 @@ export function TransferFormModal({
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [status, setStatus] = useState<"confirmed" | "pending">("confirmed");
-  const [dialog, setDialog] = useState<"confirm" | "cancel" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
   const [recentSimilar, setRecentSimilar] = useState<
     { id: string; date: string; description: string | null; amount: number }[]
   >([]);
@@ -106,6 +108,7 @@ export function TransferFormModal({
   const skipNextSubcategoryReset = useRef(false);
   const editOriginal = useRef<{ amount: number; accountFromId: string; accountToId: string; holdBalance: boolean } | null>(null);
   const autoSelectedMember = useRef(false);
+  const memberManuallyChanged = useRef(false);
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
 
@@ -135,6 +138,7 @@ export function TransferFormModal({
   useEffect(() => {
     if (!open || !currentWalletId) {
       autoSelectedMember.current = false;
+      memberManuallyChanged.current = false;
       return;
     }
     getAccounts(currentWalletId).then(setAccounts);
@@ -163,6 +167,8 @@ export function TransferFormModal({
         setDescription(m.description ?? "");
         setAccountFromId(m.account_from_id ?? "");
         setAccountToId(m.account_to_id ?? "");
+        setPaidByMemberId(m.paid_by_member_id ?? null);
+        setReceivedByMemberId(m.received_by_member_id ?? null);
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
@@ -183,6 +189,8 @@ export function TransferFormModal({
         setDescription(m.description ?? "");
         setAccountFromId(m.account_from_id ?? "");
         setAccountToId(m.account_to_id ?? "");
+        setPaidByMemberId(m.paid_by_member_id ?? null);
+        setReceivedByMemberId(m.received_by_member_id ?? null);
         setCategoryId(catId);
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
@@ -307,6 +315,7 @@ export function TransferFormModal({
     setAccountFromId("");
     setAccountToId("");
     setPaidByMemberId(null);
+    setReceivedByMemberId(null);
     setSaveAsPending(false);
     setHoldBalance(true);
     setIsRecurring(false);
@@ -330,6 +339,7 @@ export function TransferFormModal({
         const members = result.members ?? [];
         setWalletSharedOption(sharedOption);
         setWalletSplitType(result.split_type ?? null);
+        setWalletTrackingMode(result.tracking_mode ?? null);
         setWalletMembers(members);
 
         if (!autoSelectedMember.current && (sharedOption === "split" || sharedOption === "track_and_split") && members.length > 0) {
@@ -338,7 +348,10 @@ export function TransferFormModal({
             if (userResult.userId) {
               const currentMember = members.find((m) => m.user_id === userResult.userId);
               if (currentMember) {
-                setPaidByMemberId(currentMember.id);
+                if (!memberManuallyChanged.current) {
+                  setPaidByMemberId((prev) => prev ?? currentMember.id);
+                  setReceivedByMemberId((prev) => prev ?? currentMember.id);
+                }
               }
             }
           });
@@ -358,6 +371,11 @@ export function TransferFormModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
   }, [open, onClose, loading, loadingData, resetForm, mode, transactionId, copyFromTransactionId, copyFromRecurringId, currentWalletId]);
 
+  const isSplitOnly = walletSharedOption === "split" || (!walletSharedOption && !!walletSplitType);
+  const isBasicTracking = walletTrackingMode === "basic" || (!walletTrackingMode && isSplitOnly);
+  const requiresAccounts = !isBasicTracking;
+  const isSplitWallet = walletSharedOption === "track_and_split" || isSplitOnly;
+
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
     if (isNaN(num) || num <= 0) return t("validation.amountPositive");
@@ -367,13 +385,13 @@ export function TransferFormModal({
 
     // For track and track_and_split: accounts always required
     // For split: accounts not used, only member
-    const isSplitOnly = walletSharedOption === "split";
-    if (!isSplitOnly && (!accountFromId || !accountToId)) return t("validation.accountTransferFromRequired") + " / " + t("validation.accountTransferToRequired");
-    if (!isSplitOnly && accountFromId === accountToId) return t("validation.accountsDifferent");
-
-    // Member required for split and track_and_split
-    const isSplitWallet = walletSharedOption === "split" || walletSharedOption === "track_and_split";
+    if (requiresAccounts && (!accountFromId || !accountToId)) return t("validation.accountTransferFromRequired") + " / " + t("validation.accountTransferToRequired");
+    if (requiresAccounts && accountFromId === accountToId) return t("validation.accountsDifferent");
     if (isSplitWallet && !paidByMemberId) return t("validation.memberPaidRequired");
+    if (isSplitWallet && !receivedByMemberId) return t("validation.memberReceivedRequired");
+    if (isSplitWallet && paidByMemberId && receivedByMemberId && paidByMemberId === receivedByMemberId) {
+      return "From user and To user must be different";
+    }
 
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
@@ -433,6 +451,7 @@ export function TransferFormModal({
             : null,
         work_day_index: isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
         paid_by_member_id: paidByMemberId,
+        received_by_member_id: receivedByMemberId,
       });
       setLoading(false);
       if (res.error) {
@@ -469,6 +488,7 @@ export function TransferFormModal({
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
       paid_by_member_id: paidByMemberId,
+      received_by_member_id: receivedByMemberId,
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
     });
@@ -506,6 +526,8 @@ export function TransferFormModal({
       account_to_id: accountToId,
       description: description.trim(),
       is_recurring: false,
+      paid_by_member_id: paidByMemberId,
+      received_by_member_id: receivedByMemberId,
     });
     if (up.error) {
       setError(up.error);
@@ -589,11 +611,11 @@ export function TransferFormModal({
         onClick={() => !loading && !loadingData && onClose()}
       />
       <div
-        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-sm"
+        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-xs"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-5 pt-5 pb-2 border-b border-slate-200 dark:border-slate-700">
-          <h2 id="transfer-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        <div className="shrink-0 px-4 pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+          <h2 id="transfer-modal-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {isEdit
               ? status === "pending"
                 ? t("editPendingTransfer")
@@ -608,8 +630,8 @@ export function TransferFormModal({
           {loadingData && (
             <div className="px-5 py-3 text-xs text-slate-500">{t("loading")}</div>
           )}
-          <div className="p-4 flex flex-col sm:flex-row gap-4 sm:gap-6 items-stretch">
-            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-3">
+          <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
                 <input
@@ -703,7 +725,7 @@ export function TransferFormModal({
                   className={inputClass}
                 />
               </div>
-              {walletSharedOption !== "split" && (
+              {requiresAccounts && (
                 <div>
                   <label className="block text-xs font-medium mb-1">{t("fields.accountTransferFrom")}</label>
                   <select
@@ -758,7 +780,7 @@ export function TransferFormModal({
                   })()}
                 </div>
               )}
-              {walletSharedOption !== "split" && (
+              {requiresAccounts && (
                 <div>
                   <label className="block text-xs font-medium mb-1">{t("fields.accountTransferTo")}</label>
                   <select
@@ -813,23 +835,56 @@ export function TransferFormModal({
                   })()}
                 </div>
               )}
-              {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
+              {isSplitWallet && (
                 <div>
-                  <label className="block text-xs font-medium mb-1">
-                    {walletSharedOption === "split" ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
+                  <label className="block text-xs font-medium mb-2">
+                    {walletSharedOption !== null ? t("fields.paidByMemberRequired") : t("fields.paidByMember")}
                   </label>
                   <select
-                    value={paidByMemberId || ""}
-                    onChange={(e) => setPaidByMemberId(e.target.value || null)}
+                    value={paidByMemberId ?? ""}
+                    onChange={(e) => {
+                      memberManuallyChanged.current = true;
+                      setPaidByMemberId(e.target.value || null);
+                    }}
+                    required={isSplitWallet}
                     className={inputClass}
                   >
-                    <option value="">{t("fields.notSpecified")}</option>
+                    <option value="">Select user</option>
                     {walletMembers.map((m) => (
-                      <option key={m.user_id} value={m.user_id}>
+                      <option key={m.id} value={m.user_id}>
                         {m.display_name}
                       </option>
                     ))}
                   </select>
+                  {walletMembers.length === 0 && (
+                    <div className="text-xs text-slate-500 mt-1">{t("fields.noMembers")}</div>
+                  )}
+                </div>
+              )}
+              {isSplitWallet && (
+                <div>
+                  <label className="block text-xs font-medium mb-2">
+                    {walletSharedOption !== null ? t("fields.receivedByMemberRequired") : t("fields.receivedByMember")}
+                  </label>
+                  <select
+                    value={receivedByMemberId ?? ""}
+                    onChange={(e) => {
+                      memberManuallyChanged.current = true;
+                      setReceivedByMemberId(e.target.value || null);
+                    }}
+                    required={isSplitWallet}
+                    className={inputClass}
+                  >
+                    <option value="">Select user</option>
+                    {walletMembers.map((m) => (
+                      <option key={m.id} value={m.user_id}>
+                        {m.display_name}
+                      </option>
+                    ))}
+                  </select>
+                  {walletMembers.length === 0 && (
+                    <div className="text-xs text-slate-500 mt-1">{t("fields.noMembers")}</div>
+                  )}
                 </div>
               )}
               {(!isEdit || status !== "pending") && (
@@ -957,7 +1012,7 @@ export function TransferFormModal({
                       : t("similar.transfersCategory")}
                 </h3>
               </div>
-              <div className="p-4 min-h-[140px] max-h-[480px] overflow-y-auto">
+              <div className="p-3 min-h-[120px] max-h-[360px] overflow-y-auto">
                 {loadingSimilar ? (
                   <p className="text-xs text-slate-500">{t("similar.loading")}</p>
                 ) : recentSimilar.length === 0 ? (
@@ -1004,12 +1059,12 @@ export function TransferFormModal({
               </div>
             </div>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-2 px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="shrink-0 flex flex-wrap gap-2 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
             <button
               type="button"
               onClick={onClose}
               disabled={loading || loadingData}
-              className="px-3 py-1.5 text-sm rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {t("buttons.cancel")}
             </button>
@@ -1019,7 +1074,7 @@ export function TransferFormModal({
                   type="button"
                   onClick={() => setDialog("confirm")}
                   disabled={loading || loadingData}
-                  className="px-3 py-1.5 text-sm rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs rounded-lg bg-green-700 text-white hover:bg-green-600 disabled:opacity-50"
                 >
                   {loading ? t("buttons.confirming") : t("buttons.confirm")}
                 </button>
@@ -1027,7 +1082,7 @@ export function TransferFormModal({
                   type="button"
                   onClick={() => setDialog("cancel")}
                   disabled={loading || loadingData}
-                  className="px-3 py-1.5 text-sm rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs rounded-lg border border-red-300 text-red-600 dark:border-red-400 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                 >
                   {loading ? t("buttons.cancelling") : t("buttons.cancelPending")}
                 </button>
@@ -1036,7 +1091,7 @@ export function TransferFormModal({
             <button
               type="submit"
               disabled={loading || loadingData}
-              className="px-3 py-1.5 text-sm rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
               {loading ? t("buttons.saving") : t("buttons.save")}
             </button>
@@ -1062,17 +1117,6 @@ export function TransferFormModal({
         title={t("confirmDialogs.cancelTitle")}
         message={t("confirmDialogs.cancelMessage")}
         confirmLabel={t("confirmDialogs.cancelButton")}
-        cancelLabel={t("confirmDialogs.keepButton")}
-        variant="cancel"
-        loading={loading}
-      />
-      <ConfirmDialog
-        open={dialog === "delete"}
-        onClose={() => setDialog(null)}
-        onConfirm={handleDelete}
-        title={t("confirmDialogs.deleteTitle")}
-        message={t("confirmDialogs.deleteMessage")}
-        confirmLabel={t("confirmDialogs.deleteButton")}
         cancelLabel={t("confirmDialogs.keepButton")}
         variant="cancel"
         loading={loading}

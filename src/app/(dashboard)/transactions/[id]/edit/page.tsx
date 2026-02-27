@@ -259,22 +259,6 @@ export default function EditTransactionPage() {
     router.refresh();
   }
 
-  async function handleDelete() {
-    if (!confirm(tForm("confirmDialogs.deleteMessage"))) return;
-    setError(null);
-    setDeleting(true);
-    const res = await deleteTransaction(id);
-    setDeleting(false);
-    if (res.error) {
-      setError(res.error);
-      showToast(res.error, "error");
-      return;
-    }
-    showToast(tForm("toasts.transactionDeleted"));
-    router.push("/transactions");
-    router.refresh();
-  }
-
   async function handleCancelPending() {
     setDeleting(true);
     setError(null);
@@ -619,16 +603,6 @@ export default function EditTransactionPage() {
             >
               {tCommon("cancel")}
             </Link>
-          )}
-          {status !== "pending" && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="ml-auto px-4 py-2 rounded-lg border border-red-300 text-red-600 dark:border-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
-            >
-              {deleting ? tForm("buttons.deleting") : tCommon("delete")}
-            </button>
           )}
           <Link
             href="/transactions"

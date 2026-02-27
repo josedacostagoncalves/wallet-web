@@ -1,12 +1,26 @@
 "use client";
 
-import { updateWallet, getWalletShareCode, updateMemberIncome } from "@/app/actions/wallets";
+import {
+  updateWallet,
+  getWalletShareCode,
+  updateMemberIncome,
+  getWalletSettlements,
+} from "@/app/actions/wallets";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+
+type MemberRow = {
+  user_id: string;
+  display_name?: string;
+  role?: string;
+  income_monthly?: number | null;
+  editingIncome?: boolean;
+  balance?: number;
+};
 
 export default function EditWalletPage() {
   const tAuth = useTranslations("auth");
@@ -24,12 +38,50 @@ export default function EditWalletPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [members, setMembers] = useState<Array<{ user_id: string; email?: string; income_monthly?: number | null; editingIncome?: boolean }>>([]);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [shareCode, setShareCode] = useState<string | null>(null);
   const [loadingShareCode, setLoadingShareCode] = useState(false);
   const [copied, setCopied] = useState(false);
   const [shareCodeError, setShareCodeError] = useState<string | null>(null);
   const [isSavedAsShared, setIsSavedAsShared] = useState(false);
+
+  async function loadMembers(walletId: string) {
+    const supabase = createClient();
+    const { data: memberList, error: memberErr } = await supabase
+      .from("wallet_members")
+      .select("user_id, role, member_name, income_monthly")
+      .eq("wallet_id", walletId);
+    if (memberErr || !memberList) return;
+    const memberIds = memberList.map((m: any) => m.user_id);
+    let profileRows: any[] = [];
+    if (memberIds.length) {
+      const profilesRes = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .in("id", memberIds);
+      profileRows = profilesRes.data ?? [];
+    }
+    const profilesById = new Map((profileRows ?? []).map((p: any) => [p.id, p]));
+
+    const { settlements } = await getWalletSettlements(walletId);
+    const balanceMap = new Map((settlements ?? []).map((s) => [s.member_id, s.balance / 100]));
+
+    const membersWithEmail: MemberRow[] = memberList.map((m: any) => {
+      const profile = profilesById.get(m.user_id);
+      return {
+        user_id: m.user_id,
+        role: m.role,
+        display_name:
+          `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() ||
+          m.member_name ||
+          "Member",
+        income_monthly: m.income_monthly,
+        editingIncome: false,
+        balance: balanceMap.get(m.user_id) ?? 0,
+      };
+    });
+    setMembers(membersWithEmail);
+  }
 
   async function loadShareCode() {
     // Check if wallet needs to be saved as shared first
@@ -68,7 +120,7 @@ export default function EditWalletPage() {
       // Query wallet through membership to ensure user has access
       const { data, error: e } = await supabase
         .from("wallet_members")
-        .select("wallet_id, wallets(name, is_shared, is_active)")
+        .select("wallet_id, role, wallets(name, is_shared, is_active, shared_option, split_type)")
         .eq("wallet_id", id)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -95,21 +147,8 @@ export default function EditWalletPage() {
       setSplitType(wallet.split_type ?? null);
       setIsActive(wallet.is_active);
       setIsSavedAsShared(wallet.is_shared);
-
-      // Load wallet members with their income
-      const { data: memberList, error: memberErr } = await supabase
-        .from("wallet_members")
-        .select("user_id, income_monthly, profiles(email)")
-        .eq("wallet_id", id);
-      if (!memberErr && memberList) {
-        const membersWithEmail = memberList.map((m: any) => ({
-          user_id: m.user_id,
-          email: m.profiles?.email,
-          income_monthly: m.income_monthly,
-          editingIncome: false,
-        }));
-        setMembers(membersWithEmail);
-      } // Track if wallet is saved as shared in DB
+      await loadMembers(id);
+      // Track if wallet is saved as shared in DB
       // Load share code if wallet is shared
       if (wallet.is_shared) {
         // Small delay to ensure wallet state is consistent
@@ -182,6 +221,7 @@ export default function EditWalletPage() {
     showToast(tWallets("toasts.memberIncomeUpdated"));
   }
 
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -222,6 +262,8 @@ export default function EditWalletPage() {
       </div>
     );
   }
+
+  const isSplitWallet = sharedOption === "split" || sharedOption === "track_and_split";
 
   return (
     <div className="space-y-6">
@@ -348,7 +390,7 @@ export default function EditWalletPage() {
               {tWallets("page.edit.share.hint")}
             </p>
 
-            {(sharedOption === 'split' || sharedOption === 'track_and_split') && (
+            {isSplitWallet && (
               <div className="mt-4 pt-4 border-t border-slate-300 dark:border-slate-600 space-y-3">
                 <div>
                   <label className="block text-sm font-medium mb-3">{tWallets("page.edit.split.method")}</label>
@@ -387,7 +429,7 @@ export default function EditWalletPage() {
                       {members.map((m) => (
                         <div key={m.user_id} className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                           <div className="flex-1">
-                            <p className="text-sm font-medium">{m.email || tWallets("page.edit.split.unknownMember")}</p>
+                            <p className="text-sm font-medium">{m.display_name || tWallets("page.edit.split.unknownMember")}</p>
                           </div>
                           {m.editingIncome ? (
                             <div className="flex items-center gap-2">
@@ -441,6 +483,7 @@ export default function EditWalletPage() {
                     </div>
                   </div>
                 )}
+
               </div>
             )}
           </div>

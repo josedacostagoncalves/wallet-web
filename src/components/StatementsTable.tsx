@@ -24,7 +24,7 @@ type CategoryData = {
 
 type Props = {
     data: CategoryData[];
-    type: "income" | "expense";
+    type: "income" | "expense" | "transfer";
     dateRange: { start: string; end: string } | null;
     currentWalletId: string | null;
     tableKey: StatementsTableOrderKey;
@@ -125,6 +125,32 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         x: number;
         y: number;
     } | null>(null);
+    const rowHoverClass =
+        type === "income"
+            ? "hover:bg-green-50 dark:hover:bg-green-900/10"
+            : type === "expense"
+                ? "hover:bg-red-50 dark:hover:bg-red-900/10"
+                : "hover:bg-blue-50 dark:hover:bg-blue-900/10";
+    const valueColorClass = (value: number) =>
+        value > 0
+            ? type === "income"
+                ? "text-green-600 dark:text-green-400"
+                : type === "expense"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-blue-600 dark:text-blue-400"
+            : "text-slate-500 dark:text-slate-400";
+    const summaryColorClass =
+        type === "income"
+            ? "text-green-600 dark:text-green-400"
+            : type === "expense"
+                ? "text-red-600 dark:text-red-400"
+                : "text-blue-600 dark:text-blue-400";
+    const summaryStrongColorClass =
+        type === "income"
+            ? "text-green-700 dark:text-green-300"
+            : type === "expense"
+                ? "text-red-700 dark:text-red-300"
+                : "text-blue-700 dark:text-blue-300";
 
     const toggleCategory = (category: string) => {
         const newExpanded = new Set(expandedCategories);
@@ -398,11 +424,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         row: CategoryData
     ) => {
         const transactions = row.monthlyTransactions?.[monthKey] ?? [];
-        const textClass = value > 0
-            ? type === "income"
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
-            : "text-slate-500 dark:text-slate-400";
+        const textClass = valueColorClass(value);
 
         if (value <= 0) {
             return <span className={textClass}>—</span>;
@@ -438,7 +460,9 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     if (data.length === 0) {
         return (
             <div className="p-8 text-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
-                {t("noData", { type: type === "income" ? t("income") : t("expenses") })}
+                {t("noData", {
+                    type: type === "income" ? t("income") : type === "expense" ? t("expenses") : t("savingsAndInvestments"),
+                })}
             </div>
         );
     }
@@ -533,7 +557,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 <span className="truncate text-slate-600 dark:text-slate-300">
                                     {formatShortDate(tx.date)} · {tx.description || "(Sem descrição)"}
                                 </span>
-                                <span className={`shrink-0 font-mono ${type === "income" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                                <span className={`shrink-0 font-mono ${summaryColorClass}`}>
                                     {hideBalances ? MASK : formatCurrency(tx.amount)}
                                 </span>
                             </div>
@@ -585,10 +609,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             return (
                                 <Fragment key={row.category}>
                                     <tr
-                                        className={`${type === "income"
-                                            ? "hover:bg-green-50 dark:hover:bg-green-900/10"
-                                            : "hover:bg-red-50 dark:hover:bg-red-900/10"
-                                            } transition-colors ${orderEditing
+                                        className={`${rowHoverClass} transition-colors ${orderEditing
                                                 ? dragOverItem?.type === "category" && dragOverItem?.categoryName === row.category
                                                     ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 ring-inset"
                                                     : ""
@@ -645,32 +666,21 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                             return (
                                                 <td
                                                     key={col.key}
-                                                    className={`px-3 py-3 text-right font-mono ${value > 0
-                                                        ? type === "income"
-                                                            ? "text-green-600 dark:text-green-400"
-                                                            : "text-red-600 dark:text-red-400"
-                                                        : "text-slate-500 dark:text-slate-400"
-                                                        }`}
+                                                    className={`px-3 py-3 text-right font-mono ${valueColorClass(value)}`}
                                                 >
                                                     {renderValueCell(value, col.key, col.label, row)}
                                                 </td>
                                             );
                                         })}
                                         <td
-                                            className={`px-3 py-3 text-right font-mono font-semibold ${type === "income"
-                                                ? "text-green-600 dark:text-green-400"
-                                                : "text-red-600 dark:text-red-400"
-                                                }`}
+                                            className={`px-3 py-3 text-right font-mono font-semibold ${summaryColorClass}`}
                                         >
                                             {elapsedMonthCount > 0
                                                 ? (hideBalances ? MASK : formatCurrency(row.total / elapsedMonthCount))
                                                 : "—"}
                                         </td>
                                         <td
-                                            className={`px-3 py-3 text-right font-mono font-semibold ${type === "income"
-                                                ? "text-green-600 dark:text-green-400"
-                                                : "text-red-600 dark:text-red-400"
-                                                }`}
+                                            className={`px-3 py-3 text-right font-mono font-semibold ${summaryColorClass}`}
                                         >
                                             {hideBalances ? MASK : formatCurrency(row.total)}
                                         </td>
@@ -715,32 +725,21 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                         return (
                                                             <td
                                                                 key={col.key}
-                                                                className={`px-3 py-2 text-right font-mono text-xs ${value > 0
-                                                                    ? type === "income"
-                                                                        ? "text-green-600 dark:text-green-400"
-                                                                        : "text-red-600 dark:text-red-400"
-                                                                    : "text-slate-500 dark:text-slate-400"
-                                                                    }`}
+                                                                className={`px-3 py-2 text-right font-mono text-xs ${valueColorClass(value)}`}
                                                             >
                                                                 {renderValueCell(value, col.key, col.label, subcategory)}
                                                             </td>
                                                         );
                                                     })}
                                                     <td
-                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${type === "income"
-                                                            ? "text-green-600 dark:text-green-400"
-                                                            : "text-red-600 dark:text-red-400"
-                                                            }`}
+                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${summaryColorClass}`}
                                                     >
                                                         {elapsedMonthCount > 0
                                                             ? (hideBalances ? MASK : formatCurrency(subcategory.total / elapsedMonthCount))
                                                             : "—"}
                                                     </td>
                                                     <td
-                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${type === "income"
-                                                            ? "text-green-600 dark:text-green-400"
-                                                            : "text-red-600 dark:text-red-400"
-                                                            }`}
+                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${summaryColorClass}`}
                                                     >
                                                         {hideBalances ? MASK : formatCurrency(subcategory.total)}
                                                     </td>
@@ -762,32 +761,21 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 return (
                                     <td
                                         key={col.key}
-                                        className={`px-3 py-3 text-right font-mono font-semibold ${value > 0
-                                            ? type === "income"
-                                                ? "text-green-600 dark:text-green-400"
-                                                : "text-red-600 dark:text-red-400"
-                                            : "text-slate-500 dark:text-slate-400"
-                                            }`}
+                                        className={`px-3 py-3 text-right font-mono font-semibold ${valueColorClass(value)}`}
                                     >
                                         {value > 0 ? (hideBalances ? MASK : formatCurrency(value)) : "—"}
                                     </td>
                                 );
                             })}
                             <td
-                                className={`px-3 py-3 text-right font-mono font-bold ${type === "income"
-                                    ? "text-green-700 dark:text-green-300"
-                                    : "text-red-700 dark:text-red-300"
-                                    }`}
+                                className={`px-3 py-3 text-right font-mono font-bold ${summaryStrongColorClass}`}
                             >
                                 {elapsedMonthCount > 0
                                     ? (hideBalances ? MASK : formatCurrency(grandTotal / elapsedMonthCount))
                                     : "—"}
                             </td>
                             <td
-                                className={`px-3 py-3 text-right font-mono font-bold ${type === "income"
-                                    ? "text-green-700 dark:text-green-300"
-                                    : "text-red-700 dark:text-red-300"
-                                    }`}
+                                className={`px-3 py-3 text-right font-mono font-bold ${summaryStrongColorClass}`}
                             >
                                 {hideBalances ? MASK : formatCurrency(grandTotal)}
                             </td>

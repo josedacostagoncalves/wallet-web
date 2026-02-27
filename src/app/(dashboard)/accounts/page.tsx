@@ -11,6 +11,7 @@ import { EditAccountModal } from "@/components/EditAccountModal";
 import { UserIcon } from "@/components/UserIcon";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
+import { shouldShowAccounts } from "@/lib/wallet-modes";
 import {
   accountTypeLabel,
   accountTypeIcon,
@@ -228,7 +229,7 @@ export default function AccountsPage() {
   const tAccounts = useTranslations("accounts");
   const tCommon = useTranslations("common");
   const tHomeAccounts = useTranslations("home.accountsTable");
-  const { currentWalletId } = useWallet();
+  const { currentWalletId, wallets } = useWallet();
   const { showToast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -252,6 +253,8 @@ export default function AccountsPage() {
   const optionsBtnRef = useRef<HTMLButtonElement>(null);
   const optionsPopRef = useRef<HTMLDivElement>(null);
   const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
+  const currentWallet = wallets.find((w) => w.id === currentWalletId);
+  const canShowAccounts = shouldShowAccounts(currentWallet);
 
   const loadAccounts = useCallback(() => {
     if (!currentWalletId) {
@@ -381,6 +384,10 @@ export default function AccountsPage() {
       {!currentWalletId ? (
         <p className="text-slate-600 dark:text-slate-400">
           {tAccounts("page.noWallet")}
+        </p>
+      ) : !canShowAccounts ? (
+        <p className="text-slate-600 dark:text-slate-400">
+          {tAccounts("page.fullTrackingOnly")}
         </p>
       ) : (
         <>

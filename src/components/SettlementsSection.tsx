@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 type Settlement = {
     member_id: string;
@@ -17,6 +17,9 @@ type Props = {
 
 export function SettlementsSection({ settlements, splitType }: Props) {
     const t = useTranslations("home.settlements");
+    const locale = useLocale();
+    const formatAmount = (value: number) =>
+        value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     if (!settlements || settlements.length === 0) {
         return (
             <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
@@ -64,8 +67,8 @@ export function SettlementsSection({ settlements, splitType }: Props) {
                                     {settlement.email}
                                 </p>
                                 <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                    <p>{t("paid")}: {(settlement.total_paid / 100).toLocaleString()} €</p>
-                                    <p>{t("share")}: {(settlement.total_share / 100).toLocaleString()} €</p>
+                                    <p>{t("paid")}: {formatAmount(settlement.total_paid / 100)} €</p>
+                                    <p>{t("share")}: {formatAmount(settlement.total_share / 100)} €</p>
                                     {isByIncome && (
                                         <p className="mt-1 text-xs">
                                             ({t("incomeBasedSplit")})
@@ -77,7 +80,7 @@ export function SettlementsSection({ settlements, splitType }: Props) {
                             <div className="text-right flex-shrink-0">
                                 <p className={`text-lg font-semibold ${balanceClass}`}>
                                     {settlement.balance > 0 ? "+" : ""}
-                                    {(settlement.balance / 100).toLocaleString()} €
+                                    {formatAmount(settlement.balance / 100)} €
                                 </p>
                                 <p className="text-sm text-slate-500 dark:text-slate-400">
                                     {balanceLabel}

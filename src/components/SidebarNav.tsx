@@ -5,6 +5,8 @@ import Link from "next/link";
 import { NewExpenseTrigger } from "@/components/NewExpenseTrigger";
 import { NewIncomeTrigger } from "@/components/NewIncomeTrigger";
 import { NewTransferTrigger } from "@/components/NewTransferTrigger";
+import { useWallet } from "@/contexts/WalletContext";
+import { shouldShowAccounts, shouldShowUsers } from "@/lib/wallet-modes";
 import { useTranslations } from "next-intl";
 
 const SIDEBAR_MODE_KEY = "wallet.sidebarMode";
@@ -13,6 +15,7 @@ type SidebarMode = "expanded" | "collapsed" | "hover";
 
 export function SidebarNav() {
     const t = useTranslations('navigation');
+    const { currentWalletId, wallets } = useWallet();
     const [mode, setMode] = useState<SidebarMode>("hover");
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -62,12 +65,15 @@ export function SidebarNav() {
         : isCollapsed
             ? "justify-center"
             : "justify-center group-hover:justify-start";
+    const currentWallet = wallets.find((w) => w.id === currentWalletId);
+    const showAccounts = shouldShowAccounts(currentWallet);
+    const showUsers = shouldShowUsers(currentWallet);
 
     return (
         <div className="relative hidden lg:block w-14 z-40">
             <aside
                 className={
-                    "group flex flex-col sticky top-14 h-[calc(100vh-56px)] border-r border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-950/40 transition-[width] duration-200 " +
+                    "group flex flex-col sticky top-14 h-[calc(100vh-56px)] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[var(--background)] transition-[width] duration-200 " +
                     (isExpanded ? "w-56" : "w-14") +
                     (isHover ? " hover:w-56" : "")
                 }
@@ -142,14 +148,26 @@ export function SidebarNav() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><rect width="20" height="14" x="2" y="5" rx="2" /><path d="M2 10h20" /></svg>
                         <span className={`truncate transition-all ${labelClass}`}>{t('wallets')}</span>
                     </Link>
-                    <Link
-                        href="/accounts"
-                        className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
-                        title={t('accounts')}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><circle cx="16" cy="11" r="1" /></svg>
-                        <span className={`truncate transition-all ${labelClass}`}>{t('accounts')}</span>
-                    </Link>
+                    {showAccounts && (
+                        <Link
+                            href="/accounts"
+                            className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
+                            title={t('accounts')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><circle cx="16" cy="11" r="1" /></svg>
+                            <span className={`truncate transition-all ${labelClass}`}>{t('accounts')}</span>
+                        </Link>
+                    )}
+                    {showUsers && (
+                        <Link
+                            href="/users"
+                            className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}
+                            title={t('users')}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M20 8v6" /><path d="M23 11h-6" /></svg>
+                            <span className={`truncate transition-all ${labelClass}`}>{t('users')}</span>
+                        </Link>
+                    )}
                     <Link
                         href="/categories"
                         className={`flex items-center ${alignClass} gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors`}

@@ -79,9 +79,7 @@ function WalletDetailsPopup({
     };
   }, [onClose]);
 
-  const ownerName = details.owner
-    ? [details.owner.first_name, details.owner.last_name].filter(Boolean).join(" ") || "—"
-    : "—";
+  const ownerName = details.owner?.display_name || "—";
 
   return createPortal(
     <div
@@ -146,8 +144,6 @@ function WalletDetailsPopup({
             <h3 className="text-xs font-medium text-slate-500">{tWallets("details.members")}</h3>
             <div className="space-y-2">
               {details.members.map((m) => {
-                const name =
-                  [m.first_name, m.last_name].filter(Boolean).join(" ") || "—";
                 return (
                   <div
                     key={m.user_id}
@@ -165,7 +161,7 @@ function WalletDetailsPopup({
                     />
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium truncate">
-                        {name}
+                        {m.display_name || "—"}
                       </div>
                       <div className="text-[10px] text-slate-500 capitalize">
                         {m.role}

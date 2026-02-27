@@ -2,6 +2,11 @@ export type Wallet = {
   id: string;
   name: string;
   is_shared: boolean;
+  tracking_mode?: "full" | "basic" | null;
+  split_mode?: "none" | "split" | null;
+  default_split_method?: "equally" | "by_income" | "manual" | null;
+  shared_option?: string | null;
+  split_type?: string | null;
   created_by: string;
   is_active: boolean;
   created_at: string;

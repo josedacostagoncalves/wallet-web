@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { getStatementsByCategory, getAvailableYears } from "@/app/actions/statements";
+import {
+    getStatementsByCategory,
+    getSavingsInvestmentStatements,
+    getAvailableYears,
+    type StatementsViewMode,
+} from "@/app/actions/statements";
 import { StatementsTable } from "@/components/StatementsTable";
 
 export default function StatementsPage() {
@@ -16,28 +21,34 @@ export default function StatementsPage() {
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
     const [availableYears, setAvailableYears] = useState<number[]>([]);
     const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
+    const [viewMode, setViewMode] = useState<StatementsViewMode>("incomeExpenses");
+    const [savingsInvestmentsData, setSavingsInvestmentsData] = useState<any[]>([]);
 
-    // Initialize wallet and fetch available years
+    // Initialize wallet
     useEffect(() => {
         async function init() {
             const cookie = await getWalletCookie();
             setCurrentWalletId(cookie);
-
-            if (cookie) {
-                const years = await getAvailableYears(cookie);
-                setAvailableYears(years);
-
-                // Set selected year to current year if available, otherwise first available
-                const currentYear = new Date().getFullYear();
-                if (years.includes(currentYear)) {
-                    setSelectedYear(currentYear);
-                } else if (years.length > 0) {
-                    setSelectedYear(years[0]);
-                }
-            }
         }
         init();
     }, []);
+
+    // Fetch available years based on selected view mode
+    useEffect(() => {
+        if (!currentWalletId) return;
+        const walletId = currentWalletId;
+        async function loadYears() {
+            const years = await getAvailableYears(walletId, viewMode);
+            setAvailableYears(years);
+            const currentYear = new Date().getFullYear();
+            setSelectedYear((prev) => {
+                if (years.includes(prev)) return prev;
+                if (years.includes(currentYear)) return currentYear;
+                return years[0] ?? currentYear;
+            });
+        }
+        loadYears();
+    }, [currentWalletId, viewMode]);
 
     // Update date range when selected year changes
     useEffect(() => {
@@ -59,13 +70,25 @@ export default function StatementsPage() {
                 if (!currentWalletId || !dateRange) {
                     throw new Error(t("errorLoading"));
                 }
-                const data = await getStatementsByCategory(
-                    currentWalletId,
-                    dateRange.start,
-                    dateRange.end
-                );
-                setIncomeData(data.income);
-                setExpenseData(data.expenses);
+                if (viewMode === "incomeExpenses") {
+                    const data = await getStatementsByCategory(
+                        currentWalletId,
+                        dateRange.start,
+                        dateRange.end
+                    );
+                    setIncomeData(data.income);
+                    setExpenseData(data.expenses);
+                    setSavingsInvestmentsData([]);
+                } else {
+                    const data = await getSavingsInvestmentStatements(
+                        currentWalletId,
+                        dateRange.start,
+                        dateRange.end
+                    );
+                    setSavingsInvestmentsData(data);
+                    setIncomeData([]);
+                    setExpenseData([]);
+                }
                 setError(null);
             } catch (err) {
                 setError(
@@ -73,13 +96,14 @@ export default function StatementsPage() {
                 );
                 setIncomeData([]);
                 setExpenseData([]);
+                setSavingsInvestmentsData([]);
             } finally {
                 setLoading(false);
             }
         }
 
         loadData();
-    }, [currentWalletId, dateRange, t]);
+    }, [currentWalletId, dateRange, viewMode, t]);
 
     return (
         <div className="space-y-6">
@@ -92,7 +116,7 @@ export default function StatementsPage() {
                 </p>
             </div>
 
-            {/* Year Selector */}
+            {/* Filters */}
             <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
                 <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     {t("year")}:
@@ -107,6 +131,17 @@ export default function StatementsPage() {
                             {year}
                         </option>
                     ))}
+                </select>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-2">
+                    {t("view")}:
+                </label>
+                <select
+                    value={viewMode}
+                    onChange={(e) => setViewMode(e.target.value as StatementsViewMode)}
+                    className="px-3 py-2 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
+                >
+                    <option value="incomeExpenses">{t("viewModes.incomeExpenses")}</option>
+                    <option value="savingsInvestments">{t("viewModes.savingsInvestments")}</option>
                 </select>
             </div>
 
@@ -126,31 +161,39 @@ export default function StatementsPage() {
                         {t("loading")}
                     </div>
                 ) : (
-                    <div className="space-y-8">
-                        {/* Income Table */}
-                        <div>
-                            <StatementsTable
-                                data={incomeData}
-                                type="income"
-                                tableKey="income"
-                                currentWalletId={currentWalletId}
-                                dateRange={dateRange}
-                                title={t("income")}
-                            />
+                    viewMode === "incomeExpenses" ? (
+                        <div className="space-y-8">
+                            <div>
+                                <StatementsTable
+                                    data={incomeData}
+                                    type="income"
+                                    tableKey="income"
+                                    currentWalletId={currentWalletId}
+                                    dateRange={dateRange}
+                                    title={t("income")}
+                                />
+                            </div>
+                            <div>
+                                <StatementsTable
+                                    data={expenseData}
+                                    type="expense"
+                                    tableKey="expense"
+                                    currentWalletId={currentWalletId}
+                                    dateRange={dateRange}
+                                    title={t("expenses")}
+                                />
+                            </div>
                         </div>
-
-                        {/* Expenses Table */}
-                        <div>
-                            <StatementsTable
-                                data={expenseData}
-                                type="expense"
-                                tableKey="expense"
-                                currentWalletId={currentWalletId}
-                                dateRange={dateRange}
-                                title={t("expenses")}
-                            />
-                        </div>
-                    </div>
+                    ) : (
+                        <StatementsTable
+                            data={savingsInvestmentsData}
+                            type="transfer"
+                            tableKey="savings_investments"
+                            currentWalletId={currentWalletId}
+                            dateRange={dateRange}
+                            title={t("savingsAndInvestments")}
+                        />
+                    )
                 )
             }
         </div >

@@ -2,12 +2,27 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { getOrEnsureProfile } from "@/app/actions/profiles";
+
+function getDisplayNameFromSources(
+  user: { email?: string | null; user_metadata?: Record<string, unknown> },
+  profile?: { first_name?: string | null; last_name?: string | null; email?: string | null } | null
+): string {
+  const profileFullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
+  if (profileFullName) return profileFullName;
+  const metadataFullName = `${(user.user_metadata as any)?.first_name ?? ""} ${(user.user_metadata as any)?.last_name ?? ""}`.trim();
+  if (metadataFullName) return metadataFullName;
+  return "Member";
+}
 
 export async function createWallet(params: {
   name: string;
   is_shared: boolean;
   shared_option?: string | null;
   split_type?: string | null;
+  tracking_mode?: "full" | "basic" | null;
+  split_mode?: "none" | "split" | null;
+  default_split_method?: "equally" | "by_income" | "manual" | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const {
@@ -22,6 +37,9 @@ export async function createWallet(params: {
       is_shared: params.is_shared,
       shared_option: params.shared_option ?? null,
       split_type: params.split_type ?? null,
+        tracking_mode: params.tracking_mode ?? "full",
+        split_mode: params.split_mode ?? "none",
+        default_split_method: params.default_split_method ?? null,
       created_by: user.id,
       is_active: true,
     })
@@ -31,11 +49,29 @@ export async function createWallet(params: {
   if (wErr) return { error: wErr.message };
   if (!w) return { error: "Insert failed" };
 
-  const { error: mErr } = await supabase.from("wallet_members").insert({
+  const { data: ownerProfile } = await supabase
+    .from("profiles")
+    .select("first_name, last_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const ownerName = getDisplayNameFromSources(user, ownerProfile);
+
+  let mErr: { message: string } | null = null;
+  const ownerInsertWithName = await supabase.from("wallet_members").insert({
     wallet_id: w.id,
     user_id: user.id,
     role: "owner",
+    member_name: ownerName,
   });
+  mErr = ownerInsertWithName.error;
+  if (mErr && mErr.message.toLowerCase().includes("member_name")) {
+    const ownerInsertLegacy = await supabase.from("wallet_members").insert({
+      wallet_id: w.id,
+      user_id: user.id,
+      role: "owner",
+    });
+    mErr = ownerInsertLegacy.error;
+  }
   if (mErr) return { error: mErr.message };
 
   await logActivity(supabase, {
@@ -43,14 +79,31 @@ export async function createWallet(params: {
     entity_type: "wallet",
     entity_id: w.id,
     wallet_id: w.id,
-    payload: { name: params.name, is_shared: params.is_shared, shared_option: params.shared_option ?? null, split_type: params.split_type ?? null },
+    payload: {
+      name: params.name,
+      is_shared: params.is_shared,
+      shared_option: params.shared_option ?? null,
+      split_type: params.split_type ?? null,
+      tracking_mode: params.tracking_mode ?? "full",
+      split_mode: params.split_mode ?? "none",
+      default_split_method: params.default_split_method ?? null,
+    },
   });
   return {};
 }
 
 export async function updateWallet(
   id: string,
-  params: { name?: string; is_shared?: boolean; is_active?: boolean; shared_option?: string | null; split_type?: string | null }
+  params: {
+    name?: string;
+    is_shared?: boolean;
+    is_active?: boolean;
+    shared_option?: string | null;
+    split_type?: string | null;
+    tracking_mode?: "full" | "basic" | null;
+    split_mode?: "none" | "split" | null;
+    default_split_method?: "equally" | "by_income" | "manual" | null;
+  }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
 
@@ -66,6 +119,11 @@ export async function updateWallet(
   if (params.is_shared !== undefined) updates.is_shared = params.is_shared;
   if (params.shared_option !== undefined) updates.shared_option = params.shared_option;
   if (params.split_type !== undefined) updates.split_type = params.split_type;
+  if (params.tracking_mode !== undefined) updates.tracking_mode = params.tracking_mode;
+  if (params.split_mode !== undefined) updates.split_mode = params.split_mode;
+  if (params.default_split_method !== undefined) {
+    updates.default_split_method = params.default_split_method;
+  }
   if (params.is_active !== undefined) updates.is_active = params.is_active;
 
   if (Object.keys(updates).length === 0) return {};
@@ -156,6 +214,21 @@ export async function joinWalletByCode(shareCode: string): Promise<{ error?: str
   // Log activity
   const walletId = result.wallet_id as string;
   const walletName = result.wallet_name as string;
+  const { data: joinerProfile } = await supabase
+    .from("profiles")
+    .select("first_name, last_name")
+    .eq("id", user.id)
+    .maybeSingle();
+  const joinerName = getDisplayNameFromSources(user, joinerProfile);
+  const joinNameUpdate = await supabase
+    .from("wallet_members")
+    .update({ member_name: joinerName })
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .is("member_name", null);
+  if (joinNameUpdate.error && !joinNameUpdate.error.message.toLowerCase().includes("member_name")) {
+    return { error: joinNameUpdate.error.message };
+  }
   await logActivity(supabase, {
     action: "wallet_join",
     entity_type: "wallet",
@@ -165,6 +238,52 @@ export async function joinWalletByCode(shareCode: string): Promise<{ error?: str
   });
 
   return {};
+}
+
+export async function ensureCurrentWalletMemberName(walletId: string): Promise<{ updated?: boolean; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: selfMember, error: memberErr } = await supabase
+    .from("wallet_members")
+    .select("member_name")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (memberErr) return { error: memberErr.message };
+  if (!selfMember) return { error: "Not a member of this wallet" };
+
+  const ensuredProfile = await getOrEnsureProfile(
+    user.id,
+    user.user_metadata as { first_name?: string | null; last_name?: string | null } | undefined
+  );
+  const resolvedName = getDisplayNameFromSources(user, {
+    first_name: ensuredProfile.first_name,
+    last_name: ensuredProfile.last_name,
+    email: user.email ?? null,
+  });
+  const currentName = (selfMember.member_name ?? "").trim();
+  const emailPrefix = typeof user.email === "string" && user.email.length > 0 ? user.email.split("@")[0] : "";
+  const shouldUpdate =
+    !currentName ||
+    currentName === user.id ||
+    (!!emailPrefix && currentName.toLowerCase() === emailPrefix.toLowerCase());
+  if (!shouldUpdate) return { updated: false };
+
+  const updateRes = await supabase
+    .from("wallet_members")
+    .update({ member_name: resolvedName })
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .is("member_name", null);
+  if (updateRes.error) {
+    if (updateRes.error.message.toLowerCase().includes("member_name")) return { updated: false };
+    return { error: updateRes.error.message };
+  }
+  return { updated: true };
 }
 
 function normalizeMembers(
@@ -367,6 +486,7 @@ export async function undoDeleteWallet(
 export type WalletDetailMember = {
   user_id: string;
   role: string;
+  display_name: string;
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
@@ -404,7 +524,7 @@ export async function getWalletDetails(
   // Fetch members
   const { data: memberRows } = await supabase
     .from("wallet_members")
-    .select("user_id, role")
+    .select("user_id, role, member_name")
     .eq("wallet_id", walletId);
   const rawMembers = memberRows ?? [];
 
@@ -420,9 +540,11 @@ export async function getWalletDetails(
 
   const members: WalletDetailMember[] = rawMembers.map((m) => {
     const prof = profileMap.get(m.user_id);
+    const fullName = `${prof?.first_name ?? ""} ${prof?.last_name ?? ""}`.trim();
     return {
       user_id: m.user_id,
       role: m.role,
+      display_name: fullName || m.member_name || "Member",
       first_name: prof?.first_name ?? null,
       last_name: prof?.last_name ?? null,
       avatar_url: prof?.avatar_url ?? null,
@@ -494,6 +616,227 @@ export async function updateMemberIncome(
   return {};
 }
 
+export async function addWalletMemberByName(
+  walletId: string,
+  memberName: string
+): Promise<{ member?: { user_id: string; display_name: string; role: string }; error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const normalizedName = String(memberName || "").trim();
+  if (!normalizedName) return { error: "Name is required" };
+
+  const { data: ownerMembership } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .single();
+  if (!ownerMembership) return { error: "Not a member of this wallet" };
+  if (ownerMembership.role !== "owner") return { error: "Only wallet owner can add members" };
+
+  const { data: wallet } = await supabase
+    .from("wallets")
+    .select("is_shared, split_mode, shared_option")
+    .eq("id", walletId)
+    .single();
+  const splitActive =
+    wallet?.split_mode === "split" ||
+    wallet?.shared_option === "split" ||
+    wallet?.shared_option === "track_and_split";
+  if (!wallet?.is_shared || !splitActive) {
+    return { error: "Members can only be managed in shared split wallets" };
+  }
+
+  const pseudoMemberId = crypto.randomUUID();
+  let insertErr: { message: string } | null = null;
+  const insertWithName = await supabase.from("wallet_members").insert({
+    wallet_id: walletId,
+    user_id: pseudoMemberId,
+    role: "member",
+    member_name: normalizedName,
+  });
+  insertErr = insertWithName.error;
+
+  // Backward compatibility when member_name column migration is not yet applied.
+  if (insertErr && insertErr.message.toLowerCase().includes("member_name")) {
+    const insertLegacy = await supabase.from("wallet_members").insert({
+      wallet_id: walletId,
+      user_id: pseudoMemberId,
+      role: "member",
+    });
+    insertErr = insertLegacy.error;
+  }
+  if (insertErr) return { error: insertErr.message };
+
+  await logActivity(supabase, {
+    action: "wallet_member_add",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: { member_id: pseudoMemberId, name: normalizedName },
+  });
+
+  return {
+    member: {
+      user_id: pseudoMemberId,
+      display_name: normalizedName,
+      role: "member",
+    },
+  };
+}
+
+export async function removeWalletMember(
+  walletId: string,
+  memberId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: ownerMembership } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .single();
+  if (!ownerMembership) return { error: "Not a member of this wallet" };
+  if (ownerMembership.role !== "owner") return { error: "Only wallet owner can remove members" };
+  if (memberId === user.id) return { error: "Owner cannot remove themselves" };
+
+  const { data: target } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", memberId)
+    .maybeSingle();
+  if (!target) return { error: "Member not found" };
+  if (target.role === "owner") return { error: "Cannot remove wallet owner" };
+
+  const { error: deleteErr } = await supabase
+    .from("wallet_members")
+    .delete()
+    .eq("wallet_id", walletId)
+    .eq("user_id", memberId);
+  if (deleteErr) return { error: deleteErr.message };
+
+  await logActivity(supabase, {
+    action: "wallet_member_remove",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: { member_id: memberId },
+  });
+
+  return {};
+}
+
+export async function linkWalletUserToJoinedMember(
+  walletId: string,
+  walletUserId: string,
+  joinedMemberId: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: ownerMembership } = await supabase
+    .from("wallet_members")
+    .select("role")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownerMembership || ownerMembership.role !== "owner") {
+    return { error: "Only wallet owner can link users" };
+  }
+
+  const { data: rows, error: rowsErr } = await supabase
+    .from("wallet_members")
+    .select("user_id, member_name, role")
+    .eq("wallet_id", walletId)
+    .in("user_id", [walletUserId, joinedMemberId]);
+  if (rowsErr) return { error: rowsErr.message };
+  if (!rows || rows.length < 2) return { error: "Both users must exist in this wallet" };
+
+  const source = rows.find((r) => r.user_id === walletUserId);
+  const target = rows.find((r) => r.user_id === joinedMemberId);
+  if (!source || !target) return { error: "Invalid users selected" };
+  if (target.role === "owner") return { error: "Cannot link to owner row" };
+
+  const sourceName = source.member_name ?? null;
+  if (sourceName) {
+    await supabase
+      .from("wallet_members")
+      .update({ member_name: sourceName })
+      .eq("wallet_id", walletId)
+      .eq("user_id", joinedMemberId)
+      .is("member_name", null);
+  }
+
+  await supabase
+    .from("transactions")
+    .update({ paid_by_member_id: joinedMemberId })
+    .eq("wallet_id", walletId)
+    .eq("paid_by_member_id", walletUserId);
+  await supabase
+    .from("transactions")
+    .update({ received_by_member_id: joinedMemberId })
+    .eq("wallet_id", walletId)
+    .eq("received_by_member_id", walletUserId);
+
+  const { data: oldSplits, error: oldSplitsErr } = await supabase
+    .from("transaction_splits")
+    .select("id, transaction_id, percentage")
+    .eq("member_id", walletUserId);
+  if (oldSplitsErr) return { error: oldSplitsErr.message };
+
+  for (const row of oldSplits ?? []) {
+    const { data: existing } = await supabase
+      .from("transaction_splits")
+      .select("id, percentage")
+      .eq("transaction_id", row.transaction_id)
+      .eq("member_id", joinedMemberId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("transaction_splits")
+        .update({ percentage: Number(existing.percentage ?? 0) + Number(row.percentage ?? 0) })
+        .eq("id", existing.id);
+      await supabase.from("transaction_splits").delete().eq("id", row.id);
+    } else {
+      await supabase
+        .from("transaction_splits")
+        .update({ member_id: joinedMemberId })
+        .eq("id", row.id);
+    }
+  }
+
+  const { error: delErr } = await supabase
+    .from("wallet_members")
+    .delete()
+    .eq("wallet_id", walletId)
+    .eq("user_id", walletUserId);
+  if (delErr) return { error: delErr.message };
+
+  await logActivity(supabase, {
+    action: "wallet_member_link",
+    entity_type: "wallet",
+    entity_id: walletId,
+    wallet_id: walletId,
+    payload: { wallet_user_id: walletUserId, joined_member_id: joinedMemberId },
+  });
+
+  return {};
+}
+
 export async function getWalletSettlements(
   walletId: string
 ): Promise<{
@@ -520,16 +863,200 @@ export async function getWalletSettlements(
     .eq("user_id", user.id)
     .single();
   if (!member) return { error: "Not a member of this wallet" };
+  const { data: wallet, error: walletErr } = await supabase
+    .from("wallets")
+    .select("default_split_method, split_type, split_mode, shared_option")
+    .eq("id", walletId)
+    .single();
+  if (walletErr || !wallet) return { error: walletErr?.message ?? "Wallet not found" };
 
-  // Call the settlement calculation RPC function
-  const { data, error: err } = await supabase.rpc(
-    "calculate_wallet_settlement",
-    { p_wallet_id: walletId }
+  const isSplitWallet =
+    wallet.split_mode === "split" ||
+    wallet.shared_option === "split" ||
+    wallet.shared_option === "track_and_split";
+  if (!isSplitWallet) return { settlements: [] };
+
+  const defaultMethod = (wallet.default_split_method ||
+    (wallet.split_type === "by_income" ? "by_income" : "equally")) as
+    | "equally"
+    | "by_income"
+    | "manual";
+
+  const { data: members, error: membersErr } = await supabase
+    .from("wallet_members")
+    .select("user_id, member_name, income_monthly")
+    .eq("wallet_id", walletId);
+  if (membersErr) return { error: membersErr.message };
+  if (!members || members.length === 0) return { settlements: [] };
+
+  const memberIds = members.map((m) => m.user_id);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name")
+    .in("id", memberIds);
+  const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+
+  const memberInfo = new Map(
+    members.map((m: any) => [
+      m.user_id,
+      {
+        profile: profileMap.get(m.user_id),
+        email:
+          [profileMap.get(m.user_id)?.first_name, profileMap.get(m.user_id)?.last_name].filter(Boolean).join(" ").trim() ||
+          m.member_name ||
+          "Member",
+        income: Number(m.income_monthly ?? 0),
+      },
+    ])
   );
 
-  if (err) return { error: err.message };
+  const { data: expenses, error: txErr } = await supabase
+    .from("transactions")
+    .select("id, amount, paid_by_member_id, split_method_override")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "expense");
+  if (txErr) return { error: txErr.message };
 
-  return { settlements: data ?? [] };
+  const { data: transfers, error: transfersErr } = await supabase
+    .from("transactions")
+    .select("amount, paid_by_member_id, received_by_member_id")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "transfer");
+  if (transfersErr) return { error: transfersErr.message };
+
+  const { data: incomes, error: incomesErr } = await supabase
+    .from("transactions")
+    .select("amount, received_by_member_id")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "income");
+  if (incomesErr) return { error: incomesErr.message };
+
+  const incomeByMember = new Map<string, number>();
+  for (const id of memberIds) incomeByMember.set(id, 0);
+  for (const inc of (incomes ?? []) as Array<{ amount: number; received_by_member_id: string | null }>) {
+    if (!inc.received_by_member_id || !incomeByMember.has(inc.received_by_member_id)) continue;
+    incomeByMember.set(
+      inc.received_by_member_id,
+      (incomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
+    );
+  }
+
+  const txIds = (expenses ?? []).map((t) => t.id);
+  let splits: Array<{ transaction_id: string; member_id: string; percentage: number }> = [];
+  let splitsErr: { message?: string } | null = null;
+  if (txIds.length) {
+    const splitsRes = await supabase
+      .from("transaction_splits")
+      .select("transaction_id, member_id, percentage")
+      .in("transaction_id", txIds);
+    splits = (splitsRes.data ?? []) as Array<{ transaction_id: string; member_id: string; percentage: number }>;
+    splitsErr = splitsRes.error;
+  }
+  if (splitsErr) return { error: splitsErr.message };
+
+  const splitsByTx = new Map<string, Array<{ member_id: string; percentage: number }>>();
+  for (const s of splits) {
+    const arr = splitsByTx.get(s.transaction_id) ?? [];
+    arr.push({ member_id: s.member_id, percentage: Number(s.percentage) });
+    splitsByTx.set(s.transaction_id, arr);
+  }
+
+  const totalPaid = new Map<string, number>();
+  const totalShare = new Map<string, number>();
+  const transferAdjustments = new Map<string, number>();
+  for (const id of memberIds) {
+    totalPaid.set(id, 0);
+    totalShare.set(id, 0);
+    transferAdjustments.set(id, 0);
+  }
+
+  const totalIncomeFromTransactions = Array.from(incomeByMember.values()).reduce((sum, value) => sum + value, 0);
+  const totalIncomeFromMemberSettings = members.reduce((sum: number, m: any) => sum + Number(m.income_monthly ?? 0), 0);
+  const useTransactionIncome = totalIncomeFromTransactions > 0;
+  const totalIncome = useTransactionIncome ? totalIncomeFromTransactions : totalIncomeFromMemberSettings;
+
+  for (const tx of (expenses ?? []) as Array<{
+    id: string;
+    amount: number;
+    paid_by_member_id: string | null;
+    split_method_override: string | null;
+  }>) {
+    const amount = Number(tx.amount);
+    const payerId = tx.paid_by_member_id;
+    if (payerId && totalPaid.has(payerId)) {
+      totalPaid.set(payerId, (totalPaid.get(payerId) ?? 0) + amount);
+    }
+
+    const method = (tx.split_method_override as "equally" | "by_income" | "manual" | null) || defaultMethod;
+
+    if (method === "manual") {
+      const manual = splitsByTx.get(tx.id) ?? [];
+      const sumPct = manual.reduce((sum, s) => sum + s.percentage, 0);
+      if (sumPct > 0) {
+        for (const s of manual) {
+          if (!totalShare.has(s.member_id)) continue;
+          const share = amount * (s.percentage / sumPct);
+          totalShare.set(s.member_id, (totalShare.get(s.member_id) ?? 0) + share);
+        }
+        continue;
+      }
+      // Fallback to equally if manual data is missing.
+    }
+
+    if (method === "by_income" && totalIncome > 0) {
+      for (const memberId of memberIds) {
+        const income = useTransactionIncome
+          ? incomeByMember.get(memberId) ?? 0
+          : memberInfo.get(memberId)?.income ?? 0;
+        const share = amount * (income / totalIncome);
+        totalShare.set(memberId, (totalShare.get(memberId) ?? 0) + share);
+      }
+      continue;
+    }
+
+    const equalShare = amount / memberIds.length;
+    for (const memberId of memberIds) {
+      totalShare.set(memberId, (totalShare.get(memberId) ?? 0) + equalShare);
+    }
+  }
+
+  // Transfers between members are settlement movements:
+  // payer balance increases (they paid back), receiver balance decreases (they were paid back).
+  for (const tx of (transfers ?? []) as Array<{
+    amount: number;
+    paid_by_member_id: string | null;
+    received_by_member_id: string | null;
+  }>) {
+    const amount = Number(tx.amount ?? 0);
+    const payer = tx.paid_by_member_id;
+    const receiver = tx.received_by_member_id;
+    if (!amount || amount <= 0 || !payer || !receiver || payer === receiver) continue;
+    if (transferAdjustments.has(payer)) {
+      transferAdjustments.set(payer, (transferAdjustments.get(payer) ?? 0) + amount);
+    }
+    if (transferAdjustments.has(receiver)) {
+      transferAdjustments.set(receiver, (transferAdjustments.get(receiver) ?? 0) - amount);
+    }
+  }
+
+  const settlements = memberIds.map((memberId) => {
+    const paid = totalPaid.get(memberId) ?? 0;
+    const share = totalShare.get(memberId) ?? 0;
+    const transferAdjustment = transferAdjustments.get(memberId) ?? 0;
+    const balance = paid - share + transferAdjustment;
+    return {
+      member_id: memberId,
+      email: memberInfo.get(memberId)?.email ?? memberId,
+      total_paid: Math.round(paid * 100),
+      total_share: Math.round(share * 100),
+      balance: Math.round(balance * 100),
+    };
+  });
+
+  return { settlements };
 }
 
 export async function getWalletSplitInfo(
@@ -537,6 +1064,9 @@ export async function getWalletSplitInfo(
 ): Promise<{
   shared_option?: string | null;
   split_type?: string | null;
+  tracking_mode?: string | null;
+  split_mode?: string | null;
+  default_split_method?: string | null;
   members?: Array<{
     id: string;
     user_id: string;
@@ -556,7 +1086,7 @@ export async function getWalletSplitInfo(
   // Fetch wallet split_type and shared_option
   const { data: wallet, error: walletErr } = await supabase
     .from("wallets")
-    .select("split_type, shared_option")
+    .select("split_type, shared_option, tracking_mode, split_mode, default_split_method")
     .eq("id", walletId)
     .single();
   if (walletErr || !wallet) return { error: walletErr?.message ?? "Wallet not found" };
@@ -564,16 +1094,29 @@ export async function getWalletSplitInfo(
   // Fetch wallet members
   const { data: memberData, error: memberErr } = await supabase
     .from("wallet_members")
-    .select("id, user_id, profiles(first_name, last_name, email, avatar_url)")
+    .select("id, user_id, member_name")
     .eq("wallet_id", walletId);
 
   const memberErrorMessage = memberErr ? memberErr.message : undefined;
+  const memberIds = (memberData ?? []).map((m: any) => m.user_id);
+  let profileRows: any[] = [];
+  if (memberIds.length) {
+    const profilesRes = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, avatar_url")
+      .in("id", memberIds);
+    profileRows = profilesRes.data ?? [];
+  }
+  const profilesById = new Map((profileRows ?? []).map((p: any) => [p.id, p]));
 
-  // Format members - use profile name or email as fallback
+  // Format members - prioritize proper names and avoid UUID-like fallbacks in UI.
   let members = (memberData ?? []).map((m: any) => {
-    const profile = m.profiles as any;
+    const profile = profilesById.get(m.user_id) as any;
     const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-    const displayName = fullName || profile?.email || m.user_id;
+    const displayName =
+      fullName ||
+      m.member_name ||
+      "Member";
 
     return {
       id: m.user_id,
@@ -594,7 +1137,9 @@ export async function getWalletSplitInfo(
       .maybeSingle();
 
     if (selfMember) {
-      const fallbackName = user.email ?? user.id;
+      const fallbackName =
+        `${(user.user_metadata as any)?.first_name ?? ""} ${(user.user_metadata as any)?.last_name ?? ""}`.trim() ||
+        (user.email ? user.email.split("@")[0] : "Member");
       members = [
         {
           id: selfMember.user_id,
@@ -639,6 +1184,9 @@ export async function getWalletSplitInfo(
   return {
     shared_option: sharedOption,
     split_type: wallet.split_type,
+    tracking_mode: wallet.tracking_mode ?? null,
+    split_mode: wallet.split_mode ?? null,
+    default_split_method: wallet.default_split_method ?? null,
     members,
     error: memberErrorMessage,
   };

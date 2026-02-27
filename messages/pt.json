@@ -28,6 +28,7 @@
         "statements": "Balanço",
         "wallets": "Carteiras",
         "accounts": "Contas",
+        "users": "Utilizadores",
         "categories": "Categorias",
         "activityLog": "Registo de atividade",
         "settings": "Definições",
@@ -289,6 +290,7 @@
         "noAccounts": "Ainda não há contas",
         "page": {
             "noWallet": "Selecione ou crie uma carteira primeiro.",
+            "fullTrackingOnly": "Esta carteira usa modo Básico. As contas só estão disponíveis em carteiras com modo Completo.",
             "addOne": "Adicionar uma",
             "table": {
                 "initial": "Inicial",
@@ -329,6 +331,32 @@
             "initialBalanceLabel": "Saldo inicial (€) *",
             "initialBalanceHint": "Alterar isto ajustará o saldo atual pela mesma diferença.",
             "activeLabel": "Ativa (mostrada no formulário de transações)"
+        }
+    },
+    "users": {
+        "title": "Utilizadores",
+        "addUser": "Adicionar utilizador",
+        "noUsers": "Ainda não há utilizadores.",
+        "roles": {
+            "owner": "Proprietário",
+            "member": "Membro"
+        },
+        "table": {
+            "name": "Nome",
+            "role": "Papel",
+            "balance": "Saldo",
+            "actions": "Ações"
+        },
+        "page": {
+            "noWallet": "Selecione ou crie uma carteira primeiro.",
+            "onlySplitWallets": "Utilizadores disponíveis apenas para carteiras partilhadas com divisão.",
+            "namePlaceholder": "ex.: João Silva",
+            "adding": "A adicionar…",
+            "removing": "A remover…"
+        },
+        "toasts": {
+            "added": "Utilizador adicionado.",
+            "removed": "Utilizador removido."
         }
     },
     "transactions": {
@@ -494,6 +522,11 @@
                 "paidByMemberRequired": "Pago por membro *",
                 "receivedByMember": "Recebido por membro",
                 "receivedByMemberRequired": "Recebido por membro *",
+                "splitMethod": "Método de divisão",
+                "splitMethodEqually": "Igualmente por todos os membros",
+                "splitMethodByIncome": "Dependendo dos rendimentos",
+                "splitMethodManual": "Percentagens definidas manualmente",
+                "defaultSplitMethodHint": "Método padrão da carteira: {method}",
                 "notSpecified": "Não especificado",
                 "noMembers": "Nenhum membro encontrado."
             },
@@ -563,6 +596,7 @@
                 "accountsDifferent": "As contas De e Para devem ser diferentes",
                 "memberPaidRequired": "Por favor selecione o membro que pagou",
                 "memberReceivedRequired": "Por favor selecione o membro que recebeu",
+                "manualSplitTotal": "As percentagens manuais devem somar 100%",
                 "intervalMonthsValid": "Por favor introduza um número válido de meses (1 ou mais)",
                 "intervalDaysValid": "Por favor introduza um número válido de dias (1 ou mais)",
                 "workDayIndexValid": "O índice do dia útil deve ser 1–31"
@@ -724,11 +758,49 @@
                     "membersIncome": "Rendimentos dos membros",
                     "membersIncomeHint": "Defina o rendimento mensal para calcular a divisão por percentagem.",
                     "unknownMember": "Desconhecido"
+                },
+                "members": {
+                    "title": "Membros",
+                    "hint": "O proprietário pode adicionar ou remover membros em carteiras com divisão. O saldo mostra o acerto de cada membro.",
+                    "namePlaceholder": "Nome do membro",
+                    "add": "Adicionar utilizador",
+                    "adding": "A adicionar…",
+                    "remove": "Remover",
+                    "removing": "A remover…",
+                    "owner": "Proprietário",
+                    "member": "Membro"
                 }
             },
             "new": {
                 "nameLabel": "Nome *",
                 "namePlaceholder": "ex.: Família, Pessoal",
+                "walletOwnership": "Tipo de carteira",
+                "ownership": {
+                    "personal": "Pessoal",
+                    "personalDesc": "Apenas você usa esta carteira.",
+                    "shared": "Partilhada",
+                    "sharedDesc": "Vários membros usam esta carteira."
+                },
+                "trackingMode": "Modo de monitorização",
+                "tracking": {
+                    "full": "Completo",
+                    "fullDesc": "Transações + saldos de contas. Contas obrigatórias para transações.",
+                    "basic": "Básico",
+                    "basicDesc": "Apenas histórico de transações e extratos. Sem controlo de saldos."
+                },
+                "sharedSplitMode": "Modo de partilha de transações",
+                "split": {
+                    "none": "Sem divisão",
+                    "noneDesc": "As transações não são divididas entre membros.",
+                    "enabled": "Com divisão",
+                    "enabledDesc": "Despesa/Receita pode ser atribuída e dividida entre membros."
+                },
+                "defaultSplitMethod": "Método de divisão padrão",
+                "splitMethod": {
+                    "equally": "Igualitário",
+                    "byIncome": "Por rendimento",
+                    "manual": "Manual"
+                },
                 "sharedLabel": "Partilhada (ex.: com o seu cônjuge)",
                 "sharedHint": "Pode adicionar membros a uma carteira partilhada mais tarde nas definições da carteira.",
                 "sharedType": "Tipo de carteira partilhada",
@@ -781,6 +853,8 @@
             "createFailed": "Falha ao criar",
             "updated": "Carteira atualizada.",
             "memberIncomeUpdated": "Rendimento do membro atualizado.",
+            "memberAdded": "Membro adicionado.",
+            "memberRemoved": "Membro removido.",
             "permanentlyDeleted": "Carteira eliminada permanentemente.",
             "deletedUndo": "Carteira eliminada. Pode desfazer dentro de 30 dias.",
             "restored": "Carteira \"{name}\" restaurada."
@@ -793,7 +867,12 @@
         "noCategories": "Ainda não há categorias",
         "page": {
             "inactive": "inativa",
-            "deactivate": "Desativar"
+            "deactivate": "Desativar",
+            "copyFromWallet": "Copiar de outra carteira",
+            "copyTitle": "Copiar categorias",
+            "noCopySources": "Não há categorias disponíveis nas suas outras carteiras.",
+            "sourceWallet": "Carteira de origem",
+            "copySelected": "Copiar selecionadas"
         },
         "modal": {
             "titleEdit": "Editar categoria",
@@ -862,8 +941,14 @@
         "title": "Balanço",
         "description": "Ver receitas e despesas organizadas por categoria",
         "year": "Ano",
+        "view": "Ver",
+        "viewModes": {
+            "incomeExpenses": "Receitas e Despesas",
+            "savingsInvestments": "Poupanças e Investimentos"
+        },
         "income": "Receitas",
         "expenses": "Despesas",
+        "savingsAndInvestments": "Poupanças e Investimentos",
         "category": "Categoria",
         "total": "Total",
         "averageMonthlyValue": "Média",

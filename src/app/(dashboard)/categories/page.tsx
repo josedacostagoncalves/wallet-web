@@ -1,6 +1,12 @@
 "use client";
 
-import { deleteCategory, getCategoryUsage } from "@/app/actions/categories";
+import {
+  copyCategoriesToWallet,
+  deleteCategory,
+  getCategoryUsage,
+  getCopyableCategories,
+  type CopyableCategoryGroup,
+} from "@/app/actions/categories";
 import { DeleteIcon, EditIcon } from "@/components/ActionIcons";
 import { CategoryModal } from "@/components/CategoryModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -24,6 +30,15 @@ type ModalMode =
   | { kind: "add-subcategory"; type: "income" | "expense" | "transfer"; parentId: string; parentName: string }
   | { kind: "edit"; categoryId: string }
   | null;
+
+type CopyDialogState = {
+  type: "income" | "expense" | "transfer";
+  loading: boolean;
+  groups: CopyableCategoryGroup[];
+  sourceWalletId: string;
+  selectedRootIds: string[];
+  copying: boolean;
+} | null;
 
 /* ─── Icons ─── */
 
@@ -121,6 +136,7 @@ export default function CategoriesPage() {
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [loadingUsage, setLoadingUsage] = useState(false);
+  const [copyDialog, setCopyDialog] = useState<CopyDialogState>(null);
 
   const loadCategories = useCallback(() => {
     if (!currentWalletId) {
@@ -211,6 +227,45 @@ export default function CategoriesPage() {
     setDeleteTarget(null);
   }
 
+  async function openCopyDialog(type: "income" | "expense" | "transfer") {
+    if (!currentWalletId) return;
+    setCopyDialog({ type, loading: true, groups: [], sourceWalletId: "", selectedRootIds: [], copying: false });
+    const res = await getCopyableCategories(currentWalletId, type);
+    if (res.error) {
+      showToast(res.error, "error");
+      setCopyDialog(null);
+      return;
+    }
+    const groups = res.groups ?? [];
+    setCopyDialog({
+      type,
+      loading: false,
+      groups,
+      sourceWalletId: groups[0]?.wallet_id ?? "",
+      selectedRootIds: [],
+      copying: false,
+    });
+  }
+
+  async function handleCopyConfirm() {
+    if (!copyDialog || !currentWalletId || !copyDialog.sourceWalletId || copyDialog.selectedRootIds.length === 0) return;
+    setCopyDialog({ ...copyDialog, copying: true });
+    const res = await copyCategoriesToWallet({
+      target_wallet_id: currentWalletId,
+      source_wallet_id: copyDialog.sourceWalletId,
+      type: copyDialog.type,
+      root_category_ids: copyDialog.selectedRootIds,
+    });
+    if (res.error) {
+      setCopyDialog({ ...copyDialog, copying: false });
+      showToast(res.error, "error");
+      return;
+    }
+    setCopyDialog(null);
+    showToast(tCategories("addedToast"));
+    loadCategories();
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -259,16 +314,27 @@ export default function CategoriesPage() {
                   <div>
                     {/* Add category button */}
                     <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setModal({ kind: "add-category", type });
-                        }}
-                        className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                        {tCategoriesPage("addCategory")}
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModal({ kind: "add-category", type });
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" />
+                          {tCategoriesPage("addCategory")}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCopyDialog(type);
+                          }}
+                          className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
+                        >
+                          {tCategoriesPage("page.copyFromWallet")}
+                        </button>
+                      </div>
                     </div>
 
                     {forType.length === 0 ? (
@@ -441,6 +507,92 @@ export default function CategoriesPage() {
         variant="cancel"
         loading={deleting}
       />
+
+      {copyDialog && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-lg rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 space-y-4">
+            <h3 className="text-lg font-semibold">{tCategoriesPage("page.copyTitle")}</h3>
+            {copyDialog.loading ? (
+              <p className="text-sm text-slate-500">{tCommon("loading")}</p>
+            ) : copyDialog.groups.length === 0 ? (
+              <p className="text-sm text-slate-500">{tCategoriesPage("page.noCopySources")}</p>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-medium mb-1">{tCategoriesPage("page.sourceWallet")}</label>
+                  <select
+                    value={copyDialog.sourceWalletId}
+                    onChange={(e) =>
+                      setCopyDialog({
+                        ...copyDialog,
+                        sourceWalletId: e.target.value,
+                        selectedRootIds: [],
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:bg-slate-800"
+                  >
+                    {copyDialog.groups.map((g) => (
+                      <option key={g.wallet_id} value={g.wallet_id}>
+                        {g.wallet_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 p-2 space-y-2">
+                  {(copyDialog.groups.find((g) => g.wallet_id === copyDialog.sourceWalletId)?.categories ?? []).map((c) => (
+                    <label key={c.id} className="block text-sm">
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={copyDialog.selectedRootIds.includes(c.id)}
+                          onChange={(e) =>
+                            setCopyDialog({
+                              ...copyDialog,
+                              selectedRootIds: e.target.checked
+                                ? [...copyDialog.selectedRootIds, c.id]
+                                : copyDialog.selectedRootIds.filter((id) => id !== c.id),
+                            })
+                          }
+                        />
+                        <div>
+                          <div className="font-medium">{c.name}</div>
+                          {c.children.length > 0 && (
+                            <div className="text-xs text-slate-500">
+                              {c.children.map((ch) => ch.name).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setCopyDialog(null)}
+                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-sm"
+              >
+                {tCommon("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyConfirm}
+                disabled={
+                  copyDialog.loading ||
+                  copyDialog.copying ||
+                  !copyDialog.sourceWalletId ||
+                  copyDialog.selectedRootIds.length === 0
+                }
+                className="px-3 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 text-sm"
+              >
+                {copyDialog.copying ? tCommon("loading") : tCategoriesPage("page.copySelected")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

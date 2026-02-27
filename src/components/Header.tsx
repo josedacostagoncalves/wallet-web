@@ -4,6 +4,7 @@ import { logActivityAction } from "@/app/actions/auth";
 import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";
 import { useWallet } from "@/contexts/WalletContext";
+import { shouldShowAccounts, shouldShowUsers } from "@/lib/wallet-modes";
 import { JWalletIcon } from "@/components/JWalletIcon";
 import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import Link from "next/link";
@@ -23,6 +24,8 @@ export function Header() {
   const { openNewIncome, openNewExpense, openNewTransfer } = useTransactionModals();
 
   const currentWallet = wallets.find((w) => w.id === currentWalletId);
+  const showAccounts = shouldShowAccounts(currentWallet);
+  const showUsers = shouldShowUsers(currentWallet);
   const greeting = firstName ? `${t('hello')}, ${firstName}` : t('hello');
 
   async function handleLogout() {
@@ -35,7 +38,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[var(--background)]">
       <div className="relative w-full px-4 h-14 flex items-center justify-between gap-4">
         {/* Icon + Hello */}
         <div className="flex items-center gap-4 min-w-0 shrink-0">
@@ -186,14 +189,26 @@ export function Header() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><rect width="20" height="14" x="2" y="5" rx="2" /><path d="M2 10h20" /></svg>
                     {tNav('wallets')}
                   </Link>
-                  <Link
-                    href="/accounts"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><circle cx="16" cy="11" r="1" /></svg>
-                    {tNav('accounts')}
-                  </Link>
+                  {showAccounts && (
+                    <Link
+                      href="/accounts"
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2" /><path d="M2 9v1c0 1.1.9 2 2 2h1" /><circle cx="16" cy="11" r="1" /></svg>
+                      {tNav('accounts')}
+                    </Link>
+                  )}
+                  {showUsers && (
+                    <Link
+                      href="/users"
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-slate-500"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><path d="M20 8v6" /><path d="M23 11h-6" /></svg>
+                      {tNav('users')}
+                    </Link>
+                  )}
                   <Link
                     href="/categories"
                     className="flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700"

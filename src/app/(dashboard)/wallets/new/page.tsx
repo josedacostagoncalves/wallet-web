@@ -15,8 +15,10 @@ export default function NewWalletPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const [name, setName] = useState("");
-  const [isShared, setIsShared] = useState(false);
-  const [sharedOption, setSharedOption] = useState<"track" | "split" | "track_and_split">("track");
+  const [ownership, setOwnership] = useState<"personal" | "shared">("personal");
+  const [trackingMode, setTrackingMode] = useState<"full" | "basic">("full");
+  const [splitMode, setSplitMode] = useState<"none" | "split">("none");
+  const [defaultSplitMethod, setDefaultSplitMethod] = useState<"equally" | "by_income" | "manual">("equally");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -36,10 +38,22 @@ export default function NewWalletPage() {
       return;
     }
 
+    const isShared = ownership === "shared";
+    const legacySharedOption = !isShared
+      ? null
+      : splitMode === "none"
+        ? "track"
+        : trackingMode === "basic"
+          ? "split"
+          : "track_and_split";
+
     const { data: walletId, error: rpcErr } = await supabase.rpc("create_wallet", {
       p_name: name.trim(),
       p_is_shared: isShared,
-      p_shared_option: isShared ? sharedOption : null,
+      p_shared_option: legacySharedOption,
+      p_tracking_mode: trackingMode,
+      p_split_mode: isShared ? splitMode : "none",
+      p_default_split_method: isShared && splitMode === "split" ? defaultSplitMethod : null,
     });
 
     if (rpcErr) {
@@ -61,7 +75,14 @@ export default function NewWalletPage() {
       action: "wallet_create",
       entity_type: "wallet",
       entity_id: walletId,
-      payload: { name: name.trim(), is_shared: isShared, shared_option: isShared ? sharedOption : null },
+      payload: {
+        name: name.trim(),
+        is_shared: isShared,
+        shared_option: legacySharedOption,
+        tracking_mode: trackingMode,
+        split_mode: isShared ? splitMode : "none",
+        default_split_method: isShared && splitMode === "split" ? defaultSplitMethod : null,
+      },
     });
 
     // Automatically select the newly created wallet
@@ -89,63 +110,145 @@ export default function NewWalletPage() {
           />
         </div>
         <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="isShared"
-            checked={isShared}
-            onChange={(e) => setIsShared(e.target.checked)}
-          />
-          <label htmlFor="isShared">{tWallets("page.new.sharedLabel")}</label>
+          <label className="block text-sm font-medium mb-1">{tWallets("page.new.walletOwnership")}</label>
         </div>
-        <p className="text-sm text-slate-500">
-          {tWallets("page.new.sharedHint")}
-        </p>
-        {isShared && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setOwnership("personal")}
+            className={
+              "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+              (ownership === "personal"
+                ? "border-slate-800 bg-slate-800/5"
+                : "border-slate-200 hover:border-slate-300")
+            }
+          >
+            <div className="text-sm font-semibold mb-1">{tWallets("page.new.ownership.personal")}</div>
+            <div className="text-xs text-slate-600">{tWallets("page.new.ownership.personalDesc")}</div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOwnership("shared")}
+            className={
+              "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+              (ownership === "shared"
+                ? "border-slate-800 bg-slate-800/5"
+                : "border-slate-200 hover:border-slate-300")
+            }
+          >
+            <div className="text-sm font-semibold mb-1">{tWallets("page.new.ownership.shared")}</div>
+            <div className="text-xs text-slate-600">{tWallets("page.new.ownership.sharedDesc")}</div>
+          </button>
+        </div>
+
+        <div className="mt-2">
+          <p className="text-sm font-medium mb-2">{tWallets("page.new.trackingMode")}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setTrackingMode("full")}
+              className={
+                "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+                (trackingMode === "full"
+                  ? "border-slate-800 bg-slate-800/5"
+                  : "border-slate-200 hover:border-slate-300")
+              }
+            >
+              <div className="text-sm font-semibold mb-1">{tWallets("page.new.tracking.full")}</div>
+              <div className="text-xs text-slate-600">{tWallets("page.new.tracking.fullDesc")}</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTrackingMode("basic")}
+              className={
+                "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
+                (trackingMode === "basic"
+                  ? "border-slate-800 bg-slate-800/5"
+                  : "border-slate-200 hover:border-slate-300")
+              }
+            >
+              <div className="text-sm font-semibold mb-1">{tWallets("page.new.tracking.basic")}</div>
+              <div className="text-xs text-slate-600">{tWallets("page.new.tracking.basicDesc")}</div>
+            </button>
+          </div>
+        </div>
+
+        {ownership === "shared" && (
           <div className="mt-4">
-            <p className="text-sm font-medium mb-2">{tWallets("page.new.sharedType")}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <p className="text-sm font-medium mb-2">{tWallets("page.new.sharedSplitMode")}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
-                onClick={() => setSharedOption("track")}
+                onClick={() => setSplitMode("none")}
                 className={
                   "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
-                  (sharedOption === "track"
+                  (splitMode === "none"
                     ? "border-slate-800 bg-slate-800/5"
                     : "border-slate-200 hover:border-slate-300")
                 }
               >
-                <div className="text-sm font-semibold mb-1">{tWallets("page.type.track")}</div>
-                <div className="text-xs text-slate-600">{tWallets("page.new.type.trackDesc")}</div>
+                <div className="text-sm font-semibold mb-1">{tWallets("page.new.split.none")}</div>
+                <div className="text-xs text-slate-600">{tWallets("page.new.split.noneDesc")}</div>
               </button>
 
               <button
                 type="button"
-                onClick={() => setSharedOption("split")}
+                onClick={() => setSplitMode("split")}
                 className={
                   "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
-                  (sharedOption === "split"
+                  (splitMode === "split"
                     ? "border-slate-800 bg-slate-800/5"
                     : "border-slate-200 hover:border-slate-300")
                 }
               >
-                <div className="text-sm font-semibold mb-1">{tWallets("page.type.split")}</div>
-                <div className="text-xs text-slate-600">{tWallets("page.new.type.splitDesc")}</div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSharedOption("track_and_split")}
-                className={
-                  "flex flex-col items-start p-4 rounded-lg border transition-colors text-left " +
-                  (sharedOption === "track_and_split"
-                    ? "border-slate-800 bg-slate-800/5"
-                    : "border-slate-200 hover:border-slate-300")
-                }
-              >
-                <div className="text-sm font-semibold mb-1">{tWallets("page.type.trackAndSplit")}</div>
-                <div className="text-xs text-slate-600">{tWallets("page.new.type.trackAndSplitDesc")}</div>
+                <div className="text-sm font-semibold mb-1">{tWallets("page.new.split.enabled")}</div>
+                <div className="text-xs text-slate-600">{tWallets("page.new.split.enabledDesc")}</div>
               </button>
             </div>
+
+            {splitMode === "split" && (
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-2">{tWallets("page.new.defaultSplitMethod")}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDefaultSplitMethod("equally")}
+                    className={
+                      "px-3 py-2 rounded-lg border text-sm text-left " +
+                      (defaultSplitMethod === "equally"
+                        ? "border-slate-800 bg-slate-800/5"
+                        : "border-slate-200 hover:border-slate-300")
+                    }
+                  >
+                    {tWallets("page.new.splitMethod.equally")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDefaultSplitMethod("by_income")}
+                    className={
+                      "px-3 py-2 rounded-lg border text-sm text-left " +
+                      (defaultSplitMethod === "by_income"
+                        ? "border-slate-800 bg-slate-800/5"
+                        : "border-slate-200 hover:border-slate-300")
+                    }
+                  >
+                    {tWallets("page.new.splitMethod.byIncome")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDefaultSplitMethod("manual")}
+                    className={
+                      "px-3 py-2 rounded-lg border text-sm text-left " +
+                      (defaultSplitMethod === "manual"
+                        ? "border-slate-800 bg-slate-800/5"
+                        : "border-slate-200 hover:border-slate-300")
+                    }
+                  >
+                    {tWallets("page.new.splitMethod.manual")}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

@@ -26,6 +26,9 @@ export type ConfirmedRow = {
   accountToName: string;
   paidByMemberName: string | null;
   paidByMemberAvatar: string | null;
+  receivedByMemberName: string | null;
+  receivedByMemberAvatar: string | null;
+  splitMethod: "equally" | "by_income" | "manual" | null;
 };
 
 type Props = { confirmed: ConfirmedRow[]; isSplitOnly: boolean };
@@ -65,6 +68,8 @@ function matchSearch(t: ConfirmedRow, q: string): boolean {
     s(t.accountFromName).includes(qq) ||
     s(t.accountToName).includes(qq) ||
     s(t.paidByMemberName).includes(qq) ||
+    s(t.receivedByMemberName).includes(qq) ||
+    s(t.splitMethod).includes(qq) ||
     s(t.type).includes(qq) ||
     s(t.date).includes(qq) ||
     amountStr.replace(/\s/g, "").toLowerCase().includes(qq.replace(/\s/g, ""))
@@ -223,6 +228,32 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [filterOpen]);
+
+  const splitMethodLabel = (method: ConfirmedRow["splitMethod"]) => {
+    if (method === "manual") return "Manual %";
+    if (method === "by_income") return "By income %";
+    if (method === "equally") return "Equal %";
+    return "—";
+  };
+
+  const memberChip = (name: string | null, avatar: string | null) => {
+    if (!name) return <span className="text-slate-400">—</span>;
+    return (
+      <span className="inline-flex items-center gap-2 min-w-0">
+        <AvatarImage
+          src={avatar}
+          size={24}
+          className="h-6 w-6 rounded-full object-cover"
+          fallback={
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+              <UserIcon className="w-4 h-4" />
+            </span>
+          }
+        />
+        <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{name}</span>
+      </span>
+    );
+  };
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -538,8 +569,11 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       {t("table.categorySubcategory")}
                     </th>
                     <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
-                      {isSplitOnly ? t("table.paidBy") : t("table.fromTo")}
+                      {isSplitOnly ? "Paid by -> Received by" : t("table.fromTo")}
                     </th>
+                    {isSplitOnly && (
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Splitting %</th>
+                    )}
                     <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
                     <th className="px-4 py-2 w-24" />
                   </tr>
@@ -562,29 +596,34 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       </td>
                       <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
                         {isSplitOnly ? (
-                          t.paidByMemberName ? (
-                            <div className="flex items-center gap-2 min-w-0">
-                              <AvatarImage
-                                src={t.paidByMemberAvatar}
-                                size={24}
-                                className="h-6 w-6 rounded-full object-cover"
-                                fallback={
-                                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                                    <UserIcon className="w-4 h-4" />
-                                  </span>
-                                }
-                              />
-                              <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
-                                {t.paidByMemberName}
-                              </span>
-                            </div>
-                          ) : (
-                            "—"
-                          )
+                          <div className="flex items-center gap-2 min-w-0">
+                            {t.type === "income" ? (
+                              <>
+                                <span className="text-slate-400">-&gt;</span>
+                                {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                              </>
+                            ) : t.type === "expense" ? (
+                              <>
+                                {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                <span className="text-slate-400">-&gt;</span>
+                              </>
+                            ) : (
+                              <>
+                                {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                <span className="text-slate-400">-&gt;</span>
+                                {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                              </>
+                            )}
+                          </div>
                         ) : (
                           formatFromTo(t.accountFromName, t.accountToName)
                         )}
                       </td>
+                      {isSplitOnly && (
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                          {t.type === "expense" ? splitMethodLabel(t.splitMethod) : "—"}
+                        </td>
+                      )}
                       <td
                         className={`px-4 py-2 text-right font-mono ${t.type === "income"
                           ? "text-green-600 dark:text-green-400"
