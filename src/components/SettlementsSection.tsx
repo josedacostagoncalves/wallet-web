@@ -23,7 +23,7 @@ import { formatCategorySubcategory } from "@/lib/transaction-labels";
 import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   CartesianGrid,
@@ -53,6 +53,7 @@ type Props = {
   periodType: "monthly" | "yearly";
   periodStart: string;
   periodEnd: string;
+  headerControl?: ReactNode;
 };
 
 type SettlementFlow = {
@@ -134,6 +135,7 @@ export function SettlementsSection({
   periodType,
   periodStart,
   periodEnd,
+  headerControl,
 }: Props) {
   const t = useTranslations("home.settlements");
   const locale = useLocale();
@@ -563,6 +565,7 @@ export function SettlementsSection({
         </div>
         {mounted && (
           <div className="flex items-center gap-2">
+            {headerControl}
             <button
               type="button"
               onClick={toggleHide}

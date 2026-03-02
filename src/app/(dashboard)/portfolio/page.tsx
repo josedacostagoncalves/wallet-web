@@ -228,22 +228,6 @@ export default async function PortfolioPage({
                     )}
                     {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
                         <>
-                            <div className="flex items-center justify-end">
-                                <PortfolioPeriodSelector
-                                    years={availableYears}
-                                    periodType={periodType}
-                                    selectedYear={
-                                        Number.isInteger(requestedYear) && availableYears.includes(requestedYear)
-                                            ? requestedYear
-                                            : currentYear
-                                    }
-                                    selectedMonth={
-                                        Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
-                                            ? requestedMonth
-                                            : currentMonth
-                                    }
-                                />
-                            </div>
                             <SettlementsSection
                                 settlements={settlements}
                                 splitType={walletSplitType}
@@ -251,6 +235,16 @@ export default async function PortfolioPage({
                                 periodType={periodType}
                                 periodStart={periodStart}
                                 periodEnd={periodEnd}
+                                headerControl={
+                                    (walletSharedOption === "split" || walletSharedOption === "track_and_split") ? (
+                                        <PortfolioPeriodSelector
+                                            years={availableYears}
+                                            periodType={periodType}
+                                            selectedYear={activeYear}
+                                            selectedMonth={activeMonth}
+                                        />
+                                    ) : undefined
+                                }
                             />
                         </>
                     )}

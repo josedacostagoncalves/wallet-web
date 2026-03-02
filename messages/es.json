@@ -59,7 +59,12 @@
         "checkEmail": "Revisa tu correo",
         "checkEmailMessage": "Enviamos un enlace de confirmación a {email}. Haz clic para activar tu cuenta y luego inicia sesión.",
         "goToLogin": "Ir a iniciar sesión",
-        "back": "Volver"
+        "back": "Volver",
+        "continueWithGoogle": "Continuar con Google",
+        "redirectingToGoogle": "Redirigiendo a Google...",
+        "orUseEmail": "o usar correo",
+        "signupEmailExistsWrongPassword": "Este correo ya existe. Contraseña incorrecta, no se puede fusionar ni iniciar sesión.",
+        "signupMergedAndLoggedIn": "La cuenta ya existía. Datos fusionados e inicio de sesión completado."
     },
     "dashboard": {
         "title": "Panel",
@@ -74,6 +79,47 @@
         "subtitle": "Tus finanzas, en un solo lugar",
         "emptyMessage": "Crea una cartera para empezar a controlar tus finanzas",
         "createWallet": "Crear cartera",
+        "smart": {
+            "refresh": "Actualizar widgets",
+            "basedOnMonth": "Basado en {month}",
+            "close": "Cerrar",
+            "pin": "Fijar",
+            "pinned": "Fijado",
+            "unpin": "Desfijar",
+            "labels": {
+                "income": "Ingresos",
+                "expenses": "Gastos",
+                "totalExpenses": "Gastos totales",
+                "estimatedSave": "Ahorro mensual estimado"
+            },
+            "cards": {
+                "busiestDay": "Día Más Activo",
+                "busiestDayValue": "{date} fue el día con más transacciones",
+                "incomeTrend": "Tendencia de Ingresos",
+                "vsLastMonth": "vs mes anterior",
+                "subscriptionsWeight": "Peso de Suscripciones",
+                "ofExpenses": "de los gastos mensuales",
+                "potentialSave": "Ahorro Potencial",
+                "byReducingDining": "si reduces 10% en comer fuera"
+            },
+            "stories": {
+                "title": "Historia del Mes",
+                "savingsRate": "Tasa de Ahorro",
+                "thisMonth": "Este mes",
+                "topCategory": "Categoría Principal",
+                "noSpendStreak": "Racha Sin Gastos",
+                "days": "días",
+                "netFlow": "Flujo Neto",
+                "incomeVsExpenses": "ingresos menos gastos"
+            },
+            "news": {
+                "title": "Noticias de Finanzas Personales",
+                "empty": "No hay noticias disponibles ahora."
+            },
+            "fact": {
+                "title": "Curiosidad Financiera"
+            }
+        },
         "currentBalances": {
             "title": "Saldos actuales",
             "subtitle": "Saldos actuales",

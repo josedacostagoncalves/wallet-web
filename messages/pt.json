@@ -59,7 +59,12 @@
         "checkEmail": "Verifique o seu email",
         "checkEmailMessage": "Enviámos um link de confirmação para {email}. Clique nele para ativar a sua conta e depois inicie sessão.",
         "goToLogin": "Ir para iniciar sessão",
-        "back": "Voltar"
+        "back": "Voltar",
+        "continueWithGoogle": "Continuar com Google",
+        "redirectingToGoogle": "A redirecionar para o Google...",
+        "orUseEmail": "ou usar email",
+        "signupEmailExistsWrongPassword": "Este email já existe. Palavra-passe diferente, não é possível fundir dados nem iniciar sessão.",
+        "signupMergedAndLoggedIn": "A conta já existia. Dados fundidos e sessão iniciada."
     },
     "dashboard": {
         "title": "Painel",
@@ -74,6 +79,47 @@
         "subtitle": "As suas finanças, num só lugar",
         "emptyMessage": "Crie uma carteira para começar a acompanhar as suas finanças",
         "createWallet": "Criar carteira",
+        "smart": {
+            "refresh": "Atualizar widgets",
+            "basedOnMonth": "Com base em {month}",
+            "close": "Fechar",
+            "pin": "Fixar",
+            "pinned": "Fixado",
+            "unpin": "Desafixar",
+            "labels": {
+                "income": "Receitas",
+                "expenses": "Despesas",
+                "totalExpenses": "Despesas totais",
+                "estimatedSave": "Poupança mensal estimada"
+            },
+            "cards": {
+                "busiestDay": "Dia Mais Ativo",
+                "busiestDayValue": "{date} foi o dia com mais transações",
+                "incomeTrend": "Tendência de Receitas",
+                "vsLastMonth": "vs mês anterior",
+                "subscriptionsWeight": "Peso das Subscrições",
+                "ofExpenses": "das despesas mensais",
+                "potentialSave": "Poupança Potencial",
+                "byReducingDining": "se reduzir 10% em refeições fora"
+            },
+            "stories": {
+                "title": "História do Mês",
+                "savingsRate": "Taxa de Poupança",
+                "thisMonth": "Este mês",
+                "topCategory": "Categoria Principal",
+                "noSpendStreak": "Sequência Sem Gastos",
+                "days": "dias",
+                "netFlow": "Fluxo Líquido",
+                "incomeVsExpenses": "receitas menos despesas"
+            },
+            "news": {
+                "title": "Notícias de Finanças Pessoais",
+                "empty": "Sem notícias disponíveis agora."
+            },
+            "fact": {
+                "title": "Curiosidade Financeira"
+            }
+        },
         "currentBalances": {
             "title": "Saldos atuais",
             "subtitle": "Saldos atuais",
@@ -972,7 +1018,7 @@
             "deletedToast": "Categoria eliminada.",
             "suggestions": {
                 "income": {
-                    "salary": "Salário",
+                    "salary": "Vencimento",
                     "freelance": "Freelance",
                     "bonus": "Bónus",
                     "interest": "Juros",

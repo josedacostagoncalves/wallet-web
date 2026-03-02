@@ -59,7 +59,12 @@
         "checkEmail": "Vérifiez votre e-mail",
         "checkEmailMessage": "Nous avons envoyé un lien de confirmation à {email}. Cliquez dessus pour activer votre compte, puis connectez-vous.",
         "goToLogin": "Aller à la connexion",
-        "back": "Retour"
+        "back": "Retour",
+        "continueWithGoogle": "Continuer avec Google",
+        "redirectingToGoogle": "Redirection vers Google...",
+        "orUseEmail": "ou utiliser l'e-mail",
+        "signupEmailExistsWrongPassword": "Cet e-mail existe déjà. Mot de passe différent, impossible de fusionner ou de se connecter.",
+        "signupMergedAndLoggedIn": "Le compte existait déjà. Données fusionnées et connexion effectuée."
     },
     "dashboard": {
         "title": "Tableau de bord",
@@ -74,6 +79,47 @@
         "subtitle": "Vos finances, en un seul endroit",
         "emptyMessage": "Créez un portefeuille pour commencer à suivre vos finances",
         "createWallet": "Créer un portefeuille",
+        "smart": {
+            "refresh": "Actualiser les widgets",
+            "basedOnMonth": "Basé sur {month}",
+            "close": "Fermer",
+            "pin": "Épingler",
+            "pinned": "Épinglé",
+            "unpin": "Désépingler",
+            "labels": {
+                "income": "Revenus",
+                "expenses": "Dépenses",
+                "totalExpenses": "Dépenses totales",
+                "estimatedSave": "Économie mensuelle estimée"
+            },
+            "cards": {
+                "busiestDay": "Jour Le Plus Actif",
+                "busiestDayValue": "{date} a été le jour avec le plus de transactions",
+                "incomeTrend": "Tendance des Revenus",
+                "vsLastMonth": "vs mois dernier",
+                "subscriptionsWeight": "Poids des Abonnements",
+                "ofExpenses": "des dépenses mensuelles",
+                "potentialSave": "Économie Potentielle",
+                "byReducingDining": "si vous réduisez de 10% les repas à l'extérieur"
+            },
+            "stories": {
+                "title": "Histoire du Mois",
+                "savingsRate": "Taux d'Épargne",
+                "thisMonth": "Ce mois-ci",
+                "topCategory": "Catégorie Principale",
+                "noSpendStreak": "Série Sans Dépense",
+                "days": "jours",
+                "netFlow": "Flux Net",
+                "incomeVsExpenses": "revenus moins dépenses"
+            },
+            "news": {
+                "title": "Actualités Finance Personnelle",
+                "empty": "Aucune actualité disponible pour le moment."
+            },
+            "fact": {
+                "title": "Curiosité Financière"
+            }
+        },
         "currentBalances": {
             "title": "Soldes actuels",
             "subtitle": "Soldes actuels",

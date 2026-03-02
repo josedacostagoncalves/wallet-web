@@ -59,7 +59,12 @@
         "checkEmail": "Check your email",
         "checkEmailMessage": "We sent a confirmation link to {email}. Click it to activate your account, then log in.",
         "goToLogin": "Go to login",
-        "back": "Back"
+        "back": "Back",
+        "continueWithGoogle": "Continue with Google",
+        "redirectingToGoogle": "Redirecting to Google...",
+        "orUseEmail": "or use email",
+        "signupEmailExistsWrongPassword": "This email already exists. Password mismatch, cannot merge or log in.",
+        "signupMergedAndLoggedIn": "Account already existed. Data merged and logged in."
     },
     "dashboard": {
         "title": "Dashboard",
@@ -74,6 +79,47 @@
         "subtitle": "Your finances, all in one place",
         "emptyMessage": "Create a wallet to start tracking your finances",
         "createWallet": "Create wallet",
+        "smart": {
+            "refresh": "Refresh widgets",
+            "basedOnMonth": "Based on {month}",
+            "close": "Close",
+            "pin": "Pin",
+            "pinned": "Pinned",
+            "unpin": "Unpin",
+            "labels": {
+                "income": "Income",
+                "expenses": "Expenses",
+                "totalExpenses": "Total expenses",
+                "estimatedSave": "Estimated monthly save"
+            },
+            "cards": {
+                "busiestDay": "Busiest Day",
+                "busiestDayValue": "{date} had the most transactions",
+                "incomeTrend": "Income Trend",
+                "vsLastMonth": "vs last month",
+                "subscriptionsWeight": "Subscriptions Weight",
+                "ofExpenses": "of monthly expenses",
+                "potentialSave": "Potential Save",
+                "byReducingDining": "if dining out drops 10%"
+            },
+            "stories": {
+                "title": "Monthly Story",
+                "savingsRate": "Savings Rate",
+                "thisMonth": "This month",
+                "topCategory": "Top Category",
+                "noSpendStreak": "No-Spend Streak",
+                "days": "days",
+                "netFlow": "Net Flow",
+                "incomeVsExpenses": "income minus expenses"
+            },
+            "news": {
+                "title": "Personal Finance News",
+                "empty": "No news available right now."
+            },
+            "fact": {
+                "title": "Finance Curiosity"
+            }
+        },
         "currentBalances": {
             "title": "Current balances",
             "subtitle": "Current balances",

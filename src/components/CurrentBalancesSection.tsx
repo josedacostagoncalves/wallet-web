@@ -10,7 +10,7 @@ import {
 import { AccountsSection } from "@/components/AccountsSection";
 import type { AccountType } from "@/lib/account-types";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const STORAGE_KEY_HIDE = "j-wallet-hide-balances";
@@ -32,6 +32,7 @@ type Props = {
   currentWalletId: string | null;
   walletName?: string | null;
   pendingAmounts?: Record<string, number>;
+  headerControl?: ReactNode;
 };
 
 function sortByOrder<T extends { id: string }>(items: T[], order: string[]): T[] {
@@ -137,6 +138,7 @@ export function CurrentBalancesSection({
   currentWalletId,
   walletName,
   pendingAmounts = {},
+  headerControl,
 }: Props) {
   const t = useTranslations("home.currentBalances");
   const [hideBalances, setHideBalances] = useState(false);
@@ -286,6 +288,7 @@ export function CurrentBalancesSection({
         </div>
         {mounted && (
           <div className="flex items-center gap-2">
+            {headerControl}
             <button
               type="button"
               onClick={toggleHide}

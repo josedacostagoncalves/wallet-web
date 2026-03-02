@@ -105,6 +105,26 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
     );
 }
 
+function SortDirectionIcon({ direction }: { direction: "desc" | "asc" }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="inline-block"
+        >
+            {direction === "desc" ? <path d="m6 9 6 6 6-6" /> : <path d="m18 15-6-6-6 6" />}
+        </svg>
+    );
+}
+
 export function StatementsTable({ data, type, dateRange, currentWalletId, tableKey, title }: Props) {
     const t = useTranslations("statements");
     const tCommon = useTranslations("common");
@@ -125,6 +145,10 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         x: number;
         y: number;
     } | null>(null);
+    const [sortState, setSortState] = useState<{ key: string | null; direction: "desc" | "asc" | null }>({
+        key: null,
+        direction: null,
+    });
     const rowHoverClass =
         type === "income"
             ? "hover:bg-green-50 dark:hover:bg-green-900/10"
@@ -184,6 +208,33 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     };
 
     const dateColumns = getDateColumns();
+    const elapsedMonthCount = (() => {
+        if (!dateRange) return 1;
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        const now = new Date();
+        const effectiveEnd = now < end ? now : end;
+
+        if (effectiveEnd < start) return 0;
+
+        return (
+            (effectiveEnd.getFullYear() - start.getFullYear()) * 12 +
+            (effectiveEnd.getMonth() - start.getMonth()) +
+            1
+        );
+    })();
+
+    const setNextSort = useCallback(
+        (key: string) => {
+            if (orderEditing) return;
+            setSortState((prev) => {
+                if (prev.key !== key) return { key, direction: "desc" };
+                if (prev.direction === "desc") return { key, direction: "asc" };
+                return { key: null, direction: null };
+            });
+        },
+        [orderEditing]
+    );
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat("pt-PT", {
@@ -235,7 +286,16 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     useEffect(() => {
         setOrderEditing(false);
         setEditOrder(null);
+        setSortState({ key: null, direction: null });
     }, [currentWalletId, tableKey]);
+
+    useEffect(() => {
+        if (!sortState.key || sortState.key === "average" || sortState.key === "total") return;
+        const exists = dateColumns.some((col) => col.key === sortState.key);
+        if (!exists) {
+            setSortState({ key: null, direction: null });
+        }
+    }, [dateColumns, sortState.key]);
 
     const toggleHide = useCallback(async () => {
         if (!currentWalletId) return;
@@ -289,7 +349,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
 
     const activeOrder = orderEditing && editOrder ? editOrder : savedOrder;
     const orderedData = useMemo(() => {
-        const sorted = [...data].sort((a, b) => {
+        const baseOrdered = [...data].sort((a, b) => {
             const aIdx = activeOrder.categories.indexOf(a.category);
             const bIdx = activeOrder.categories.indexOf(b.category);
             const aRank = aIdx === -1 ? 1e9 : aIdx;
@@ -297,7 +357,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
             return aRank - bRank;
         });
 
-        return sorted.map((cat) => ({
+        const withSortedSubcats = baseOrdered.map((cat) => ({
             ...cat,
             subcategories: cat.subcategories
                 ? [...cat.subcategories].sort((a, b) => {
@@ -310,7 +370,41 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                 })
                 : [],
         }));
-    }, [data, activeOrder]);
+
+        if (!sortState.key || !sortState.direction || orderEditing) {
+            return withSortedSubcats;
+        }
+
+        const sortKey = sortState.key;
+        const valueFor = (row: CategoryData) => {
+            if (sortKey === "total") return row.total;
+            if (sortKey === "average") {
+                return elapsedMonthCount > 0 ? row.total / elapsedMonthCount : 0;
+            }
+            return row.monthlyBreakdown?.[sortKey] ?? 0;
+        };
+
+        const factor = sortState.direction === "desc" ? -1 : 1;
+
+        const sortedRows = [...withSortedSubcats].sort((a, b) => {
+            const aValue = valueFor(a);
+            const bValue = valueFor(b);
+            if (aValue === bValue) return 0;
+            return aValue > bValue ? factor : -factor;
+        });
+
+        return sortedRows.map((row) => ({
+            ...row,
+            subcategories: row.subcategories
+                ? [...row.subcategories].sort((a, b) => {
+                    const aValue = valueFor(a);
+                    const bValue = valueFor(b);
+                    if (aValue === bValue) return 0;
+                    return aValue > bValue ? factor : -factor;
+                })
+                : [],
+        }));
+    }, [data, activeOrder, sortState, orderEditing, elapsedMonthCount]);
 
     const handleCategoryDragStart = useCallback(
         (e: React.DragEvent, category: string) => {
@@ -472,21 +566,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         return acc;
     }, {});
     const grandTotal = data.reduce((sum, row) => sum + row.total, 0);
-    const elapsedMonthCount = (() => {
-        if (!dateRange) return 1;
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        const now = new Date();
-        const effectiveEnd = now < end ? now : end;
-
-        if (effectiveEnd < start) return 0;
-
-        return (
-            (effectiveEnd.getFullYear() - start.getFullYear()) * 12 +
-            (effectiveEnd.getMonth() - start.getMonth()) +
-            1
-        );
-    })();
     const monthWeight = 1.5;
     const summaryWeight = 2;
     const widthUnit = 70 / (dateColumns.length * monthWeight + summaryWeight * 2);
@@ -589,14 +668,44 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     key={col.key}
                                     className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300 min-w-[65px]"
                                 >
-                                    {col.label}
+                                    <button
+                                        type="button"
+                                        onClick={() => setNextSort(col.key)}
+                                        disabled={orderEditing}
+                                        className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                    >
+                                        {col.label}
+                                        {sortState.key === col.key && sortState.direction && (
+                                            <SortDirectionIcon direction={sortState.direction} />
+                                        )}
+                                    </button>
                                 </th>
                             ))}
                             <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
-                                {t("averageMonthlyValue")}
+                                <button
+                                    type="button"
+                                    onClick={() => setNextSort("average")}
+                                    disabled={orderEditing}
+                                    className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                >
+                                    {t("averageMonthlyValue")}
+                                    {sortState.key === "average" && sortState.direction && (
+                                        <SortDirectionIcon direction={sortState.direction} />
+                                    )}
+                                </button>
                             </th>
                             <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
-                                {t("total")}
+                                <button
+                                    type="button"
+                                    onClick={() => setNextSort("total")}
+                                    disabled={orderEditing}
+                                    className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                >
+                                    {t("total")}
+                                    {sortState.key === "total" && sortState.direction && (
+                                        <SortDirectionIcon direction={sortState.direction} />
+                                    )}
+                                </button>
                             </th>
                         </tr>
                     </thead>
