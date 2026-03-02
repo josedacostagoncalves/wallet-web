@@ -3,6 +3,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 
+const PROTECTED_SALARY_NAMES = new Set(["salary", "salario", "salaire"]);
+const PROTECTED_SETTLEMENT_NAMES = new Set(["settlement", "acerto", "liquidacion", "reglement"]);
+
+function normalizeCategoryName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export async function getCategory(id: string | null) {
   if (!id) return null;
   const supabase = await createClient();
@@ -132,10 +144,32 @@ export async function deleteCategory(id: string): Promise<{ error?: string; deac
 
   const { data: existing } = await supabase
     .from("categories")
-    .select("wallet_id, name, parent_id")
+    .select("wallet_id, name, parent_id, type")
     .eq("id", id)
     .single();
   if (!existing) return { error: "Category not found" };
+
+  const { data: wallet } = await supabase
+    .from("wallets")
+    .select("split_mode, shared_option")
+    .eq("id", existing.wallet_id)
+    .maybeSingle();
+  const splitActive =
+    wallet?.split_mode === "split" ||
+    wallet?.shared_option === "split" ||
+    wallet?.shared_option === "track_and_split";
+  const normalizedName = normalizeCategoryName(existing.name);
+  const isProtectedIncome =
+    existing.parent_id == null &&
+    existing.type === "income" &&
+    PROTECTED_SALARY_NAMES.has(normalizedName);
+  const isProtectedTransfer =
+    existing.parent_id == null &&
+    existing.type === "transfer" &&
+    PROTECTED_SETTLEMENT_NAMES.has(normalizedName);
+  if (splitActive && (isProtectedIncome || isProtectedTransfer)) {
+    return { error: "This category is required in split wallets and cannot be deleted." };
+  }
 
   // Collect child IDs
   const { data: children } = await supabase

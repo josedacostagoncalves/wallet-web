@@ -27,7 +27,7 @@ import {
   isRecurrenceOptionSeparator,
 } from "@/lib/recurrence";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
 import { useTranslations } from "next-intl";
 
@@ -42,6 +42,13 @@ type Props = {
 
 const inputClass =
   "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
+
+const clampPct = (v: number) => Math.min(100, Math.max(0, v));
+const round2 = (v: number) => Math.round(v * 100) / 100;
+const formatPctInput = (v: number) => {
+  const fixed = round2(v).toFixed(2);
+  return fixed.endsWith(".00") ? fixed.slice(0, -3) : fixed.endsWith("0") ? fixed.slice(0, -1) : fixed;
+};
 
 export function ExpenseFormModal({
   open,
@@ -71,9 +78,6 @@ export function ExpenseFormModal({
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
   const [walletTrackingMode, setWalletTrackingMode] = useState<string | null>(null);
-  const [walletDefaultSplitMethod, setWalletDefaultSplitMethod] = useState<
-    "equally" | "by_income" | "manual"
-  >("equally");
   const [splitMethod, setSplitMethod] = useState<"equally" | "by_income" | "manual">("equally");
   const [manualSplits, setManualSplits] = useState<Array<{ member_id: string; percentage: string }>>([]);
   const [walletMembers, setWalletMembers] = useState<
@@ -84,6 +88,7 @@ export function ExpenseFormModal({
       first_name: string | null;
       last_name: string | null;
       avatar_url: string | null;
+      current_month_income?: number;
     }[]
   >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
@@ -369,19 +374,24 @@ export function ExpenseFormModal({
           result.default_split_method === "by_income" || result.default_split_method === "manual"
             ? result.default_split_method
             : "equally";
-        setWalletDefaultSplitMethod(defaultSplitMethod);
         if (!isEdit) setSplitMethod(defaultSplitMethod);
         setWalletMembers(members);
 
-        // Auto-select current user for split wallet member field (only once per modal open)
-        if (!autoSelectedMember.current && (sharedOption === "split" || sharedOption === "track_and_split") && members.length > 0) {
+        // Auto-select current user only for brand-new transactions.
+        if (
+          !isEdit &&
+          !isCopy &&
+          !autoSelectedMember.current &&
+          (sharedOption === "split" || sharedOption === "track_and_split") &&
+          members.length > 0
+        ) {
           autoSelectedMember.current = true;
           getCurrentUserId().then((userResult) => {
             if (userResult.userId) {
               // Find the member that matches the current user
               const currentMember = members.find((m) => m.user_id === userResult.userId);
               if (currentMember) {
-                setPaidByMemberId(currentMember.id);
+                setPaidByMemberId((prev) => prev ?? currentMember.id);
               }
             }
           });
@@ -406,6 +416,7 @@ export function ExpenseFormModal({
   const requiresAccounts = !isBasicTracking;
   const isSplitWallet = walletSharedOption === "track_and_split" || isSplitOnly;
   const effectiveSplitMethod = isSplitWallet ? splitMethod : "equally";
+  const expenseAmount = parseFloat(amount.replace(",", ".")) || 0;
 
   useEffect(() => {
     if (!isSplitWallet) return;
@@ -422,6 +433,76 @@ export function ExpenseFormModal({
         .map((m) => ({ member_id: m.user_id, percentage: byId.get(m.user_id) ?? "0" }));
     });
   }, [isSplitWallet, walletMembers, manualSplits.length]);
+
+  const rebalanceManualSplit = useCallback((memberId: string, rawValue: string) => {
+    setManualSplits((prev) => {
+      const ordered = walletMembers.map((m) => {
+        const current = prev.find((s) => s.member_id === m.user_id)?.percentage ?? "0";
+        return { member_id: m.user_id, percentage: current };
+      });
+      if (ordered.length === 0) return prev;
+      if (ordered.length === 1) return [{ member_id: ordered[0].member_id, percentage: "100" }];
+
+      const parsed = Number.parseFloat(String(rawValue).replace(",", "."));
+      const edited = round2(clampPct(Number.isFinite(parsed) ? parsed : 0));
+      const others = ordered.filter((s) => s.member_id !== memberId);
+      const targetOthers = round2(100 - edited);
+
+      const existingOthers = others.map((s) => round2(clampPct(Number.parseFloat(s.percentage.replace(",", ".")) || 0)));
+      const sumExistingOthers = existingOthers.reduce((sum, v) => sum + v, 0);
+      let nextOthers: number[] = [];
+      if (sumExistingOthers <= 0) {
+        const equal = targetOthers / others.length;
+        nextOthers = others.map(() => round2(equal));
+      } else {
+        nextOthers = existingOthers.map((v) => round2((v / sumExistingOthers) * targetOthers));
+      }
+      const diff = round2(targetOthers - nextOthers.reduce((sum, v) => sum + v, 0));
+      if (nextOthers.length > 0) {
+        const last = nextOthers.length - 1;
+        nextOthers[last] = round2(clampPct(nextOthers[last] + diff));
+      }
+
+      const otherById = new Map(others.map((o, idx) => [o.member_id, nextOthers[idx] ?? 0]));
+      return ordered.map((s) =>
+        s.member_id === memberId
+          ? { ...s, percentage: formatPctInput(edited) }
+          : { ...s, percentage: formatPctInput(otherById.get(s.member_id) ?? 0) }
+      );
+    });
+  }, [walletMembers]);
+
+  const splitPreviewRows = useMemo(() => {
+    if (!isSplitWallet || walletMembers.length === 0) return [];
+
+    const normalizedPercentages = (weights: number[]) => {
+      if (!weights.length) return [];
+      const safeWeights = weights.map((w) => (Number.isFinite(w) && w > 0 ? w : 0));
+      const total = safeWeights.reduce((sum, w) => sum + w, 0);
+      const base = total > 0 ? safeWeights : safeWeights.map(() => 1);
+      const denom = base.reduce((sum, w) => sum + w, 0) || 1;
+      const p = base.map((w) => round2((w / denom) * 100));
+      const diff = round2(100 - p.reduce((sum, x) => sum + x, 0));
+      if (p.length > 0) p[p.length - 1] = round2(p[p.length - 1] + diff);
+      return p.map((x) => clampPct(x));
+    };
+
+    let pcts: number[] = [];
+    if (effectiveSplitMethod === "equally") {
+      pcts = normalizedPercentages(walletMembers.map(() => 1));
+    } else if (effectiveSplitMethod === "by_income") {
+      pcts = normalizedPercentages(walletMembers.map((m) => Number(m.current_month_income ?? 0)));
+    } else {
+      const byId = new Map(manualSplits.map((s) => [s.member_id, Number.parseFloat(s.percentage.replace(",", ".")) || 0]));
+      pcts = walletMembers.map((m) => round2(clampPct(byId.get(m.user_id) ?? 0)));
+    }
+
+    return walletMembers.map((m, idx) => {
+      const pct = pcts[idx] ?? 0;
+      const value = round2((Math.max(0, expenseAmount) * pct) / 100);
+      return { memberId: m.user_id, name: m.display_name, percentage: pct, value };
+    });
+  }, [isSplitWallet, walletMembers, effectiveSplitMethod, manualSplits, expenseAmount]);
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -898,37 +979,60 @@ export function ExpenseFormModal({
                       {t("fields.splitMethodManual")}
                     </option>
                   </select>
-                  <p className="text-[11px] text-slate-500">
-                    {t("fields.defaultSplitMethodHint", { method: walletDefaultSplitMethod })}
-                  </p>
-                  {effectiveSplitMethod === "manual" && (
-                    <div className="space-y-2">
-                      {walletMembers.map((m) => {
-                        const current = manualSplits.find((s) => s.member_id === m.user_id)?.percentage ?? "0";
-                        return (
-                          <div key={m.user_id} className="flex items-center gap-2">
-                            <div className="flex-1 truncate">{m.display_name}</div>
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                              value={current}
-                              onChange={(e) =>
-                                setManualSplits((prev) =>
-                                  prev.map((s) =>
-                                    s.member_id === m.user_id ? { ...s, percentage: e.target.value } : s
-                                  )
-                                )
-                              }
-                              className="w-24 text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-                            />
-                            <span>%</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-100 dark:bg-slate-800/60">
+                        <tr>
+                          <th className="px-2 py-1.5 text-left font-medium text-slate-600 dark:text-slate-300">
+                            {t("fields.paidByMember")}
+                          </th>
+                          <th className="px-2 py-1.5 text-right font-medium text-slate-600 dark:text-slate-300 w-28">
+                            %
+                          </th>
+                          <th className="px-2 py-1.5 text-right font-medium text-slate-600 dark:text-slate-300 w-28">
+                            {t("fields.splitValue")}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {splitPreviewRows.map((r) => {
+                          const current = manualSplits.find((s) => s.member_id === r.memberId)?.percentage ?? "0";
+                          return (
+                            <tr key={r.memberId}>
+                              <td className="px-2 py-1.5 text-slate-700 dark:text-slate-200">{r.name}</td>
+                              <td className="px-2 py-1.5 text-right">
+                                {effectiveSplitMethod === "manual" ? (
+                                  <div className="inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.01"
+                                      value={current}
+                                      onChange={(e) => rebalanceManualSplit(r.memberId, e.target.value)}
+                                      className="w-20 text-right text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                                    />
+                                    <span className="text-slate-500">%</span>
+                                  </div>
+                                ) : (
+                                  <span className="font-medium text-slate-700 dark:text-slate-200">
+                                    {r.percentage.toFixed(2)}%
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-2 py-1.5 text-right font-mono text-slate-700 dark:text-slate-200">
+                                {r.value.toLocaleString("pt-PT", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                €
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
               {(!isEdit || status !== "pending") && (

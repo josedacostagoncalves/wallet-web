@@ -4,6 +4,17 @@ import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getOrEnsureProfile } from "@/app/actions/profiles";
 
+const SETTLEMENT_CATEGORY_NAMES = new Set(["settlement", "acerto", "liquidacion", "reglement"]);
+
+function normalizeCategoryName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function getDisplayNameFromSources(
   user: { email?: string | null; user_metadata?: Record<string, unknown> },
   profile?: { first_name?: string | null; last_name?: string | null; email?: string | null } | null
@@ -838,13 +849,17 @@ export async function linkWalletUserToJoinedMember(
 }
 
 export async function getWalletSettlements(
-  walletId: string
+  walletId: string,
+  period?: { year?: number; month?: number; granularity?: "month" | "year" }
 ): Promise<{
   settlements?: Array<{
     member_id: string;
     email: string;
+    avatar_url: string | null;
     total_paid: number;
     total_share: number;
+    monthly_income: number;
+    monthly_paid: number;
     balance: number;
   }>;
   error?: string;
@@ -892,7 +907,7 @@ export async function getWalletSettlements(
   const memberIds = members.map((m) => m.user_id);
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name")
+    .select("id, first_name, last_name, avatar_url")
     .in("id", memberIds);
   const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
@@ -910,12 +925,34 @@ export async function getWalletSettlements(
     ])
   );
 
+  const now = new Date();
+  const granularity = period?.granularity === "year" ? "year" : "month";
+  const requestedYear = Number(period?.year);
+  const requestedMonth = Number(period?.month);
+  const selectedYear = Number.isInteger(requestedYear) ? requestedYear : now.getUTCFullYear();
+  const selectedMonth =
+    granularity === "month" && Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
+      ? requestedMonth
+      : now.getUTCMonth() + 1;
+  const periodStart =
+    granularity === "year"
+      ? `${selectedYear}-01-01`
+      : `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-01`;
+  const periodEnd =
+    granularity === "year"
+      ? `${selectedYear}-12-31`
+      : `${selectedYear}-${String(selectedMonth).padStart(2, "0")}-${String(
+          new Date(Date.UTC(selectedYear, selectedMonth, 0)).getUTCDate()
+        ).padStart(2, "0")}`;
+
   const { data: expenses, error: txErr } = await supabase
     .from("transactions")
-    .select("id, amount, paid_by_member_id, split_method_override")
+    .select("id, date, amount, paid_by_member_id, split_method_override")
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
-    .eq("type", "expense");
+    .eq("type", "expense")
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
   if (txErr) return { error: txErr.message };
 
   const { data: transfers, error: transfersErr } = await supabase
@@ -923,25 +960,40 @@ export async function getWalletSettlements(
     .select("amount, paid_by_member_id, received_by_member_id")
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
-    .eq("type", "transfer");
+    .eq("type", "transfer")
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
   if (transfersErr) return { error: transfersErr.message };
 
   const { data: incomes, error: incomesErr } = await supabase
     .from("transactions")
-    .select("amount, received_by_member_id")
+    .select("date, amount, received_by_member_id")
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
-    .eq("type", "income");
+    .eq("type", "income")
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
   if (incomesErr) return { error: incomesErr.message };
+  const monthStart = periodStart;
+  const monthEnd = periodEnd;
 
   const incomeByMember = new Map<string, number>();
+  const monthlyIncomeByMember = new Map<string, number>();
   for (const id of memberIds) incomeByMember.set(id, 0);
-  for (const inc of (incomes ?? []) as Array<{ amount: number; received_by_member_id: string | null }>) {
+  for (const id of memberIds) monthlyIncomeByMember.set(id, 0);
+  for (const inc of (incomes ?? []) as Array<{ date: string; amount: number; received_by_member_id: string | null }>) {
     if (!inc.received_by_member_id || !incomeByMember.has(inc.received_by_member_id)) continue;
     incomeByMember.set(
       inc.received_by_member_id,
       (incomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
     );
+    const d = String(inc.date).slice(0, 10);
+    if (d >= monthStart && d <= monthEnd) {
+      monthlyIncomeByMember.set(
+        inc.received_by_member_id,
+        (monthlyIncomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
+      );
+    }
   }
 
   const txIds = (expenses ?? []).map((t) => t.id);
@@ -965,10 +1017,12 @@ export async function getWalletSettlements(
   }
 
   const totalPaid = new Map<string, number>();
+  const monthlyPaidByMember = new Map<string, number>();
   const totalShare = new Map<string, number>();
   const transferAdjustments = new Map<string, number>();
   for (const id of memberIds) {
     totalPaid.set(id, 0);
+    monthlyPaidByMember.set(id, 0);
     totalShare.set(id, 0);
     transferAdjustments.set(id, 0);
   }
@@ -980,6 +1034,7 @@ export async function getWalletSettlements(
 
   for (const tx of (expenses ?? []) as Array<{
     id: string;
+    date: string;
     amount: number;
     paid_by_member_id: string | null;
     split_method_override: string | null;
@@ -988,6 +1043,10 @@ export async function getWalletSettlements(
     const payerId = tx.paid_by_member_id;
     if (payerId && totalPaid.has(payerId)) {
       totalPaid.set(payerId, (totalPaid.get(payerId) ?? 0) + amount);
+      const d = String(tx.date).slice(0, 10);
+      if (d >= monthStart && d <= monthEnd) {
+        monthlyPaidByMember.set(payerId, (monthlyPaidByMember.get(payerId) ?? 0) + amount);
+      }
     }
 
     const method = (tx.split_method_override as "equally" | "by_income" | "manual" | null) || defaultMethod;
@@ -1050,8 +1109,11 @@ export async function getWalletSettlements(
     return {
       member_id: memberId,
       email: memberInfo.get(memberId)?.email ?? memberId,
+      avatar_url: memberInfo.get(memberId)?.profile?.avatar_url ?? null,
       total_paid: Math.round(paid * 100),
       total_share: Math.round(share * 100),
+      monthly_income: Math.round((monthlyIncomeByMember.get(memberId) ?? 0) * 100),
+      monthly_paid: Math.round((monthlyPaidByMember.get(memberId) ?? 0) * 100),
       balance: Math.round(balance * 100),
     };
   });
@@ -1074,6 +1136,7 @@ export async function getWalletSplitInfo(
     first_name: string | null;
     last_name: string | null;
     avatar_url: string | null;
+    current_month_income: number;
   }>;
   error?: string;
 }> {
@@ -1125,8 +1188,36 @@ export async function getWalletSplitInfo(
       first_name: profile?.first_name ?? null,
       last_name: profile?.last_name ?? null,
       avatar_url: profile?.avatar_url ?? null,
+      current_month_income: 0,
     };
   });
+
+  const now = new Date();
+  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  const monthEnd = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate()
+  ).padStart(2, "0")}`;
+  const { data: currentMonthIncomes } = await supabase
+    .from("transactions")
+    .select("amount, received_by_member_id")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "income")
+    .gte("date", monthStart)
+    .lte("date", monthEnd);
+  const monthIncomeByMember = new Map<string, number>();
+  for (const m of members) monthIncomeByMember.set(m.user_id, 0);
+  for (const inc of (currentMonthIncomes ?? []) as Array<{ amount: number; received_by_member_id: string | null }>) {
+    if (!inc.received_by_member_id || !monthIncomeByMember.has(inc.received_by_member_id)) continue;
+    monthIncomeByMember.set(
+      inc.received_by_member_id,
+      (monthIncomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
+    );
+  }
+  members = members.map((m) => ({
+    ...m,
+    current_month_income: monthIncomeByMember.get(m.user_id) ?? 0,
+  }));
 
   if (members.length === 0) {
     const { data: selfMember } = await supabase
@@ -1148,6 +1239,7 @@ export async function getWalletSplitInfo(
           first_name: null,
           last_name: null,
           avatar_url: null,
+          current_month_income: 0,
         },
       ];
     }
@@ -1199,4 +1291,275 @@ export async function getCurrentUserId(): Promise<{ userId?: string; error?: str
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
   return { userId: user.id };
+}
+
+export async function confirmSettlementTransfer(params: {
+  walletId: string;
+  payerMemberId: string;
+  receiverMemberId: string;
+  amountCents: number;
+  date: string;
+  description?: string;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const membership = await supabase
+    .from("wallet_members")
+    .select("user_id")
+    .eq("wallet_id", params.walletId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membership.error || !membership.data) return { error: "Not allowed" };
+
+  if (!params.payerMemberId || !params.receiverMemberId) {
+    return { error: "Settlement members are required" };
+  }
+  if (params.payerMemberId === params.receiverMemberId) {
+    return { error: "Payer and receiver must be different" };
+  }
+  if (!Number.isFinite(params.amountCents) || params.amountCents <= 0) {
+    return { error: "Settlement amount must be positive" };
+  }
+
+  const { data: transferCategories } = await supabase
+    .from("categories")
+    .select("id, name")
+    .eq("wallet_id", params.walletId)
+    .eq("type", "transfer")
+    .is("parent_id", null)
+    .eq("is_active", true);
+
+  const matchedSettlement = ((transferCategories ?? []) as Array<{ id: string; name: string }>)
+    .find((c) => SETTLEMENT_CATEGORY_NAMES.has(normalizeCategoryName(c.name)));
+
+  let categoryId = matchedSettlement?.id ?? null;
+  if (!categoryId) {
+    const { data: created, error: catErr } = await supabase
+      .from("categories")
+      .insert({
+        wallet_id: params.walletId,
+        name: "Settlement",
+        type: "transfer",
+        parent_id: null,
+        created_by: user.id,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    if (catErr || !created) return { error: catErr?.message ?? "Failed to create Settlement category" };
+    categoryId = created.id;
+  }
+
+  const { data: tx, error: txErr } = await supabase
+    .from("transactions")
+    .insert({
+      wallet_id: params.walletId,
+      type: "transfer",
+      category_id: categoryId,
+      date: params.date,
+      amount: params.amountCents / 100,
+      description: params.description?.trim() || "Settlement",
+      created_by: user.id,
+      status: "confirmed",
+      hold_balance: false,
+      account_from_id: null,
+      account_to_id: null,
+      paid_by_member_id: params.payerMemberId,
+      received_by_member_id: params.receiverMemberId,
+    })
+    .select("id")
+    .single();
+  if (txErr || !tx) return { error: txErr?.message ?? "Failed to create settlement transfer" };
+
+  await logActivity(supabase, {
+    action: "transaction_create",
+    entity_type: "transaction",
+    entity_id: tx.id,
+    wallet_id: params.walletId,
+    payload: {
+      amount: params.amountCents / 100,
+      type: "transfer",
+      date: params.date,
+      category: "Settlement",
+      paid_by_member_id: params.payerMemberId,
+      received_by_member_id: params.receiverMemberId,
+    },
+  });
+
+  return {};
+}
+
+export type TransactionByMemberRow = {
+  id: string;
+  date: string;
+  type: "income" | "expense" | "transfer";
+  amount: number;
+  description: string | null;
+  categoryLabel: string;
+  subcategoryLabel: string;
+  status: "confirmed" | "pending";
+  holdBalance?: boolean;
+  paidByMemberId: string | null;
+  receivedByMemberId: string | null;
+  paidByName: string;
+  receivedByName: string;
+};
+
+export type MemberIncomeExpensePoint = {
+  date: string;
+  income: number;
+  expense: number;
+};
+
+export async function getTransactionsByMember(
+  walletId: string,
+  memberId: string,
+  opts?: { limit?: number; fromDate?: string; toDate?: string }
+): Promise<TransactionByMemberRow[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const membership = await supabase
+    .from("wallet_members")
+    .select("user_id")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membership.error || !membership.data) return [];
+
+  const q = supabase
+    .from("transactions")
+    .select(
+      "id, date, type, amount, description, status, hold_balance, paid_by_member_id, received_by_member_id, " +
+      "category:categories(name, parent_id)"
+    )
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .or(`paid_by_member_id.eq.${memberId},received_by_member_id.eq.${memberId}`)
+    .order("date", { ascending: false });
+  if (opts?.fromDate) q.gte("date", opts.fromDate);
+  if (opts?.toDate) q.lte("date", opts.toDate);
+  if (opts?.limit && opts.limit > 0) q.limit(opts.limit);
+
+  const [{ data }, { data: members }] = await Promise.all([
+    q,
+    supabase
+      .from("wallet_members")
+      .select("user_id, member_name")
+      .eq("wallet_id", walletId),
+  ]);
+  const memberNameById = new Map(
+    ((members ?? []) as Array<{ user_id: string; member_name?: string | null }>).map((m) => [
+      m.user_id,
+      m.member_name?.trim() || "Member",
+    ])
+  );
+  return ((data ?? []) as unknown as Array<{
+    id: string;
+    date: string;
+    type: "income" | "expense" | "transfer";
+    amount: number;
+    description: string | null;
+    status?: string | null;
+    hold_balance?: boolean | null;
+    category?: { name?: string | null; parent_id?: string | null } | null;
+    paid_by_member_id: string | null;
+    received_by_member_id: string | null;
+  }>).map((r) => ({
+    id: r.id,
+    date: r.date,
+    type: r.type,
+    amount: Number(r.amount),
+    description: r.description,
+    categoryLabel: r.category?.parent_id ? "—" : (r.category?.name ?? "—"),
+    subcategoryLabel: r.category?.parent_id ? (r.category?.name ?? "—") : "—",
+    status: r.status === "pending" ? "pending" : "confirmed",
+    holdBalance: !!r.hold_balance,
+    paidByMemberId: r.paid_by_member_id,
+    receivedByMemberId: r.received_by_member_id,
+    paidByName: r.paid_by_member_id ? (memberNameById.get(r.paid_by_member_id) ?? "Member") : "—",
+    receivedByName: r.received_by_member_id ? (memberNameById.get(r.received_by_member_id) ?? "Member") : "—",
+  }));
+}
+
+export async function getMemberIncomeExpenseSeries(
+  walletId: string,
+  memberId: string,
+  fromDate: string,
+  toDate: string
+): Promise<MemberIncomeExpensePoint[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const membership = await supabase
+    .from("wallet_members")
+    .select("user_id")
+    .eq("wallet_id", walletId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (membership.error || !membership.data) return [];
+
+  const incomesQuery = supabase
+    .from("transactions")
+    .select("date, amount")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "income")
+    .eq("received_by_member_id", memberId)
+    .gte("date", fromDate)
+    .lte("date", toDate)
+    .order("date", { ascending: true });
+
+  const expensesQuery = supabase
+    .from("transactions")
+    .select("date, amount")
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "expense")
+    .eq("paid_by_member_id", memberId)
+    .gte("date", fromDate)
+    .lte("date", toDate)
+    .order("date", { ascending: true });
+
+  const [{ data: incomes }, { data: expenses }] = await Promise.all([
+    incomesQuery,
+    expensesQuery,
+  ]);
+
+  const incomeByDate = new Map<string, number>();
+  for (const row of (incomes ?? []) as unknown as Array<{ date: string; amount: number }>) {
+    const key = row.date.slice(0, 10);
+    incomeByDate.set(key, (incomeByDate.get(key) ?? 0) + Number(row.amount));
+  }
+
+  const expenseByDate = new Map<string, number>();
+  for (const row of (expenses ?? []) as unknown as Array<{ date: string; amount: number }>) {
+    const key = row.date.slice(0, 10);
+    expenseByDate.set(key, (expenseByDate.get(key) ?? 0) + Number(row.amount));
+  }
+
+  const points: MemberIncomeExpensePoint[] = [];
+  const cursor = new Date(`${fromDate}T00:00:00`);
+  const end = new Date(`${toDate}T00:00:00`);
+  while (cursor <= end) {
+    const key = cursor.toISOString().slice(0, 10);
+    points.push({
+      date: key,
+      income: incomeByDate.get(key) ?? 0,
+      expense: expenseByDate.get(key) ?? 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return points;
 }

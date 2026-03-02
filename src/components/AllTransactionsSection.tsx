@@ -230,9 +230,9 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
   }, [filterOpen]);
 
   const splitMethodLabel = (method: ConfirmedRow["splitMethod"]) => {
-    if (method === "manual") return "Manual %";
-    if (method === "by_income") return "By income %";
-    if (method === "equally") return "Equal %";
+    if (method === "manual") return "Manual";
+    if (method === "by_income") return "By Income";
+    if (method === "equally") return "Equal";
     return "—";
   };
 
@@ -250,7 +250,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
             </span>
           }
         />
-        <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">{name}</span>
+        <span className="truncate text-xs font-medium text-slate-700 dark:text-slate-200">{name}</span>
       </span>
     );
   };

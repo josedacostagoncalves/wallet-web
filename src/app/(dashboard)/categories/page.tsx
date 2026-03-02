@@ -137,6 +137,7 @@ export default function CategoriesPage() {
   const [deleting, setDeleting] = useState(false);
   const [loadingUsage, setLoadingUsage] = useState(false);
   const [copyDialog, setCopyDialog] = useState<CopyDialogState>(null);
+  const [hasMultipleWallets, setHasMultipleWallets] = useState(false);
 
   const loadCategories = useCallback(() => {
     if (!currentWalletId) {
@@ -180,6 +181,34 @@ export default function CategoriesPage() {
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadWalletCount() {
+      if (!currentWalletId) {
+        if (!cancelled) setHasMultipleWallets(false);
+        return;
+      }
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        if (!cancelled) setHasMultipleWallets(false);
+        return;
+      }
+      const { data } = await supabase
+        .from("wallet_members")
+        .select("wallet_id")
+        .eq("user_id", user.id);
+      const walletCount = new Set((data ?? []).map((m: any) => m.wallet_id)).size;
+      if (!cancelled) setHasMultipleWallets(walletCount > 1);
+    }
+    void loadWalletCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentWalletId]);
 
   function toggleType(type: string) {
     setExpandedTypes((prev) => {
@@ -325,15 +354,17 @@ export default function CategoriesPage() {
                           <PlusIcon className="w-3.5 h-3.5" />
                           {tCategoriesPage("addCategory")}
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openCopyDialog(type);
-                          }}
-                          className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
-                        >
-                          {tCategoriesPage("page.copyFromWallet")}
-                        </button>
+                        {hasMultipleWallets && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCopyDialog(type);
+                            }}
+                            className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 font-medium"
+                          >
+                            {tCategoriesPage("page.copyFromWallet")}
+                          </button>
+                        )}
                       </div>
                     </div>
 

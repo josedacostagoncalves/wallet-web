@@ -330,15 +330,21 @@ export function IncomeFormModal({
         setWalletTrackingMode(result.tracking_mode ?? null);
         setWalletMembers(members);
 
-        // Auto-select current user for split wallet member field (only once per modal open)
-        if (!autoSelectedMember.current && (sharedOption === "split" || sharedOption === "track_and_split") && members.length > 0) {
+        // Auto-select current user only for brand-new transactions.
+        if (
+          !isEdit &&
+          !isCopy &&
+          !autoSelectedMember.current &&
+          (sharedOption === "split" || sharedOption === "track_and_split") &&
+          members.length > 0
+        ) {
           autoSelectedMember.current = true;
           getCurrentUserId().then((userResult) => {
             if (userResult.userId) {
               // Find the member that matches the current user
               const currentMember = members.find((m) => m.user_id === userResult.userId);
               if (currentMember) {
-                setPaidByMemberId(currentMember.id);
+                setPaidByMemberId((prev) => prev ?? currentMember.id);
               }
             }
           });

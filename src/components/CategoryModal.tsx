@@ -4,7 +4,7 @@ import { createCategory, updateCategory } from "@/app/actions/categories";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 
@@ -21,6 +21,29 @@ type Props = {
   onSaved: (newId?: string) => void;
 };
 
+const SUGGESTED_CATEGORY_KEYS: Record<"income" | "expense" | "transfer", string[]> = {
+  income: ["salary", "freelance", "bonus", "interest", "dividends", "gifts"],
+  expense: [
+    "groceries",
+    "rent",
+    "utilities",
+    "transport",
+    "health",
+    "entertainment",
+    "diningOut",
+    "insurance",
+    "education",
+    "shopping",
+    "subscriptions",
+    "travel",
+    "childcare",
+    "petCare",
+    "homeMaintenance",
+    "taxes",
+  ],
+  transfer: ["savings", "investments", "emergencyFund", "debtPayment"],
+};
+
 export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
   const tCategories = useTranslations("categories.modal");
   const tTransactions = useTranslations("transactions");
@@ -35,6 +58,8 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingRootNames, setExistingRootNames] = useState<Set<string>>(new Set());
+  const [selectedSuggestionKeys, setSelectedSuggestionKeys] = useState<Set<string>>(new Set());
 
   // Load data when editing
   useEffect(() => {
@@ -60,8 +85,35 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
     } else {
       setName("");
       setIsActive(true);
+      setSelectedSuggestionKeys(new Set());
     }
   }, [open, mode, tCategories]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadExistingRoots() {
+      if (!open || mode.kind !== "add-category" || !currentWalletId) {
+        if (!cancelled) setExistingRootNames(new Set());
+        return;
+      }
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("categories")
+        .select("name")
+        .eq("wallet_id", currentWalletId)
+        .eq("type", mode.type)
+        .is("parent_id", null);
+      if (!cancelled) {
+        setExistingRootNames(
+          new Set((data ?? []).map((c: any) => String(c.name ?? "").trim().toLowerCase()).filter(Boolean))
+        );
+      }
+    }
+    void loadExistingRoots();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, mode, currentWalletId]);
 
   // Keyboard & scroll lock
   useEffect(() => {
@@ -135,7 +187,40 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
     onSaved(newId);
   }
 
-  if (!open) return null;
+  async function handleAddSelectedSuggestions() {
+    if (mode.kind !== "add-category" || !currentWalletId) return;
+    const selected = filteredSuggestions.filter(
+      (s) => selectedSuggestionKeys.has(s.key) && !s.exists
+    );
+    if (selected.length === 0) return;
+
+    setError(null);
+    setLoading(true);
+    let added = 0;
+    const nextExisting = new Set(existingRootNames);
+
+    for (const s of selected) {
+      const res = await createCategory({
+        wallet_id: currentWalletId,
+        name: s.label.trim(),
+        type: mode.type,
+      });
+      if (res.error) {
+        setLoading(false);
+        setError(res.error);
+        showToast(res.error, "error");
+        return;
+      }
+      added += 1;
+      nextExisting.add(s.label.trim().toLowerCase());
+    }
+
+    setExistingRootNames(nextExisting);
+    setSelectedSuggestionKeys(new Set());
+    setLoading(false);
+    showToast(tCategories("addedSelectedToast", { count: added }));
+    onSaved();
+  }
 
   const title =
     mode.kind === "edit"
@@ -153,6 +238,22 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
 
   const inputClass =
     "w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 text-sm";
+  const filteredSuggestions = useMemo(() => {
+    if (mode.kind !== "add-category") return [];
+    const rows = SUGGESTED_CATEGORY_KEYS[mode.type].map((key) => {
+      const label = tCategories(`suggestions.${mode.type}.${key}`);
+      return {
+        key,
+        label,
+        exists: existingRootNames.has(label.trim().toLowerCase()),
+      };
+    });
+    return rows
+      .filter((s) => !name.trim() || s.label.toLowerCase().includes(name.trim().toLowerCase()))
+      .sort((a, b) => Number(a.exists) - Number(b.exists) || a.label.localeCompare(b.label));
+  }, [mode, tCategories, existingRootNames, name]);
+
+  if (!open) return null;
 
   return createPortal(
     <div
@@ -182,17 +283,89 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
           <p className="text-slate-500 text-sm">{tCommon("loading")}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">{tCategories("nameLabel")}</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoFocus
-                className={inputClass}
-              />
-            </div>
+            {mode.kind === "add-category" && (
+              <>
+                <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+                  <div className="mb-2">
+                    <p className="text-sm font-medium">{tCategories("suggestedTitle")}</p>
+                    <p className="text-xs text-slate-500">{tCategories("suggestedSubtitle")}</p>
+                  </div>
+                  <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
+                    <table className="w-full text-xs">
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {filteredSuggestions.map((s) => (
+                          <tr key={s.key}>
+                            <td className="px-2 py-1.5 text-slate-700 dark:text-slate-200">{s.label}</td>
+                            <td className="px-2 py-1.5 text-right">
+                              {s.exists ? (
+                                <span className="text-slate-400">{tCategories("alreadyExists")}</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedSuggestionKeys((prev) => {
+                                      const next = new Set(prev);
+                                      if (next.has(s.key)) next.delete(s.key);
+                                      else next.add(s.key);
+                                      return next;
+                                    })
+                                  }
+                                  className={`rounded-md border px-2 py-0.5 ${
+                                    selectedSuggestionKeys.has(s.key)
+                                      ? "border-slate-700 bg-slate-100 dark:border-slate-500 dark:bg-slate-800"
+                                      : "border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                  }`}
+                                >
+                                  {tCategories("useSuggestion")}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAddSelectedSuggestions}
+                      disabled={loading || filteredSuggestions.every((s) => !selectedSuggestionKeys.has(s.key) || s.exists)}
+                      className="rounded-lg bg-slate-800 text-white px-3 py-1.5 text-xs hover:bg-slate-700 disabled:opacity-50"
+                    >
+                      {tCategories("addSelectedSuggestions")}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-200 dark:border-slate-700" />
+
+                <div>
+                  <p className="text-sm font-medium mb-1">{tCategories("createNewTitle")}</p>
+                  <label className="block text-sm font-medium mb-1">{tCategories("nameLabel")}</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    autoFocus
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            )}
+            {mode.kind !== "add-category" && (
+              <div>
+                <label className="block text-sm font-medium mb-1">{tCategories("nameLabel")}</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  autoFocus
+                  className={inputClass}
+                />
+              </div>
+            )}
             {mode.kind === "edit" && (
               <div className="flex items-center gap-2">
                 <input

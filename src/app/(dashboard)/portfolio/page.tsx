@@ -3,12 +3,17 @@ import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { getWalletSettlements } from "@/app/actions/wallets";
 import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
+import { PortfolioPeriodSelector } from "@/components/PortfolioPeriodSelector";
 import { SettlementsSection } from "@/components/SettlementsSection";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-export default async function PortfolioPage() {
+export default async function PortfolioPage({
+    searchParams,
+}: {
+    searchParams?: { year?: string; month?: string; period?: string };
+}) {
     const t = await getTranslations("portfolio");
     const supabase = await createClient();
     const cookie = await getWalletCookie();
@@ -37,6 +42,20 @@ export default async function PortfolioPage() {
     let walletSplitType: string | null = null;
     let walletName: string | null = null;
     let settlements: any[] = [];
+    let availableYears: number[] = [new Date().getUTCFullYear()];
+
+    const now = new Date();
+    const currentYear = now.getUTCFullYear();
+    const currentMonth = now.getUTCMonth() + 1;
+    const requestedYear = Number(searchParams?.year);
+    const requestedMonth = Number(searchParams?.month);
+    const periodType: "monthly" | "yearly" =
+        searchParams?.period === "yearly" ? "yearly" : "monthly";
+    let activeYear = Number.isInteger(requestedYear) ? requestedYear : currentYear;
+    let activeMonth =
+        Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
+            ? requestedMonth
+            : currentMonth;
 
     if (currentWalletId) {
         await ensureRecurringGenerated(currentWalletId);
@@ -53,7 +72,40 @@ export default async function PortfolioPage() {
 
         // Fetch settlements if wallet is split type
         if (walletSharedOption === "split" || walletSharedOption === "track_and_split") {
-            const { settlements: settle } = await getWalletSettlements(currentWalletId);
+            const [{ data: minTx }, { data: maxTx }] = await Promise.all([
+                supabase
+                    .from("transactions")
+                    .select("date")
+                    .eq("wallet_id", currentWalletId)
+                    .order("date", { ascending: true })
+                    .limit(1),
+                supabase
+                    .from("transactions")
+                    .select("date")
+                    .eq("wallet_id", currentWalletId)
+                    .order("date", { ascending: false })
+                    .limit(1),
+            ]);
+            const minYear = minTx?.[0]?.date ? Number(String(minTx[0].date).slice(0, 4)) : currentYear;
+            const maxYear = maxTx?.[0]?.date ? Number(String(maxTx[0].date).slice(0, 4)) : currentYear;
+            availableYears = Array.from({ length: Math.max(1, maxYear - minYear + 1) }, (_, i) => minYear + i);
+
+            const selectedYearForWallet =
+                Number.isInteger(requestedYear) && availableYears.includes(requestedYear)
+                    ? requestedYear
+                    : currentYear;
+            const selectedMonthForWallet =
+                Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
+                    ? requestedMonth
+                    : currentMonth;
+            activeYear = selectedYearForWallet;
+            activeMonth = selectedMonthForWallet;
+
+            const { settlements: settle } = await getWalletSettlements(currentWalletId, {
+                year: selectedYearForWallet,
+                month: periodType === "monthly" ? selectedMonthForWallet : undefined,
+                granularity: periodType === "yearly" ? "year" : "month",
+            });
             if (settle) {
                 settlements = settle;
             }
@@ -132,6 +184,17 @@ export default async function PortfolioPage() {
         totalBalance = accounts.reduce((s, a) => s + a.current_balance, 0);
     }
 
+    const periodStart =
+        periodType === "yearly"
+            ? `${activeYear}-01-01`
+            : `${activeYear}-${String(activeMonth).padStart(2, "0")}-01`;
+    const periodEnd =
+        periodType === "yearly"
+            ? `${activeYear}-12-31`
+            : `${activeYear}-${String(activeMonth).padStart(2, "0")}-${String(
+                new Date(Date.UTC(activeYear, activeMonth, 0)).getUTCDate()
+            ).padStart(2, "0")}`;
+
     return (
         <div className="space-y-8">
             <div>
@@ -164,7 +227,32 @@ export default async function PortfolioPage() {
                         />
                     )}
                     {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
-                        <SettlementsSection settlements={settlements} splitType={walletSplitType} />
+                        <>
+                            <div className="flex items-center justify-end">
+                                <PortfolioPeriodSelector
+                                    years={availableYears}
+                                    periodType={periodType}
+                                    selectedYear={
+                                        Number.isInteger(requestedYear) && availableYears.includes(requestedYear)
+                                            ? requestedYear
+                                            : currentYear
+                                    }
+                                    selectedMonth={
+                                        Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
+                                            ? requestedMonth
+                                            : currentMonth
+                                    }
+                                />
+                            </div>
+                            <SettlementsSection
+                                settlements={settlements}
+                                splitType={walletSplitType}
+                                walletId={currentWalletId}
+                                periodType={periodType}
+                                periodStart={periodStart}
+                                periodEnd={periodEnd}
+                            />
+                        </>
                     )}
                 </>
             )}

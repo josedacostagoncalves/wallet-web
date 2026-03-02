@@ -37,6 +37,13 @@ export default async function HomePage() {
   let walletSplitType: string | null = null;
   let walletName: string | null = null;
   let settlements: any[] = [];
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+  const periodStart = `${currentYear}-${String(currentMonth).padStart(2, "0")}-01`;
+  const periodEnd = `${currentYear}-${String(currentMonth).padStart(2, "0")}-${String(
+    new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate()
+  ).padStart(2, "0")}`;
 
   if (currentWalletId) {
     await ensureRecurringGenerated(currentWalletId);
@@ -164,7 +171,14 @@ export default async function HomePage() {
             />
           )}
           {(walletSharedOption === "split" || walletSharedOption === "track_and_split") && (
-            <SettlementsSection settlements={settlements} splitType={walletSplitType} />
+            <SettlementsSection
+              settlements={settlements}
+              splitType={walletSplitType}
+              walletId={currentWalletId}
+              periodType="monthly"
+              periodStart={periodStart}
+              periodEnd={periodEnd}
+            />
           )}
         </>
       )}

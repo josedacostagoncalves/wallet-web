@@ -25,6 +25,15 @@ type UserRow = {
   avatar_url: string | null;
 };
 
+function normalizeDisplayName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default function UsersPage() {
   const t = useTranslations("users");
   const tCommon = useTranslations("common");
@@ -174,6 +183,13 @@ export default function UsersPage() {
 
   if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
   const joinedCandidates = rows.filter((r) => r.role !== "owner" && r.has_profile);
+  const candidatesForRow = (row: UserRow) => {
+    const rowName = normalizeDisplayName(row.display_name);
+    return joinedCandidates.filter((c) =>
+      c.user_id !== row.user_id &&
+      normalizeDisplayName(c.display_name) === rowName
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -250,7 +266,7 @@ export default function UsersPage() {
                       <td className="p-3">
                         {canManageUsers && r.role !== "owner" ? (
                           <div className="flex items-center gap-2">
-                            {!r.has_profile && joinedCandidates.length > 0 ? (
+                            {!r.has_profile && candidatesForRow(r).length > 0 ? (
                               <>
                                 <select
                                   value={linkTargets[r.user_id] ?? ""}
@@ -258,9 +274,7 @@ export default function UsersPage() {
                                   className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800"
                                 >
                                   <option value="">Link to...</option>
-                                  {joinedCandidates
-                                    .filter((c) => c.user_id !== r.user_id)
-                                    .map((c) => (
+                                  {candidatesForRow(r).map((c) => (
                                       <option key={c.user_id} value={c.user_id}>
                                         {c.display_name}
                                       </option>

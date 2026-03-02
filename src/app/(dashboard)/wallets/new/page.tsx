@@ -12,6 +12,7 @@ export default function NewWalletPage() {
   const tAuth = useTranslations("auth");
   const tWallets = useTranslations("wallets");
   const tCommon = useTranslations("common");
+  const tCategorySuggestions = useTranslations("categories.modal.suggestions");
   const router = useRouter();
   const { showToast } = useToast();
   const [name, setName] = useState("");
@@ -21,6 +22,15 @@ export default function NewWalletPage() {
   const [defaultSplitMethod, setDefaultSplitMethod] = useState<"equally" | "by_income" | "manual">("equally");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function normalizeCategoryName(value: string): string {
+    return value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,6 +77,42 @@ export default function NewWalletPage() {
       setLoading(false);
       showToast(tWallets("toasts.createFailed"), "error");
       return;
+    }
+
+    if (isShared && splitMode === "split") {
+      const salaryName = tCategorySuggestions("income.salary");
+      const settlementName = tCategorySuggestions("transfer.settlement");
+      const wanted = [
+        { name: salaryName, type: "income" as const },
+        { name: settlementName, type: "transfer" as const },
+      ];
+
+      const { data: existingCats } = await supabase
+        .from("categories")
+        .select("name, type")
+        .eq("wallet_id", walletId)
+        .is("parent_id", null)
+        .in("type", ["income", "transfer"]);
+
+      const existingKey = new Set(
+        (existingCats ?? []).map((c) => `${c.type}:${normalizeCategoryName(c.name)}`)
+      );
+      const toInsert = wanted
+        .filter((c) => !existingKey.has(`${c.type}:${normalizeCategoryName(c.name)}`))
+        .map((c) => ({
+          wallet_id: walletId,
+          name: c.name,
+          type: c.type,
+          parent_id: null,
+          created_by: user.id,
+          is_active: true,
+        }));
+      if (toInsert.length > 0) {
+        const { error: defaultsErr } = await supabase.from("categories").insert(toInsert);
+        if (defaultsErr) {
+          showToast(defaultsErr.message, "error");
+        }
+      }
     }
 
     await supabase.from("activity_log").insert({

@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 
 const ACCOUNT_ORDER_KEY = "account_order";
+const SETTLEMENTS_ORDER_KEY = "settlements_order";
+const SETTLEMENTS_DISPLAY_KEY = "settlements_display_options";
 const BALANCE_DISPLAY_KEY = "balance_display_options";
 const STATEMENTS_ORDER_PREFIX = "statements_order_";
 const STATEMENTS_HIDE_KEY = "statements_hide_balances";
@@ -59,6 +61,120 @@ export async function saveAccountOrder(
         wallet_id: walletId,
         key: ACCOUNT_ORDER_KEY,
         value: order,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,wallet_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+export async function getSettlementsOrder(
+  walletId: string
+): Promise<string[]> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("user_preferences")
+    .select("value")
+    .eq("user_id", user.id)
+    .eq("wallet_id", walletId)
+    .eq("key", SETTLEMENTS_ORDER_KEY)
+    .maybeSingle();
+
+  if (!data) return [];
+  const val = data.value;
+  if (Array.isArray(val)) {
+    return val.filter((x: unknown) => typeof x === "string") as string[];
+  }
+  return [];
+}
+
+export async function saveSettlementsOrder(
+  walletId: string,
+  order: string[]
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      {
+        user_id: user.id,
+        wallet_id: walletId,
+        key: SETTLEMENTS_ORDER_KEY,
+        value: order,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,wallet_id,key" }
+    );
+
+  if (error) return { error: error.message };
+  return {};
+}
+
+export type SettlementsDisplayOptions = {
+  showUserPhoto: boolean;
+};
+
+const DEFAULT_SETTLEMENTS_DISPLAY: SettlementsDisplayOptions = {
+  showUserPhoto: true,
+};
+
+export async function getSettlementsDisplayOptions(
+  walletId: string
+): Promise<SettlementsDisplayOptions> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return DEFAULT_SETTLEMENTS_DISPLAY;
+
+  const { data } = await supabase
+    .from("user_preferences")
+    .select("value")
+    .eq("user_id", user.id)
+    .eq("wallet_id", walletId)
+    .eq("key", SETTLEMENTS_DISPLAY_KEY)
+    .maybeSingle();
+
+  if (!data || typeof data.value !== "object" || data.value === null || Array.isArray(data.value)) {
+    return DEFAULT_SETTLEMENTS_DISPLAY;
+  }
+
+  const v = data.value as Record<string, unknown>;
+  return {
+    showUserPhoto: typeof v.showUserPhoto === "boolean" ? v.showUserPhoto : true,
+  };
+}
+
+export async function saveSettlementsDisplayOptions(
+  walletId: string,
+  options: SettlementsDisplayOptions
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("user_preferences")
+    .upsert(
+      {
+        user_id: user.id,
+        wallet_id: walletId,
+        key: SETTLEMENTS_DISPLAY_KEY,
+        value: options,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,wallet_id,key" }
