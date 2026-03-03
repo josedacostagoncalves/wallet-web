@@ -147,6 +147,7 @@ export function CurrentBalancesSection({
   const [editOrder, setEditOrder] = useState<string[] | null>(null);
   const [savedOrder, setSavedOrder] = useState<string[]>([]);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   /* ---------- Display options ---------- */
   const [displayOpts, setDisplayOpts] = useState<BalanceDisplayOptions>(DEFAULT_DISPLAY);
@@ -170,17 +171,20 @@ export function CurrentBalancesSection({
     if (!currentWalletId) {
       setSavedOrder([]);
       setDisplayOpts(DEFAULT_DISPLAY);
+      setPrefsLoaded(true);
       return;
     }
     let cancelled = false;
-    getAccountOrder(currentWalletId).then((order) => {
-      if (!cancelled) {
-        setSavedOrder(order);
-        if (!orderEditing) setEditOrder(null);
-      }
-    });
-    getBalanceDisplayOptions(currentWalletId).then((opts) => {
-      if (!cancelled) setDisplayOpts(opts);
+    setPrefsLoaded(false);
+    Promise.all([
+      getAccountOrder(currentWalletId),
+      getBalanceDisplayOptions(currentWalletId),
+    ]).then(([order, opts]) => {
+      if (cancelled) return;
+      setSavedOrder(order);
+      setEditOrder(null);
+      setDisplayOpts(opts);
+      setPrefsLoaded(true);
     });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load on wallet change
@@ -286,7 +290,7 @@ export function CurrentBalancesSection({
           <h2 className="text-lg font-medium">{walletName || t("title")}</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">{t("subtitle")}</p>
         </div>
-        {mounted && (
+        {mounted && prefsLoaded && (
           <div className="flex items-center gap-2">
             {headerControl}
             <button
@@ -344,18 +348,24 @@ export function CurrentBalancesSection({
         )}
       </div>
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <AccountsSection
-          accounts={orderedAccounts}
-          totalInitialBalance={totalInitialBalance}
-          totalBalance={totalBalance}
-          currentWalletId={currentWalletId}
-          hideBalances={mounted ? hideBalances : false}
-          orderEditing={orderEditing}
-          onReorder={handleReorder}
-          showInitialBalance={displayOpts.showInitialBalance}
-          showPlafond={displayOpts.showPlafond}
-          pendingAmounts={pendingAmounts}
-        />
+        {!prefsLoaded ? (
+          <div className="h-48 flex items-center justify-center bg-white dark:bg-slate-900">
+            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
+          </div>
+        ) : (
+          <AccountsSection
+            accounts={orderedAccounts}
+            totalInitialBalance={totalInitialBalance}
+            totalBalance={totalBalance}
+            currentWalletId={currentWalletId}
+            hideBalances={mounted ? hideBalances : false}
+            orderEditing={orderEditing}
+            onReorder={handleReorder}
+            showInitialBalance={displayOpts.showInitialBalance}
+            showPlafond={displayOpts.showPlafond}
+            pendingAmounts={pendingAmounts}
+          />
+        )}
       </div>
 
       {/* Options popover (portaled) */}

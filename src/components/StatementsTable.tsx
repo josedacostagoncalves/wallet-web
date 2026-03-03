@@ -163,6 +163,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         key: null,
         direction: null,
     });
+    const [prefsLoaded, setPrefsLoaded] = useState(false);
     const rowHoverClass =
         type === "income"
             ? "hover:bg-green-50 dark:hover:bg-green-900/10"
@@ -282,24 +283,27 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
             setHideBalances(false);
             setOrderEditing(false);
             setEditOrder(null);
+            setPrefsLoaded(true);
             return;
         }
         let cancelled = false;
-        getStatementsTableOrder(currentWalletId, tableKey).then((order) => {
-            if (!cancelled) {
-                // Handle both old format (array of strings) and new format (nested object)
-                if (Array.isArray(order)) {
-                    setSavedOrder({ categories: order, subcategories: {} });
-                } else {
-                    setSavedOrder(
-                        order as { categories: string[]; subcategories: Record<string, string[]> }
-                    );
-                }
-                if (!orderEditing) setEditOrder(null);
+        setPrefsLoaded(false);
+        Promise.all([
+            getStatementsTableOrder(currentWalletId, tableKey),
+            getStatementsHideBalances(currentWalletId),
+        ]).then(([order, hidden]) => {
+            if (cancelled) return;
+            // Handle both old format (array of strings) and new format (nested object)
+            if (Array.isArray(order)) {
+                setSavedOrder({ categories: order, subcategories: {} });
+            } else {
+                setSavedOrder(
+                    order as { categories: string[]; subcategories: Record<string, string[]> }
+                );
             }
-        });
-        getStatementsHideBalances(currentWalletId).then((hidden) => {
-            if (!cancelled) setHideBalances(hidden);
+            setHideBalances(hidden);
+            setEditOrder(null);
+            setPrefsLoaded(true);
         });
         return () => {
             cancelled = true;
@@ -583,6 +587,14 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
             value: chartTarget.monthlyBreakdown[col.key] ?? 0,
         }));
     }, [chartTarget, dateColumns]);
+
+    if (!prefsLoaded) {
+        return (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 h-56 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
+            </div>
+        );
+    }
 
     if (data.length === 0) {
         return (

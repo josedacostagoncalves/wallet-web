@@ -171,6 +171,7 @@ export function SettlementsSection({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [confirmFlow, setConfirmFlow] = useState<SettlementFlow | null>(null);
   const [confirmingFlow, setConfirmingFlow] = useState(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     try {
@@ -184,19 +185,21 @@ export function SettlementsSection({
 
   useEffect(() => {
     let cancelled = false;
-    getSettlementsOrder(walletId).then((order) => {
-      if (!cancelled) {
-        setSavedOrder(order);
-        if (!orderEditing) setEditOrder(null);
-      }
-    });
-    getSettlementsDisplayOptions(walletId).then((opts) => {
-      if (!cancelled) setDisplayOpts(opts);
+    setPrefsLoaded(false);
+    Promise.all([
+      getSettlementsOrder(walletId),
+      getSettlementsDisplayOptions(walletId),
+    ]).then(([order, opts]) => {
+      if (cancelled) return;
+      setSavedOrder(order);
+      setEditOrder(null);
+      setDisplayOpts(opts);
+      setPrefsLoaded(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [walletId, orderEditing]);
+  }, [walletId]);
 
   useEffect(() => {
     setExpandedId(null);
@@ -563,7 +566,7 @@ export function SettlementsSection({
           <h3 className="text-lg font-semibold">{t("title")}</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400">{t("subtitle")}</p>
         </div>
-        {mounted && (
+        {mounted && prefsLoaded && (
           <div className="flex items-center gap-2">
             {headerControl}
             <button
@@ -621,6 +624,11 @@ export function SettlementsSection({
         )}
       </div>
 
+      {!prefsLoaded ? (
+        <div className="h-48 flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
+        </div>
+      ) : (
       <div className="space-y-3">
         {sorted.map((settlement) => {
           const state = transactionsByMember[settlement.member_id];
@@ -842,6 +850,7 @@ export function SettlementsSection({
           );
         })}
       </div>
+      )}
 
       <div className="mt-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/70 dark:bg-slate-900/30 p-4">
         <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{t("whoPaysWhom")}</h4>
