@@ -9,6 +9,16 @@ import {
 } from "@/app/actions/preferences";
 import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 
 type CategoryData = {
     category: string;
@@ -144,6 +154,10 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         transactions: { id: string; date: string; description: string | null; amount: number }[];
         x: number;
         y: number;
+    } | null>(null);
+    const [chartTarget, setChartTarget] = useState<{
+        title: string;
+        monthlyBreakdown: Record<string, number>;
     } | null>(null);
     const [sortState, setSortState] = useState<{ key: string | null; direction: "desc" | "asc" | null }>({
         key: null,
@@ -561,6 +575,15 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         );
     };
 
+    const chartData = useMemo(() => {
+        if (!chartTarget) return [];
+        return dateColumns.map((col) => ({
+            key: col.key,
+            label: col.label,
+            value: chartTarget.monthlyBreakdown[col.key] ?? 0,
+        }));
+    }, [chartTarget, dateColumns]);
+
     if (data.length === 0) {
         return (
             <div className="p-8 text-center rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
@@ -755,7 +778,8 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                             </td>
                                         )}
                                         <td className="px-3 py-3 text-left font-medium text-slate-900 dark:text-slate-100 min-w-0">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2 min-w-0">
                                                 {hasSubcategories && (
                                                     <svg
                                                         xmlns="http://www.w3.org/2000/svg"
@@ -778,6 +802,36 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                     </svg>
                                                 )}
                                                 {row.category || "(Uncategorized)"}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setChartTarget({
+                                                            title: row.category || "(Uncategorized)",
+                                                            monthlyBreakdown: row.monthlyBreakdown ?? {},
+                                                        });
+                                                    }}
+                                                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 shrink-0"
+                                                    aria-label={t("viewCategoryMonthlyChart")}
+                                                    title={t("viewCategoryMonthlyChart")}
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        width="16"
+                                                        height="16"
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        aria-hidden
+                                                    >
+                                                        <path d="M3 3v18h18" />
+                                                        <path d="m19 9-5 5-4-4-3 3" />
+                                                    </svg>
+                                                </button>
                                             </div>
                                         </td>
                                         {dateColumns.map((col) => {
@@ -837,7 +891,38 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                         </td>
                                                     )}
                                                     <td className="px-3 py-2 text-left text-slate-700 dark:text-slate-300 pl-12 min-w-0">
-                                                        {subcategory.subcategory || "(No subcategory)"}
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="truncate">{subcategory.subcategory || "(No subcategory)"}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setChartTarget({
+                                                                        title: `${row.category} · ${subcategory.subcategory || "(No subcategory)"}`,
+                                                                        monthlyBreakdown: subcategory.monthlyBreakdown ?? {},
+                                                                    });
+                                                                }}
+                                                                className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 shrink-0"
+                                                                aria-label={t("viewCategoryMonthlyChart")}
+                                                                title={t("viewCategoryMonthlyChart")}
+                                                            >
+                                                                <svg
+                                                                    xmlns="http://www.w3.org/2000/svg"
+                                                                    width="16"
+                                                                    height="16"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    aria-hidden
+                                                                >
+                                                                    <path d="M3 3v18h18" />
+                                                                    <path d="m19 9-5 5-4-4-3 3" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                     {dateColumns.map((col) => {
                                                         const value = subcategory.monthlyBreakdown?.[col.key] ?? 0;
@@ -902,6 +987,72 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     </tfoot>
                 </table>
             </div>
+            {chartTarget &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+                        role="dialog"
+                        aria-modal="true"
+                        onClick={() => setChartTarget(null)}
+                    >
+                        <div className="absolute inset-0 bg-slate-900/50" />
+                        <div
+                            className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold">{chartTarget.title}</h3>
+                                    <p className="text-sm text-slate-500">{t("categoryMonthlyValues")}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setChartTarget(null)}
+                                    className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                >
+                                    {tCommon("close")}
+                                </button>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+                                {chartData.length === 0 ? (
+                                    <div className="h-72 flex items-center justify-center text-slate-500">
+                                        {t("noCategoryChartData")}
+                                    </div>
+                                ) : (
+                                    <div className="h-72 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                                                <YAxis
+                                                    tickFormatter={(v: number) =>
+                                                        `${v.toLocaleString("pt-PT", {
+                                                            minimumFractionDigits: 0,
+                                                            maximumFractionDigits: 0,
+                                                        })}€`
+                                                    }
+                                                    tick={{ fontSize: 10 }}
+                                                    width={70}
+                                                />
+                                                <Tooltip
+                                                    formatter={(value: number) => [
+                                                        `${value.toLocaleString("pt-PT", {
+                                                            minimumFractionDigits: 2,
+                                                            maximumFractionDigits: 2,
+                                                        })} €`,
+                                                        t("total"),
+                                                    ]}
+                                                />
+                                                <Bar dataKey="value" radius={[4, 4, 0, 0]} fill={type === "income" ? "#16a34a" : type === "expense" ? "#dc2626" : "#2563eb"} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }
