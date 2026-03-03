@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 type LocaleCode = "en" | "pt" | "es" | "fr";
+export type HomeInsightsPeriod = "auto" | "month_to_date" | "last_month" | "this_year" | "last_30_days";
 
 type BriefingData = {
   anchorYear: number;
@@ -23,7 +24,21 @@ type BriefingData = {
   subscriptionDetails: Array<{ label: string; amount: number }>;
   expenseTopCategories: Array<{ name: string; amount: number; sharePct: number }>;
   longestNoExpenseStreak: number;
+  longestNoExpenseStreakToDate: number;
   savingsRatePct: number;
+  monthDiningOut: number;
+  prevDiningOut: number;
+  diningChangePct: number | null;
+  anchorDayCutoff: number;
+  analysisPeriod: Exclude<HomeInsightsPeriod, "auto">;
+  periodStart: string;
+  periodEnd: string;
+  previousPeriodStart: string;
+  previousPeriodEnd: string;
+  periodDays: number;
+  currentTxCount: number;
+  previousTxCount: number;
+  categoryEvolution: Array<{ name: string; current: number; previous: number; changePct: number | null }>;
   news: Array<{ title: string; link: string; source: string }>;
   fact: string;
 };
@@ -41,6 +56,22 @@ function monthRangeUTC(year: number, month1to12: number) {
   const endDay = new Date(Date.UTC(year, month1to12, 0)).getUTCDate();
   const end = `${year}-${String(month1to12).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
   return { start, end };
+}
+
+function formatDateUTC(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function addDaysUTC(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return formatDateUTC(d);
+}
+
+function daysBetweenInclusive(start: string, end: string): number {
+  const s = new Date(`${start}T00:00:00Z`).getTime();
+  const e = new Date(`${end}T00:00:00Z`).getTime();
+  return Math.max(1, Math.floor((e - s) / 86400000) + 1);
 }
 
 function stripXml(text: string): string {
@@ -104,7 +135,11 @@ function factForLocale(locale: LocaleCode): string {
   return list[day % list.length];
 }
 
-export async function getHomeBriefing(walletId: string, locale: LocaleCode): Promise<BriefingData> {
+export async function getHomeBriefing(
+  walletId: string,
+  locale: LocaleCode,
+  selectedPeriod: HomeInsightsPeriod = "auto"
+): Promise<BriefingData> {
   const supabase = await createClient();
   const { data: latestTx } = await supabase
     .from("transactions")
@@ -116,13 +151,15 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
     .maybeSingle();
 
   const latestDate = latestTx?.date ? new Date(`${latestTx.date}T00:00:00Z`) : null;
-  const now = latestDate ?? new Date();
+  const today = new Date();
+  const todayUtc = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const now = latestDate && latestDate < todayUtc ? latestDate : todayUtc;
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth() + 1;
   const prevMonth = month === 1 ? 12 : month - 1;
   const prevYear = month === 1 ? year - 1 : year;
-  const currentRange = monthRangeUTC(year, month);
-  const previousRange = monthRangeUTC(prevYear, prevMonth);
+  const currentMonthRange = monthRangeUTC(year, month);
+  const previousMonthRange = monthRangeUTC(prevYear, prevMonth);
   const hasAnyTransactions = !!latestDate;
 
   const { data: categories } = await supabase
@@ -153,11 +190,88 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
       subscriptionDetails: [],
       expenseTopCategories: [],
       longestNoExpenseStreak: 0,
+      longestNoExpenseStreakToDate: 0,
       savingsRatePct: 0,
+      monthDiningOut: 0,
+      prevDiningOut: 0,
+      diningChangePct: null,
+      anchorDayCutoff: Math.min(new Date().getUTCDate(), new Date(Date.UTC(year, month, 0)).getUTCDate()),
+      analysisPeriod: "month_to_date",
+      periodStart: currentMonthRange.start,
+      periodEnd: currentMonthRange.start,
+      previousPeriodStart: previousMonthRange.start,
+      previousPeriodEnd: previousMonthRange.start,
+      periodDays: 1,
+      currentTxCount: 0,
+      previousTxCount: 0,
+      categoryEvolution: [],
       news,
       fact,
     };
   }
+
+  const nowUtcDay = now.getUTCDate();
+  const anchorDaysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cutoffDay = Math.min(nowUtcDay, anchorDaysInMonth);
+  const monthToDateStart = currentMonthRange.start;
+  const monthToDateEnd = `${year}-${String(month).padStart(2, "0")}-${String(cutoffDay).padStart(2, "0")}`;
+
+  const { count: monthToDateCount } = await supabase
+    .from("transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .gte("date", monthToDateStart)
+    .lte("date", monthToDateEnd);
+
+  const rollingEnd = formatDateUTC(now);
+  const rollingStart = addDaysUTC(rollingEnd, -29);
+  const rollingPrevEnd = addDaysUTC(rollingStart, -1);
+  const rollingPrevStart = addDaysUTC(rollingPrevEnd, -29);
+
+  const twoMonthsAgoMonth = prevMonth === 1 ? 12 : prevMonth - 1;
+  const twoMonthsAgoYear = prevMonth === 1 ? prevYear - 1 : prevYear;
+  const twoMonthsAgoRange = monthRangeUTC(twoMonthsAgoYear, twoMonthsAgoMonth);
+  const prevMonthCutoff = Math.min(cutoffDay, new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate());
+  const prevMonthToDateRange = {
+    start: previousMonthRange.start,
+    end: `${prevYear}-${String(prevMonth).padStart(2, "0")}-${String(prevMonthCutoff).padStart(2, "0")}`,
+  };
+  const thisYearRange = {
+    start: `${year}-01-01`,
+    end: formatDateUTC(now),
+  };
+  const prevYearRange = {
+    start: `${year - 1}-01-01`,
+    end: `${year - 1}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`,
+  };
+
+  let analysisPeriod: Exclude<HomeInsightsPeriod, "auto"> = "month_to_date";
+  if (selectedPeriod === "last_30_days") analysisPeriod = "last_30_days";
+  else if (selectedPeriod === "last_month") analysisPeriod = "last_month";
+  else if (selectedPeriod === "this_year") analysisPeriod = "this_year";
+  else if (selectedPeriod === "month_to_date") analysisPeriod = "month_to_date";
+  else analysisPeriod = (monthToDateCount ?? 0) < 8 ? "last_30_days" : "month_to_date";
+
+  const currentRange =
+    analysisPeriod === "last_30_days"
+      ? { start: rollingStart, end: rollingEnd }
+      : analysisPeriod === "last_month"
+        ? previousMonthRange
+        : analysisPeriod === "this_year"
+          ? thisYearRange
+          : { start: monthToDateStart, end: monthToDateEnd };
+
+  const previousRange =
+    analysisPeriod === "last_30_days"
+      ? { start: rollingPrevStart, end: rollingPrevEnd }
+      : analysisPeriod === "last_month"
+        ? twoMonthsAgoRange
+        : analysisPeriod === "this_year"
+          ? prevYearRange
+          : prevMonthToDateRange;
+
+  const periodDays = daysBetweenInclusive(currentRange.start, currentRange.end);
 
   const { data: tx } = await supabase
     .from("transactions")
@@ -181,13 +295,17 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
   let prevExpenses = 0;
   const dayCount = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
+  const previousExpenseByCategory = new Map<string, number>();
   const subscriptionsByLabel = new Map<string, number>();
   const expenseDays = new Set<string>();
   let subscriptionsAmount = 0;
   let diningOutAmount = 0;
+  let prevDiningOut = 0;
+  let currentTxCount = 0;
+  let previousTxCount = 0;
 
   const subscriptionKeywords = ["subscription", "streaming", "netflix", "spotify", "subscricao", "suscripcion", "abonnement"];
-  const diningKeywords = ["restaurant", "dining", "comer fora", "restaurante", "cafeteria", "bar"];
+  const diningKeywords = ["restaurant", "dining", "comer fora", "restaurante", "cafeteria", "bar", "uber eats", "ubereats"];
 
   for (const row of rows) {
     const amount = Number(row.amount);
@@ -195,6 +313,7 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
     const inPrevious = row.date >= previousRange.start && row.date <= previousRange.end;
 
     if (inCurrent) {
+      currentTxCount += 1;
       dayCount.set(row.date, (dayCount.get(row.date) ?? 0) + 1);
       if (row.type === "income") monthIncome += amount;
       if (row.type === "expense") {
@@ -218,8 +337,18 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
     }
 
     if (inPrevious) {
+      previousTxCount += 1;
       if (row.type === "income") prevIncome += amount;
-      if (row.type === "expense") prevExpenses += amount;
+      if (row.type === "expense") {
+        prevExpenses += amount;
+        const cat = row.category_id ? categoryById.get(row.category_id) : null;
+        const root = cat?.parent_id ? categoryById.get(cat.parent_id) ?? cat : cat;
+        const rootName = root?.name ?? "Other";
+        previousExpenseByCategory.set(rootName, (previousExpenseByCategory.get(rootName) ?? 0) + amount);
+        const sourceText = `${row.description ?? ""} ${cat?.name ?? ""} ${root?.name ?? ""}`;
+        const normalized = normalizeText(sourceText);
+        if (diningKeywords.some((k) => normalized.includes(k))) prevDiningOut += amount;
+      }
     }
   }
 
@@ -261,11 +390,25 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 6);
 
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const categoryUnion = new Set<string>([
+    ...Array.from(expenseByCategory.keys()),
+    ...Array.from(previousExpenseByCategory.keys()),
+  ]);
+  const categoryEvolution = Array.from(categoryUnion)
+    .map((name) => {
+      const current = expenseByCategory.get(name) ?? 0;
+      const previous = previousExpenseByCategory.get(name) ?? 0;
+      const changePct = previous > 0 ? ((current - previous) / previous) * 100 : null;
+      return { name, current, previous, changePct };
+    })
+    .sort((a, b) => (b.current + b.previous) - (a.current + a.previous))
+    .slice(0, 6);
+
+  const daysInMonth = periodDays;
   let longestNoExpenseStreak = 0;
   let currentStreak = 0;
-  for (let d = 1; d <= daysInMonth; d += 1) {
-    const dayKey = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  for (let d = 0; d < daysInMonth; d += 1) {
+    const dayKey = addDaysUTC(currentRange.start, d);
     if (expenseDays.has(dayKey)) {
       currentStreak = 0;
     } else {
@@ -273,8 +416,23 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
       if (currentStreak > longestNoExpenseStreak) longestNoExpenseStreak = currentStreak;
     }
   }
+  let longestNoExpenseStreakToDate = 0;
+  let currentStreakToDate = 0;
+  for (let d = 0; d < daysInMonth; d += 1) {
+    const dayKey = addDaysUTC(currentRange.start, d);
+    if (expenseDays.has(dayKey)) {
+      currentStreakToDate = 0;
+    } else {
+      currentStreakToDate += 1;
+      if (currentStreakToDate > longestNoExpenseStreakToDate) longestNoExpenseStreakToDate = currentStreakToDate;
+    }
+  }
 
   const savingsRatePct = monthIncome > 0 ? Math.max(0, ((monthIncome - monthExpenses) / monthIncome) * 100) : 0;
+  const diningChangePct =
+    prevDiningOut > 0
+      ? ((diningOutAmount - prevDiningOut) / prevDiningOut) * 100
+      : null;
   const news = await fetchLocalizedNews(locale);
   const fact = factForLocale(locale);
 
@@ -297,7 +455,21 @@ export async function getHomeBriefing(walletId: string, locale: LocaleCode): Pro
     subscriptionDetails,
     expenseTopCategories,
     longestNoExpenseStreak,
+    longestNoExpenseStreakToDate,
     savingsRatePct,
+    monthDiningOut: diningOutAmount,
+    prevDiningOut,
+    diningChangePct,
+    anchorDayCutoff: cutoffDay,
+    analysisPeriod,
+    periodStart: currentRange.start,
+    periodEnd: currentRange.end,
+    previousPeriodStart: previousRange.start,
+    previousPeriodEnd: previousRange.end,
+    periodDays,
+    currentTxCount,
+    previousTxCount,
+    categoryEvolution,
     news,
     fact,
   };

@@ -372,7 +372,7 @@ export async function getAvailableYears(
     // Extract unique years from transactions
     const yearsSet = new Set<number>();
     transactions.forEach((transaction) => {
-        const year = new Date(transaction.date).getFullYear();
+        const year = Number(transaction.date.slice(0, 4));
         yearsSet.add(year);
     });
 

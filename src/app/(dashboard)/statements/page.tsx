@@ -52,8 +52,8 @@ export default function StatementsPage() {
 
     // Update date range when selected year changes
     useEffect(() => {
-        const yearStart = new Date(selectedYear, 0, 1).toISOString().slice(0, 10);
-        const yearEnd = new Date(selectedYear, 11, 31).toISOString().slice(0, 10);
+        const yearStart = `${selectedYear}-01-01`;
+        const yearEnd = `${selectedYear}-12-31`;
         setDateRange({ start: yearStart, end: yearEnd });
     }, [selectedYear]);
 

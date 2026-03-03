@@ -1,11 +1,15 @@
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
-import { getHomeBriefing } from "@/app/actions/home-insights";
+import { getHomeBriefing, type HomeInsightsPeriod } from "@/app/actions/home-insights";
 import { HomeSmartBriefing } from "@/components/HomeSmartBriefing";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: { insightPeriod?: string };
+}) {
   const t = await getTranslations("home");
   const locale = (await getLocale()) as "en" | "pt" | "es" | "fr";
   const supabase = await createClient();
@@ -17,9 +21,17 @@ export default async function HomePage() {
     .is("deleted_at", null);
   const walletIds = (wallets ?? []).map((w) => w.id);
   const currentWalletId = cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
+  const rawPeriod = searchParams?.insightPeriod ?? "auto";
+  const selectedPeriod: HomeInsightsPeriod =
+    rawPeriod === "month_to_date" ||
+      rawPeriod === "last_month" ||
+      rawPeriod === "this_year" ||
+      rawPeriod === "last_30_days"
+      ? rawPeriod
+      : "auto";
 
   const briefing = currentWalletId
-    ? await getHomeBriefing(currentWalletId, locale)
+    ? await getHomeBriefing(currentWalletId, locale, selectedPeriod)
     : null;
 
   return (
@@ -39,7 +51,7 @@ export default async function HomePage() {
           </Link>
         </div>
       ) : (
-        <HomeSmartBriefing walletId={currentWalletId} data={briefing} />
+        <HomeSmartBriefing walletId={currentWalletId} data={briefing} selectedPeriod={selectedPeriod} />
       )}
     </div>
   );

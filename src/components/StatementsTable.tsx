@@ -189,19 +189,29 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     // Generate date columns from dateRange
     const getDateColumns = () => {
         if (!dateRange) return [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        const columns = [];
+        const startYear = Number(dateRange.start.slice(0, 4));
+        const startMonth = Number(dateRange.start.slice(5, 7));
+        const endYear = Number(dateRange.end.slice(0, 4));
+        const endMonth = Number(dateRange.end.slice(5, 7));
+        const columns: Array<{ key: string; label: string; date: Date }> = [];
 
-        let current = new Date(start);
-        while (current <= end) {
-            const monthKey = current.toISOString().slice(0, 7); // YYYY-MM
-            const monthLabel = current.toLocaleDateString("pt-PT", {
+        let year = startYear;
+        let month = startMonth;
+        while (year < endYear || (year === endYear && month <= endMonth)) {
+            const monthKey = `${year}-${String(month).padStart(2, "0")}`;
+            const monthDate = new Date(Date.UTC(year, month - 1, 1));
+            const monthLabel = monthDate.toLocaleDateString("pt-PT", {
                 month: "short",
                 year: "2-digit",
+                timeZone: "UTC",
             });
-            columns.push({ key: monthKey, label: monthLabel, date: new Date(current) });
-            current.setMonth(current.getMonth() + 1);
+            columns.push({ key: monthKey, label: monthLabel, date: monthDate });
+
+            month += 1;
+            if (month > 12) {
+                month = 1;
+                year += 1;
+            }
         }
 
         return columns;
