@@ -186,7 +186,8 @@ export async function getStatementsByCategory(
         .in("type", ["income", "expense"])
         .gte("date", startDate)
         .lte("date", endDate)
-        .order("date", { ascending: false });
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching transactions:", error);
@@ -260,7 +261,8 @@ export async function getSavingsInvestmentStatements(
         .eq("type", "transfer")
         .gte("date", startDate)
         .lte("date", endDate)
-        .order("date", { ascending: false });
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
 
     if (error) {
         console.error("Error fetching savings/investments transactions:", error);
@@ -325,7 +327,8 @@ export async function getAvailableYears(
             .eq("wallet_id", walletId)
             .eq("status", "confirmed")
             .in("type", ["income", "expense"])
-            .order("date", { ascending: true });
+            .order("date", { ascending: true })
+            .order("created_at", { ascending: true });
         transactions = (res.data as { date: string }[] | null) || [];
         error = res.error;
     } else {
@@ -336,7 +339,8 @@ export async function getAvailableYears(
                 .eq("wallet_id", walletId)
                 .eq("status", "confirmed")
                 .eq("type", "transfer")
-                .order("date", { ascending: true }),
+                .order("date", { ascending: true })
+                .order("created_at", { ascending: true }),
             supabase
                 .from("categories")
                 .select("id, name, parent_id")

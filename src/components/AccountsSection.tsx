@@ -48,8 +48,8 @@ const MASK = "••••••";
 type RangeKey = "thisMonth" | "thisYear" | "custom";
 
 const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
-  { key: "thisMonth", labelKey: "thisMonth" },
   { key: "thisYear", labelKey: "thisYear" },
+  { key: "thisMonth", labelKey: "thisMonth" },
   { key: "custom", labelKey: "custom" },
 ];
 
@@ -127,7 +127,7 @@ export function AccountsSection({
   const [transactionsByAccount, setTransactionsByAccount] = useState<Record<string, TransactionsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [chartAccountId, setChartAccountId] = useState<string | null>(null);
-  const [chartRange, setChartRange] = useState<RangeKey>("thisMonth");
+  const [chartRange, setChartRange] = useState<RangeKey>("thisYear");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [balanceSeries, setBalanceSeries] = useState<AccountBalancePoint[]>([]);
@@ -137,6 +137,10 @@ export function AccountsSection({
   const [showModalTransactions, setShowModalTransactions] = useState(false);
   const [modalFilter, setModalFilter] = useState<"day" | "period" | "all">("period");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [chartAllOpen, setChartAllOpen] = useState(false);
+  const [chartAllLoading, setChartAllLoading] = useState(false);
+  const [chartAllData, setChartAllData] = useState<Array<Record<string, number | string>>>([]);
+  const [chartAllVisibleAccountIds, setChartAllVisibleAccountIds] = useState<Set<string>>(new Set());
 
   const chartAccount = useMemo(
     () => accounts.find((a) => a.id === chartAccountId) ?? null,
@@ -219,6 +223,30 @@ export function AccountsSection({
 
     return monthStarts;
   }, [displaySeries]);
+
+  const allXAxisMonthTicks = useMemo(() => {
+    if (chartAllData.length === 0) return [];
+    const monthStarts: string[] = [];
+    const seen = new Set<string>();
+
+    for (const point of chartAllData) {
+      const dateKey = String(point.date);
+      const monthKey = dateKey.slice(0, 7);
+      if (!seen.has(monthKey) && dateKey.endsWith("-01")) {
+        seen.add(monthKey);
+        monthStarts.push(dateKey);
+      }
+    }
+
+    const firstDate = String(chartAllData[0]?.date ?? "");
+    if (firstDate) {
+      const firstMonthKey = firstDate.slice(0, 7);
+      if (!seen.has(firstMonthKey)) monthStarts.unshift(firstDate);
+    }
+
+    return monthStarts;
+  }, [chartAllData]);
+
   const periodMinBalance = useMemo(() => {
     if (displaySeries.length === 0) return null;
     return displaySeries.reduce((min, p) => Math.min(min, p.balance), displaySeries[0].balance);
@@ -250,7 +278,8 @@ export function AccountsSection({
   const openChart = useCallback(
     (accountId: string) => {
       setChartAccountId(accountId);
-      setChartRange("thisMonth");
+      setChartAllOpen(false);
+      setChartRange("thisYear");
       setCustomFrom("");
       setCustomTo("");
       setBalanceSeries([]);
@@ -262,6 +291,99 @@ export function AccountsSection({
     },
     []
   );
+
+  const openAllAccountsChart = useCallback(() => {
+    setChartAllOpen(true);
+    setChartAccountId(null);
+    setChartAllLoading(false);
+    setChartAllData([]);
+    // Default to none selected; we'll set defaults after we know tx presence.
+    setChartAllVisibleAccountIds(new Set());
+    setChartRange("thisYear");
+    setCustomFrom("");
+    setCustomTo("");
+  }, []);
+
+  useEffect(() => {
+    if (!chartAllOpen || !currentWalletId) return;
+    const dates = resolveRangeDates();
+    if (!dates?.from || !dates?.to) return;
+
+    let cancelled = false;
+    setChartAllLoading(true);
+    setChartAllData([]);
+
+    Promise.all(
+      accounts.map(async (a) => {
+        const res = await getAccountBalanceSeries(currentWalletId, a.id, dates.from, dates.to);
+        return {
+          id: a.id,
+          initialBalance: a.initial_balance,
+          series: res.series,
+          hasTxInRange: res.hasTransactionsInRange,
+        };
+      })
+    )
+      .then((perAccount) => {
+        if (cancelled) return;
+        if (perAccount.length === 0) {
+          setChartAllData([]);
+          return;
+        }
+
+        const from = dates.from;
+        const to = dates.to;
+
+        // Build a continuous day-by-day timeline like the per-account chart does.
+        const cursor = new Date(from);
+        const end = new Date(to);
+        const dateKeys: string[] = [];
+        while (cursor <= end) {
+          dateKeys.push(cursor.toISOString().slice(0, 10));
+          cursor.setDate(cursor.getDate() + 1);
+        }
+
+        const data: Array<Record<string, number | string>> = dateKeys.map((d) => ({ date: d }));
+
+        for (const { id, series, initialBalance } of perAccount) {
+          if (!series.length) {
+            // When an account has no transactions at all, the server returns an empty series.
+            // In that case, keep a constant line at the account's initial balance.
+            for (let i = 0; i < dateKeys.length; i += 1) {
+              (data[i] as any)[id] = initialBalance;
+            }
+            continue;
+          }
+
+          const sorted = [...series].sort((a, b) => a.date.localeCompare(b.date));
+          const byDate = new Map(sorted.map((point) => [point.date, point.balance]));
+          let carryBalance = sorted[0]?.balance ?? initialBalance;
+
+          for (let i = 0; i < dateKeys.length; i += 1) {
+            const dateKey = dateKeys[i];
+            const nextBalance = byDate.get(dateKey);
+            if (nextBalance != null) carryBalance = nextBalance;
+            (data[i] as any)[id] = carryBalance;
+          }
+        }
+
+        // Default selection:
+        // - unchecked for accounts without any relevant transaction in the selected range
+        const visible = new Set<string>(perAccount.filter((a) => a.hasTxInRange).map((a) => a.id));
+        setChartAllVisibleAccountIds(visible);
+
+        setChartAllData(data);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setChartAllLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch when period/accounts change
+  }, [chartAllOpen, currentWalletId, resolveRangeDates, accounts]);
 
   const applyModalFilter = useCallback(
     async (filter: "day" | "period" | "all", day?: string, full = false) => {
@@ -684,7 +806,33 @@ export function AccountsSection({
                 {fmt(totalBalance, hideBalances)} €
               </td>
               <td className="px-4 py-3" />
-              {!orderEditing && <td className="px-4 py-3 w-16" />}
+              {!orderEditing && (
+                <td className="px-4 py-3 w-16">
+                  <button
+                    type="button"
+                    onClick={openAllAccountsChart}
+                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
+                    aria-label={t("viewBalanceEvolution")}
+                    title={t("viewBalanceEvolution")}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M3 3v18h18" />
+                      <path d="m19 9-5 5-4-4-3 3" />
+                    </svg>
+                  </button>
+                </td>
+              )}
             </tr>
           </tbody>
         </table>
@@ -935,6 +1083,210 @@ export function AccountsSection({
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
+      {chartAllOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => {
+              setChartAllOpen(false);
+              setChartAllLoading(false);
+              setChartAllData([]);
+            }}
+          >
+            <div className="absolute inset-0 bg-slate-900/50" />
+            <div
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{t("accountEvolution")}</h3>
+                  <p className="text-sm text-slate-500">{t("accountEvolutionSubtitle")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChartAllOpen(false);
+                    setChartAllLoading(false);
+                    setChartAllData([]);
+                  }}
+                  className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  {t("close")}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {RANGE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => setChartRange(opt.key)}
+                    className={
+                      "rounded-lg px-3 py-1.5 text-[11px] border " +
+                      (chartRange === opt.key
+                        ? "border-slate-700 bg-slate-900 text-white"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600")
+                    }
+                  >
+                    {t(`ranges.${opt.labelKey}`)}
+                  </button>
+                ))}
+                {chartRange === "custom" && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="date"
+                      value={customFrom}
+                      onChange={(e) => setCustomFrom(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                    />
+                    <span className="text-[11px] text-slate-500">{t("to")}</span>
+                    <input
+                      type="date"
+                      value={customTo}
+                      onChange={(e) => setCustomTo(e.target.value)}
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+                {chartAllLoading ? (
+                  <div className="h-64 flex items-center justify-center text-slate-500">
+                    {t("loadingEvolution")}
+                  </div>
+                ) : chartAllData.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center text-slate-500">{t("noBalanceData")}</div>
+                ) : (
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={chartAllData}
+                        margin={{ top: 8, right: 22, left: 14, bottom: 4 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="date"
+                          ticks={allXAxisMonthTicks}
+                          tickFormatter={(v) =>
+                            new Date(`${String(v)}T00:00:00`).toLocaleDateString("pt-PT", {
+                              month: "2-digit",
+                              year: "2-digit",
+                            })
+                          }
+                          tick={{ fontSize: 10 }}
+                          interval={0}
+                          minTickGap={24}
+                          padding={{ left: 8, right: 8 }}
+                        />
+                        <YAxis
+                          tickFormatter={(v: number) => `${formatCurrency(v)} €`}
+                          width={80}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [`${formatCurrency(value)} €`, name]}
+                          labelFormatter={(label) => String(label)}
+                          itemStyle={{ fontSize: 11 }}
+                          labelStyle={{ fontSize: 11 }}
+                        />
+
+                        {accounts.map((a, idx) => {
+                          if (!chartAllVisibleAccountIds.has(a.id)) return null;
+                          const palette = [
+                            "#2563eb",
+                            "#16a34a",
+                            "#dc2626",
+                            "#f59e0b",
+                            "#8b5cf6",
+                            "#0891b2",
+                            "#ef4444",
+                            "#22c55e",
+                            "#a855f7",
+                            "#06b6d4",
+                          ];
+                          const stroke = palette[idx % palette.length];
+                          return (
+                            <Line
+                              key={a.id}
+                              type="monotone"
+                              dataKey={a.id}
+                              stroke={stroke}
+                              strokeWidth={2}
+                              dot={false}
+                              name={a.name}
+                            />
+                          );
+                        })}
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4">
+                {accounts.length === 0 ? (
+                  <p className="text-xs text-slate-500">{t("noBalanceData")}</p>
+                ) : (
+                  <>
+                    <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                      {t("account")}
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {accounts.map((a, idx) => {
+                        const palette = [
+                          "#2563eb",
+                          "#16a34a",
+                          "#dc2626",
+                          "#f59e0b",
+                          "#8b5cf6",
+                          "#0891b2",
+                          "#ef4444",
+                          "#22c55e",
+                          "#a855f7",
+                          "#06b6d4",
+                        ];
+                        const color = palette[idx % palette.length];
+                        const checked = chartAllVisibleAccountIds.has(a.id);
+                        return (
+                          <label
+                            key={a.id}
+                            className="inline-flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer select-none"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                setChartAllVisibleAccountIds((prev) => {
+                                  const next = new Set(prev);
+                                  if (next.has(a.id)) next.delete(a.id);
+                                  else next.add(a.id);
+                                  return next;
+                                });
+                              }}
+                              className="accent-slate-700"
+                            />
+                            <span
+                              className="inline-block w-2.5 h-2.5 rounded-full"
+                              style={{ backgroundColor: color }}
+                              aria-hidden
+                            />
+                            <span className="max-w-[150px] truncate">{a.name}</span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </>
                 )}

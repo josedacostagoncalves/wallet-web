@@ -70,8 +70,8 @@ const DEFAULT_DISPLAY: SettlementsDisplayOptions = {
 };
 type RangeKey = "thisMonth" | "thisYear" | "custom";
 const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
-  { key: "thisMonth", labelKey: "thisMonth" },
   { key: "thisYear", labelKey: "thisYear" },
+  { key: "thisMonth", labelKey: "thisMonth" },
   { key: "custom", labelKey: "custom" },
 ];
 
@@ -159,7 +159,7 @@ export function SettlementsSection({
   const optionsPopRef = useRef<HTMLDivElement>(null);
   const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
   const [chartMemberId, setChartMemberId] = useState<string | null>(null);
-  const [chartRange, setChartRange] = useState<RangeKey>("thisMonth");
+  const [chartRange, setChartRange] = useState<RangeKey>("thisYear");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [series, setSeries] = useState<MemberIncomeExpensePoint[]>([]);
@@ -355,7 +355,7 @@ export function SettlementsSection({
 
   const openChart = useCallback((memberId: string) => {
     setChartMemberId(memberId);
-    setChartRange("thisMonth");
+    setChartRange("thisYear");
     setCustomFrom("");
     setCustomTo("");
     setSeries([]);

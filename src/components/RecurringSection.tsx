@@ -1,7 +1,7 @@
 "use client";
 
-import { deleteRecurringRule } from "@/app/actions/recurring";
-import { CopyIcon, DeleteIcon, EditIcon, TransactionTypeIcon } from "@/components/ActionIcons";
+import { addNowRecurringRun, deleteRecurringRule } from "@/app/actions/recurring";
+import { DeleteIcon, EditIcon, TransactionTypeIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useTransactionModals } from "@/contexts/TransactionModalsContext";
 import { useToast } from "@/contexts/ToastContext";
@@ -37,10 +37,12 @@ export function RecurringSection({ recurring }: Props) {
   const t = useTranslations("transactions.recurring");
   const tType = useTranslations("transactions");
   const { showToast } = useToast();
-  const { openEditRecurring, openCopyRecurring } = useTransactionModals();
+  const { openEditRecurring } = useTransactionModals();
   const [expanded, setExpanded] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
+  const [addRunDialogId, setAddRunDialogId] = useState<string | null>(null);
+  const [addingRunId, setAddingRunId] = useState<string | null>(null);
 
   async function handleDeleteConfirm(ruleId: string) {
     setDeletingId(ruleId);
@@ -52,6 +54,19 @@ export function RecurringSection({ recurring }: Props) {
       return;
     }
     showToast(t("deleteToast"));
+    router.refresh();
+  }
+
+  async function handleAddRunConfirm(ruleId: string) {
+    setAddingRunId(ruleId);
+    const res = await addNowRecurringRun(ruleId);
+    setAddingRunId(null);
+    setAddRunDialogId(null);
+    if (res?.error) {
+      showToast(res.error, "error");
+      return;
+    }
+    showToast(t("runAddedToast"));
     router.refresh();
   }
 
@@ -169,15 +184,30 @@ export function RecurringSection({ recurring }: Props) {
                       <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{r.repeatLabel}</td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                          {r.isActive && (
+                          {r.isActive && !r.isStopped && (
                             <button
                               type="button"
-                              onClick={() => openCopyRecurring(r.id)}
+                              onClick={() => setAddRunDialogId(r.id)}
+                              disabled={!!addingRunId}
                               className="p-1.5 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                              title={t("actions.copy")}
-                              aria-label={t("actions.copy")}
+                              title={t("actions.addNowRun")}
+                              aria-label={t("actions.addNowRun")}
                             >
-                              <CopyIcon aria-hidden />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden
+                              >
+                                <path d="M12 5v14" />
+                                <path d="M5 12h14" />
+                              </svg>
                             </button>
                           )}
                           <button
@@ -219,6 +249,19 @@ export function RecurringSection({ recurring }: Props) {
           cancelLabel={t("confirmDelete.cancel")}
           variant="cancel"
           loading={!!deletingId}
+        />
+      )}
+      {addRunDialogId && (
+        <ConfirmDialog
+          open={!!addRunDialogId}
+          onClose={() => setAddRunDialogId(null)}
+          onConfirm={() => handleAddRunConfirm(addRunDialogId)}
+          title={t("confirmAddRun.title")}
+          message={t("confirmAddRun.message")}
+          confirmLabel={t("confirmAddRun.confirm")}
+          cancelLabel={t("confirmAddRun.cancel")}
+          variant="confirm"
+          loading={!!addingRunId}
         />
       )}
     </div>

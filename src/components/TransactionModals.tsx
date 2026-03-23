@@ -18,8 +18,8 @@ export function TransactionModals() {
           aria-busy="true"
           aria-live="polite"
         >
-          <div className="rounded-lg bg-white dark:bg-slate-800 px-4 py-3 shadow-lg text-sm font-medium text-slate-700 dark:text-slate-200">
-            Loading…
+          <div className="rounded-lg bg-white dark:bg-slate-800 px-5 py-4 shadow-lg">
+            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
           </div>
         </div>
       )}

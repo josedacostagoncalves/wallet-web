@@ -147,6 +147,7 @@ export async function getHomeBriefing(
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
     .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 

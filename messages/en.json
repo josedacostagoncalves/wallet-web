@@ -561,7 +561,8 @@
             "filters": "filters",
             "searchOr": "or",
             "clearSearchLink": "Clear search",
-            "clearFiltersLink": "Clear filters"
+            "clearFiltersLink": "Clear filters",
+            "showMore30Days": "Show more (30 days)"
         },
         "recurring": {
             "title": "Recurring",
@@ -605,8 +606,16 @@
             },
             "actions": {
                 "copy": "Copy",
+                "addNowRun": "Add now a run",
                 "edit": "Edit",
                 "delete": "Delete"
+            },
+            "runAddedToast": "Run added as pending transaction.",
+            "confirmAddRun": {
+                "title": "Add run now",
+                "message": "Create a pending transaction dated today from this recurring rule?",
+                "confirm": "Add run",
+                "cancel": "Cancel"
             },
             "repeat": {
                 "daily": "Daily",
@@ -1148,6 +1157,12 @@
         "viewCategoryMonthlyChart": "View category monthly chart",
         "categoryMonthlyValues": "Monthly values for this category",
         "noCategoryChartData": "No monthly values available for this category.",
+        "showHideCategories": "Show/hide categories",
+        "selectAll": "Select all",
+        "clearAll": "Clear all",
+        "showPieByMonth": "Pie by month",
+        "showBarChart": "Bar chart",
+        "selectMonth": "Month",
         "noData": "No {type} data for this period",
         "reorder": "Reorder categories",
         "hideValues": "Hide values",

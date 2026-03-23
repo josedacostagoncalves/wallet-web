@@ -147,6 +147,36 @@ export default async function PortfolioPage({
             }
         }
 
+        // Fetch effective transactions used in running balance (confirmed + pending that hold no balance),
+        // so portfolio main balance stays aligned with expanded transaction balance evolution.
+        const [{ data: confirmedTx }, { data: pendingNoHoldTx }] = await Promise.all([
+            supabase
+                .from("transactions")
+                .select("type, amount, account_from_id, account_to_id")
+                .eq("wallet_id", currentWalletId)
+                .eq("status", "confirmed"),
+            supabase
+                .from("transactions")
+                .select("type, amount, account_from_id, account_to_id")
+                .eq("wallet_id", currentWalletId)
+                .eq("status", "pending")
+                .eq("hold_balance", false),
+        ]);
+        const effectiveTx = [...(confirmedTx ?? []), ...(pendingNoHoldTx ?? [])];
+
+        const deltaByAccount: Record<string, number> = {};
+        for (const tx of effectiveTx ?? []) {
+            const amt = Number(tx.amount);
+            if (tx.type === "income" && tx.account_to_id) {
+                deltaByAccount[tx.account_to_id] = (deltaByAccount[tx.account_to_id] ?? 0) + amt;
+            } else if (tx.type === "expense" && tx.account_from_id) {
+                deltaByAccount[tx.account_from_id] = (deltaByAccount[tx.account_from_id] ?? 0) - amt;
+            } else if (tx.type === "transfer") {
+                if (tx.account_from_id) deltaByAccount[tx.account_from_id] = (deltaByAccount[tx.account_from_id] ?? 0) - amt;
+                if (tx.account_to_id) deltaByAccount[tx.account_to_id] = (deltaByAccount[tx.account_to_id] ?? 0) + amt;
+            }
+        }
+
         // Fetch pending transactions that did NOT hold balance (already applied to current_balance)
         if (accountIds.length > 0) {
             const { data: pendingTx } = await supabase
@@ -176,7 +206,8 @@ export default async function PortfolioPage({
             name: a.name,
             account_type: (a.account_type ?? "bank_account") as AccountType,
             initial_balance: Number(a.initial_balance),
-            current_balance: Number(a.current_balance),
+            current_balance:
+                Number(a.initial_balance) + (deltaByAccount[a.id] ?? 0),
             last_update: lastUpdates[a.id] ?? null,
             plafond: a.plafond != null ? Number(a.plafond) : null,
         }));

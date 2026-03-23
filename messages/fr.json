@@ -561,7 +561,8 @@
             "filters": "filtres",
             "searchOr": "ou",
             "clearSearchLink": "Effacer la recherche",
-            "clearFiltersLink": "Effacer les filtres"
+            "clearFiltersLink": "Effacer les filtres",
+            "showMore30Days": "Afficher plus (30 jours)"
         },
         "recurring": {
             "title": "Récurrentes",
@@ -605,8 +606,16 @@
             },
             "actions": {
                 "copy": "Copier",
+                "addNowRun": "Ajouter une exécution",
                 "edit": "Modifier",
                 "delete": "Supprimer"
+            },
+            "runAddedToast": "Exécution ajoutée en tant que transaction en attente.",
+            "confirmAddRun": {
+                "title": "Ajouter une exécution",
+                "message": "Créer une transaction en attente datée d'aujourd'hui à partir de cette récurrence?",
+                "confirm": "Ajouter",
+                "cancel": "Annuler"
             },
             "repeat": {
                 "daily": "Quotidien",
@@ -1148,6 +1157,12 @@
         "viewCategoryMonthlyChart": "Voir le graphique mensuel de la catégorie",
         "categoryMonthlyValues": "Valeurs mensuelles de cette catégorie",
         "noCategoryChartData": "Aucune valeur mensuelle disponible pour cette catégorie.",
+        "showHideCategories": "Afficher/masquer les catégories",
+        "selectAll": "Tout sélectionner",
+        "clearAll": "Tout effacer",
+        "showPieByMonth": "Camembert par mois",
+        "showBarChart": "Graphique en barres",
+        "selectMonth": "Mois",
         "noData": "Aucune donnée de {type} pour cette période",
         "reorder": "Réorganiser les catégories",
         "hideValues": "Masquer les valeurs",

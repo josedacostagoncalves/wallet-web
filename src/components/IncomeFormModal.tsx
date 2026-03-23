@@ -26,7 +26,7 @@ import {
   RECURRENCE_OPTIONS,
   isRecurrenceOptionSeparator,
 } from "@/lib/recurrence";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
 import { useTranslations } from "next-intl";
@@ -52,6 +52,7 @@ export function IncomeFormModal({
   copyFromRecurringId,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations("transactions.form");
   const { showToast } = useToast();
   const { currentWalletId } = useWallet();
@@ -108,6 +109,8 @@ export function IncomeFormModal({
   const autoSelectedMember = useRef(false);
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
+  const shouldBlockForm = loadingData && (isEdit || isCopy || !!copyFromRecurringId);
+  const targetAfterSave = pathname?.startsWith("/portfolio") ? "/portfolio" : "/transactions";
 
   const recurrenceOptionLabel = (value: string, fallback: string) => {
     switch (value) {
@@ -145,8 +148,7 @@ export function IncomeFormModal({
     if (!open || !currentWalletId) return;
     if (isEdit && transactionId) {
       setLoadingData(true);
-      getTransaction(transactionId).then((m) => {
-        setLoadingData(false);
+      getTransaction(transactionId).then(async (m) => {
         if (!m) return;
         setStatus(m.status);
         editOriginal.current = {
@@ -165,14 +167,15 @@ export function IncomeFormModal({
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
-        getSubcategories(catId).then(setSubcategories);
+        const subs = await getSubcategories(catId);
+        setSubcategories(subs);
+        setLoadingData(false);
       });
       return;
     }
     if (isCopy && copyFromTransactionId) {
       setLoadingData(true);
-      getTransaction(copyFromTransactionId).then((m) => {
-        setLoadingData(false);
+      getTransaction(copyFromTransactionId).then(async (m) => {
         if (!m) return;
         const parentId = m.parent_id ?? null;
         const catId = parentId || m.category_id;
@@ -186,7 +189,9 @@ export function IncomeFormModal({
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
         skipNextSubcategoryReset.current = true;
-        getSubcategories(catId).then(setSubcategories);
+        const subs = await getSubcategories(catId);
+        setSubcategories(subs);
+        setLoadingData(false);
       });
       return;
     }
@@ -206,7 +211,6 @@ export function IncomeFormModal({
             subId = r.category_id;
           }
         }
-        setLoadingData(false);
         setDate(new Date().toISOString().slice(0, 10));
         setAmount(String(r.amount));
         setDescription(r.description ?? "");
@@ -233,7 +237,9 @@ export function IncomeFormModal({
             : ""
         );
         skipNextSubcategoryReset.current = true;
-        getSubcategories(catId).then(setSubcategories);
+        const subs = await getSubcategories(catId);
+        setSubcategories(subs);
+        setLoadingData(false);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
@@ -452,7 +458,7 @@ export function IncomeFormModal({
       }
       showToast(t("toasts.transactionUpdated"));
       onClose();
-      router.push("/transactions");
+      router.push(targetAfterSave);
       router.refresh();
       return;
     }
@@ -493,7 +499,7 @@ export function IncomeFormModal({
     }
     showToast(t("toasts.transactionAdded"));
     onClose();
-    router.push("/transactions");
+    router.push(targetAfterSave);
     router.refresh();
   }
 
@@ -541,7 +547,7 @@ export function IncomeFormModal({
     }
     showToast(t("toasts.transactionConfirmed"));
     onClose();
-    router.push("/transactions");
+    router.push(targetAfterSave);
     router.refresh();
   }
 
@@ -557,7 +563,7 @@ export function IncomeFormModal({
     }
     showToast(status === "pending" ? t("toasts.pendingTransactionCanceled") : t("toasts.transactionDeleted"));
     onClose();
-    router.push("/transactions");
+    router.push(targetAfterSave);
     router.refresh();
   }
 
@@ -622,10 +628,12 @@ export function IncomeFormModal({
           onSubmit={handleSubmit}
           className="flex flex-col min-h-0 flex-1 overflow-y-auto"
         >
-          {loadingData && (
-            <div className="px-5 py-3 text-xs text-slate-500">{t("loading")}</div>
-          )}
-          <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+          {shouldBlockForm ? (
+            <div className="min-h-[360px] flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
+            </div>
+          ) : (
+            <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
@@ -971,8 +979,10 @@ export function IncomeFormModal({
                 )}
               </div>
             </div>
-          </div>
-          <div className="shrink-0 flex flex-wrap gap-2 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+            </div>
+          )}
+          {!shouldBlockForm && (
+            <div className="shrink-0 flex flex-wrap gap-2 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
             <button
               type="button"
               onClick={onClose}
@@ -1008,7 +1018,8 @@ export function IncomeFormModal({
             >
               {loading ? t("buttons.saving") : t("buttons.save")}
             </button>
-          </div>
+            </div>
+          )}
         </form>
       </div>
 

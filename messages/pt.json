@@ -561,7 +561,8 @@
             "filters": "filtros",
             "searchOr": "ou",
             "clearSearchLink": "Limpar pesquisa",
-            "clearFiltersLink": "Limpar filtros"
+            "clearFiltersLink": "Limpar filtros",
+            "showMore30Days": "Mostrar mais (30 dias)"
         },
         "recurring": {
             "title": "Recorrentes",
@@ -605,8 +606,16 @@
             },
             "actions": {
                 "copy": "Copiar",
+                "addNowRun": "Adicionar agora uma ocorrência",
                 "edit": "Editar",
                 "delete": "Eliminar"
+            },
+            "runAddedToast": "Ocorrência adicionada como transação pendente.",
+            "confirmAddRun": {
+                "title": "Adicionar agora",
+                "message": "Criar uma transação pendente com data de hoje a partir desta recorrência?",
+                "confirm": "Adicionar",
+                "cancel": "Cancelar"
             },
             "repeat": {
                 "daily": "Diariamente",
@@ -1148,6 +1157,12 @@
         "viewCategoryMonthlyChart": "Ver gráfico mensal da categoria",
         "categoryMonthlyValues": "Valores mensais desta categoria",
         "noCategoryChartData": "Não existem valores mensais para esta categoria.",
+        "showHideCategories": "Mostrar/ocultar categorias",
+        "selectAll": "Selecionar tudo",
+        "clearAll": "Limpar tudo",
+        "showPieByMonth": "Gráfico circular por mês",
+        "showBarChart": "Gráfico de barras",
+        "selectMonth": "Mês",
         "noData": "Sem dados de {type} para este período",
         "reorder": "Reordenar categorias",
         "hideValues": "Ocultar valores",

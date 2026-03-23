@@ -83,7 +83,7 @@ export default async function TransactionsPage() {
                 )
                 .eq("wallet_id", currentWalletId)
                 .order("date", { ascending: false })
-                .limit(200),
+                .order("created_at", { ascending: false }),
             supabase
                 .from("recurring_rules")
                 .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active, end_date")

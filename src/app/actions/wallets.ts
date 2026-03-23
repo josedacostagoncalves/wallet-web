@@ -1437,13 +1437,14 @@ export async function getTransactionsByMember(
   const q = supabase
     .from("transactions")
     .select(
-      "id, date, type, amount, description, status, hold_balance, paid_by_member_id, received_by_member_id, " +
+      "id, date, created_at, type, amount, description, status, hold_balance, paid_by_member_id, received_by_member_id, " +
       "category:categories(name, parent_id)"
     )
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
     .or(`paid_by_member_id.eq.${memberId},received_by_member_id.eq.${memberId}`)
-    .order("date", { ascending: false });
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
   if (opts?.fromDate) q.gte("date", opts.fromDate);
   if (opts?.toDate) q.lte("date", opts.toDate);
   if (opts?.limit && opts.limit > 0) q.limit(opts.limit);
@@ -1464,6 +1465,7 @@ export async function getTransactionsByMember(
   return ((data ?? []) as unknown as Array<{
     id: string;
     date: string;
+    created_at?: string | null;
     type: "income" | "expense" | "transfer";
     amount: number;
     description: string | null;
@@ -1518,7 +1520,8 @@ export async function getMemberIncomeExpenseSeries(
     .eq("received_by_member_id", memberId)
     .gte("date", fromDate)
     .lte("date", toDate)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   const expensesQuery = supabase
     .from("transactions")
@@ -1529,7 +1532,8 @@ export async function getMemberIncomeExpenseSeries(
     .eq("paid_by_member_id", memberId)
     .gte("date", fromDate)
     .lte("date", toDate)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   const [{ data: incomes }, { data: expenses }] = await Promise.all([
     incomesQuery,

@@ -102,6 +102,7 @@ export async function getReportsData() {
                 .eq("wallet_id", currentWalletId)
                 .gte("date", seriesStartStr)
                 .order("date", { ascending: false })
+                .order("created_at", { ascending: false })
                 .limit(2000),
             supabase
                 .from("recurring_rules")

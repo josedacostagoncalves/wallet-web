@@ -11,9 +11,13 @@ import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+    Brush,
     Bar,
     BarChart,
+    Cell,
     CartesianGrid,
+    Pie,
+    PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -159,6 +163,10 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         title: string;
         monthlyBreakdown: Record<string, number>;
     } | null>(null);
+    const [chartTotalsOpen, setChartTotalsOpen] = useState(false);
+    const [chartTotalsVisibleCategories, setChartTotalsVisibleCategories] = useState<Set<string>>(new Set());
+    const [chartTotalsView, setChartTotalsView] = useState<"bar" | "pie">("bar");
+    const [pieMonthKey, setPieMonthKey] = useState<string | null>(null);
     const [sortState, setSortState] = useState<{ key: string | null; direction: "desc" | "asc" | null }>({
         key: null,
         direction: null,
@@ -233,6 +241,19 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     };
 
     const dateColumns = getDateColumns();
+
+    const openTotalsChart = useCallback(() => {
+        // Default unchecked if a category has no monthly values in the selected range.
+        const initial = new Set(
+            data
+                .filter((row) => dateColumns.some((col) => (row.monthlyBreakdown?.[col.key] ?? 0) > 0))
+                .map((row) => row.category)
+        );
+        setChartTotalsVisibleCategories(initial);
+        setChartTotalsView("bar");
+        setPieMonthKey(dateColumns[0]?.key ?? null);
+        setChartTotalsOpen(true);
+    }, [data, dateColumns]);
     const elapsedMonthCount = (() => {
         if (!dateRange) return 1;
         const start = new Date(dateRange.start);
@@ -970,7 +991,35 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                         <tr>
                             {orderEditing && <td className="px-3 py-3" />}
                             <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100">
-                                {t("total")}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span>{t("total")}</span>
+                                    {!orderEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={openTotalsChart}
+                                            disabled={!currentWalletId}
+                                            className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 shrink-0 disabled:opacity-50"
+                                            aria-label={t("viewCategoryMonthlyChart")}
+                                            title={t("viewCategoryMonthlyChart")}
+                                        >
+                                            <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                width="16"
+                                                height="16"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                aria-hidden
+                                            >
+                                                <path d="M3 3v18h18" />
+                                                <path d="m19 9-5 5-4-4-3 3" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
                             </td>
                             {dateColumns.map((col) => {
                                 const value = monthlyTotals[col.key] ?? 0;
@@ -1056,9 +1105,248 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                     ]}
                                                 />
                                                 <Bar dataKey="value" radius={[4, 4, 0, 0]} fill={type === "income" ? "#16a34a" : type === "expense" ? "#dc2626" : "#2563eb"} />
+                                                <Brush
+                                                    dataKey="label"
+                                                    height={20}
+                                                    stroke="#64748b"
+                                                    travellerWidth={10}
+                                                />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            {chartTotalsOpen &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+                        role="dialog"
+                        aria-modal="true"
+                        onClick={() => setChartTotalsOpen(false)}
+                    >
+                        <div className="absolute inset-0 bg-slate-900/50" />
+                        <div
+                            className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <div>
+                                    <h3 className="text-lg font-semibold">{title}</h3>
+                                    <p className="text-sm text-slate-500">{t("categoryMonthlyValues")}</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setChartTotalsOpen(false)}
+                                    className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                >
+                                    {tCommon("close")}
+                                </button>
+                            </div>
+
+                            {data.length === 0 ? (
+                                <div className="h-72 flex items-center justify-center text-slate-500">{t("noData", { type: title })}</div>
+                            ) : (
+                                (() => {
+                                    const visibleOrdered = orderedData.filter((row) =>
+                                        chartTotalsVisibleCategories.has(row.category)
+                                    );
+                                    const barsVisible = visibleOrdered.length > 0;
+                                    const monthKey = pieMonthKey ?? dateColumns[0]?.key ?? "";
+
+                                    const chartDataAll = dateColumns.map((col) => {
+                                        const row: Record<string, number | string> = { label: col.label };
+                                        for (const cat of visibleOrdered) {
+                                            row[cat.category] = cat.monthlyBreakdown?.[col.key] ?? 0;
+                                        }
+                                        return row;
+                                    });
+
+                                    const pieData = visibleOrdered
+                                        .map((row) => ({
+                                            name: row.category,
+                                            value: row.monthlyBreakdown?.[monthKey] ?? 0,
+                                        }))
+                                        .filter((d) => d.value > 0);
+
+                                    const palette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
+
+                                    return (
+                                        <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+                                            {chartTotalsView === "pie" ? (
+                                                <div className="h-72 w-full">
+                                                    {pieData.length === 0 ? (
+                                                        <div className="h-72 flex items-center justify-center text-slate-500">
+                                                            {t("noCategoryChartData")}
+                                                        </div>
+                                                    ) : (
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <PieChart>
+                                                                <Tooltip
+                                                                    formatter={(value: number) => [
+                                                                        `${value.toLocaleString("pt-PT", {
+                                                                            minimumFractionDigits: 2,
+                                                                            maximumFractionDigits: 2,
+                                                                        })} €`,
+                                                                        "",
+                                                                    ]}
+                                                                />
+                                                                <Pie
+                                                                    data={pieData}
+                                                                    dataKey="value"
+                                                                    nameKey="name"
+                                                                    outerRadius={110}
+                                                                    labelLine={false}
+                                                                    label={({ name, percent }) => `${name} (${Math.round((percent ?? 0) * 100)}%)`}
+                                                                >
+                                                                    {pieData.map((d, idx) => (
+                                                                        <Cell key={`cell-${d.name}`} fill={palette[idx % palette.length]} />
+                                                                    ))}
+                                                                </Pie>
+                                                            </PieChart>
+                                                        </ResponsiveContainer>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="h-72 w-full">
+                                                    {!barsVisible ? (
+                                                        <div className="h-72 flex items-center justify-center text-slate-500">{t("noCategoryChartData")}</div>
+                                                    ) : (
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <BarChart data={chartDataAll} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                                                                <CartesianGrid strokeDasharray="3 3" />
+                                                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+                                                                <YAxis
+                                                                    tickFormatter={(v: number) =>
+                                                                        `${v.toLocaleString("pt-PT", {
+                                                                            minimumFractionDigits: 0,
+                                                                            maximumFractionDigits: 0,
+                                                                        })}€`
+                                                                    }
+                                                                    tick={{ fontSize: 10 }}
+                                                                    width={70}
+                                                                />
+                                                                <Tooltip
+                                                                    formatter={(value: number, name: string) => [
+                                                                        `${value.toLocaleString("pt-PT", {
+                                                                            minimumFractionDigits: 2,
+                                                                            maximumFractionDigits: 2,
+                                                                        })} €`,
+                                                                        name,
+                                                                    ]}
+                                                                />
+                                                                {visibleOrdered.map((cat, idx) => (
+                                                                    <Bar
+                                                                        key={cat.category}
+                                                                        dataKey={cat.category}
+                                                                        radius={[4, 4, 0, 0]}
+                                                                        fill={palette[idx % palette.length]}
+                                                                    />
+                                                                ))}
+                                                                <Brush
+                                                                    dataKey="label"
+                                                                    height={20}
+                                                                    stroke="#64748b"
+                                                                    travellerWidth={10}
+                                                                />
+                                                            </BarChart>
+                                                        </ResponsiveContainer>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()
+                            )}
+
+                            <div className="mt-4">
+                                {data.length === 0 ? null : (
+                                    <>
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <div className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                                {t("showHideCategories")}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setChartTotalsVisibleCategories(new Set(orderedData.map((r) => r.category)))
+                                                    }
+                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-[11px] hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                >
+                                                    {t("selectAll")}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setChartTotalsVisibleCategories(new Set())}
+                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-[11px] hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                >
+                                                    {t("clearAll")}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setChartTotalsView((prev) => (prev === "bar" ? "pie" : "bar"))}
+                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-[11px] hover:bg-slate-100 dark:hover:bg-slate-800"
+                                                >
+                                                    {chartTotalsView === "bar" ? t("showPieByMonth") : t("showBarChart")}
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {chartTotalsView === "pie" && (
+                                            <div className="mb-2 flex items-center gap-2">
+                                                <span className="text-[11px] text-slate-600 dark:text-slate-300">
+                                                    {t("selectMonth")}:
+                                                </span>
+                                                <select
+                                                    value={pieMonthKey ?? ""}
+                                                    onChange={(e) => setPieMonthKey(e.target.value || null)}
+                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px]"
+                                                >
+                                                    {dateColumns.map((col) => (
+                                                        <option key={col.key} value={col.key}>
+                                                            {col.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="flex flex-wrap gap-3">
+                                            {orderedData.map((row, idx) => {
+                                                const checked = chartTotalsVisibleCategories.has(row.category);
+                                                const palette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
+                                                const color = palette[idx % palette.length];
+
+                                                return (
+                                                    <label
+                                                        key={row.category}
+                                                        className="inline-flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200 cursor-pointer select-none"
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={checked}
+                                                            onChange={() => {
+                                                                setChartTotalsVisibleCategories((prev) => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(row.category)) next.delete(row.category);
+                                                                    else next.add(row.category);
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                        />
+                                                        <span
+                                                            className="inline-block w-2.5 h-2.5 rounded-full"
+                                                            style={{ backgroundColor: color }}
+                                                            aria-hidden
+                                                        />
+                                                        <span className="max-w-[160px] truncate">{row.category}</span>
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
                                 )}
                             </div>
                         </div>

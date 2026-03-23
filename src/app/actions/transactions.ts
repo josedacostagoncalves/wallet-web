@@ -205,12 +205,13 @@ export async function getTransactionsByAccount(
   let q = supabase
     .from("transactions")
     .select(
-      "id, date, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
+      "id, date, created_at, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
       "category:categories(name, parent_id)"
     )
     .eq("wallet_id", walletId)
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
-    .order("date", { ascending: false });
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (options?.fromDate) {
     q = q.gte("date", options.fromDate);
@@ -237,6 +238,7 @@ export async function getTransactionsByAccount(
   type TxRow = {
     id: string;
     date: string;
+    created_at?: string | null;
     type: string;
     amount: number;
     description: string | null;
@@ -250,10 +252,11 @@ export async function getTransactionsByAccount(
 
   const balanceQuery = supabase
     .from("transactions")
-    .select("id, date, amount, account_from_id, account_to_id, status, hold_balance")
+    .select("id, date, created_at, amount, account_from_id, account_to_id, status, hold_balance")
     .eq("wallet_id", walletId)
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   const { data: balanceTx } = options?.toDate
     ? await balanceQuery.lte("date", options.toDate)
@@ -262,6 +265,7 @@ export async function getTransactionsByAccount(
   type BalanceTxRow = {
     id: string;
     date: string;
+    created_at?: string | null;
     amount: number;
     account_from_id: string | null;
     account_to_id: string | null;
@@ -321,7 +325,7 @@ export async function getAccountBalanceSeries(
   accountId: string,
   fromDate?: string | null,
   toDate?: string | null
-): Promise<{ series: AccountBalancePoint[]; oldestDate: string | null }> {
+): Promise<{ series: AccountBalancePoint[]; oldestDate: string | null; hasTransactionsInRange: boolean }> {
   const supabase = await createClient();
 
   const { data: account } = await supabase
@@ -333,17 +337,19 @@ export async function getAccountBalanceSeries(
   const q = supabase
     .from("transactions")
     .select(
-      "id, date, type, amount, account_from_id, account_to_id, status, hold_balance"
+      "id, date, created_at, type, amount, account_from_id, account_to_id, status, hold_balance"
     )
     .eq("wallet_id", walletId)
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
-    .order("date", { ascending: true });
+    .order("date", { ascending: true })
+    .order("created_at", { ascending: true });
 
   const { data: tx } = toDate ? await q.lte("date", toDate) : await q;
 
   type TxRow = {
     id: string;
     date: string;
+    created_at?: string | null;
     type: string;
     amount: number;
     account_from_id: string | null;
@@ -353,17 +359,18 @@ export async function getAccountBalanceSeries(
   };
 
   const rows = (tx ?? []) as unknown as TxRow[];
-  if (!rows.length) return { series: [], oldestDate: null };
+  if (!rows.length) return { series: [], oldestDate: null, hasTransactionsInRange: false };
 
   const oldestDate = rows[0].date.slice(0, 10);
   const startDate = (fromDate ?? oldestDate).slice(0, 10);
   const endDate = (toDate ?? new Date().toISOString().slice(0, 10)).slice(0, 10);
 
-  if (startDate > endDate) return { series: [], oldestDate };
+  if (startDate > endDate) return { series: [], oldestDate, hasTransactionsInRange: false };
 
   let balance = Number(account?.initial_balance ?? 0);
   let balanceAtStart = balance;
   const dayBalance = new Map<string, number>();
+  let hasTransactionsInRange = false;
 
   for (const t of rows) {
     const dateKey = t.date.slice(0, 10);
@@ -380,6 +387,7 @@ export async function getAccountBalanceSeries(
       balanceAtStart = balance;
       continue;
     }
+    hasTransactionsInRange = true;
     dayBalance.set(dateKey, balance);
   }
 
@@ -395,7 +403,7 @@ export async function getAccountBalanceSeries(
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  return { series, oldestDate };
+  return { series, oldestDate, hasTransactionsInRange };
 }
 
 export async function getRecentTransactionsByType(
@@ -410,6 +418,7 @@ export async function getRecentTransactionsByType(
     .eq("wallet_id", walletId)
     .eq("type", transactionType)
     .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
   return (data ?? []).map((t) => ({
     id: t.id,
@@ -444,6 +453,7 @@ export async function getRecentTransactionsByCategory(
     .eq("type", transactionType)
     .in("category_id", categoryIds)
     .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
   return (data ?? []).map((t) => ({
     id: t.id,

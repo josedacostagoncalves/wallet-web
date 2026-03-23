@@ -122,6 +122,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
   const tType = useTranslations("transactions");
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
+  const [periodBlocks, setPeriodBlocks] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>(defaultFilter);
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number } | null>(null);
@@ -162,12 +163,40 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
   }, [filter.category, categoryToSubs]);
 
   const filtered = useMemo(
-    () =>
-      confirmed.filter(
-        (t) => matchSearch(t, search) && matchFilter(t, filter)
-      ),
-    [confirmed, search, filter]
+    () => {
+      const query = search.trim();
+      if (query) {
+        return confirmed.filter((t) => matchSearch(t, query) && matchFilter(t, filter));
+      }
+
+      const now = new Date();
+      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      const totalDays = Math.max(30, periodBlocks * 30);
+      const start = new Date(end);
+      start.setUTCDate(start.getUTCDate() - (totalDays - 1));
+      const startKey = start.toISOString().slice(0, 10);
+      return confirmed.filter(
+        (t) => t.date.slice(0, 10) >= startKey && matchFilter(t, filter)
+      );
+    },
+    [confirmed, search, filter, periodBlocks]
   );
+
+  const hasMoreByPeriod = useMemo(() => {
+    if (search.trim()) return false;
+    const now = new Date();
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const totalDays = Math.max(30, periodBlocks * 30);
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (totalDays - 1));
+    const startKey = start.toISOString().slice(0, 10);
+    return confirmed.some((t) => t.date.slice(0, 10) < startKey);
+  }, [confirmed, search, periodBlocks]);
+
+  useEffect(() => {
+    if (!search.trim()) return;
+    setPeriodBlocks(1);
+  }, [search]);
 
   const hasActiveFilter =
     filter.types.size > 0 ||
@@ -559,95 +588,108 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                 )}
               </div>
             ) : (
-              <table className="w-full text-xs min-w-[640px] bg-white dark:bg-slate-950 border-collapse">
-                <thead className="bg-slate-100 dark:bg-slate-900/50">
-                  <tr>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.date")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
-                      {t("table.categorySubcategory")}
-                    </th>
-                    <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
-                      {isSplitOnly ? "Paid by -> Received by" : t("table.fromTo")}
-                    </th>
-                    {isSplitOnly && (
-                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Splitting %</th>
-                    )}
-                    <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
-                    <th className="px-4 py-2 w-24" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {filtered.map((t) => (
-                    <tr key={t.id} className={transactionRowBgClass(t.type)}>
-                      <td className="px-4 py-2">
-                        <TransactionTypeIcon
-                          type={t.type as "income" | "expense" | "transfer"}
-                          label={tType(t.type as "income" | "expense" | "transfer")}
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{t.date}</td>
-                      <td className="px-4 py-2 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
-                        {t.description || "—"}
-                      </td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                        {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
-                      </td>
-                      <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                        {isSplitOnly ? (
-                          <div className="flex items-center gap-2 min-w-0">
-                            {t.type === "income" ? (
-                              <>
-                                <span className="text-slate-400">-&gt;</span>
-                                {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
-                              </>
-                            ) : t.type === "expense" ? (
-                              <>
-                                {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
-                                <span className="text-slate-400">-&gt;</span>
-                              </>
-                            ) : (
-                              <>
-                                {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
-                                <span className="text-slate-400">-&gt;</span>
-                                {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          formatFromTo(t.accountFromName, t.accountToName)
-                        )}
-                      </td>
+              <>
+                <table className="w-full text-xs min-w-[640px] bg-white dark:bg-slate-950 border-collapse">
+                  <thead className="bg-slate-100 dark:bg-slate-900/50">
+                    <tr>
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.date")}</th>
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
+                        {t("table.categorySubcategory")}
+                      </th>
+                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
+                        {isSplitOnly ? "Paid by -> Received by" : t("table.fromTo")}
+                      </th>
                       {isSplitOnly && (
-                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                          {t.type === "expense" ? splitMethodLabel(t.splitMethod) : "—"}
-                        </td>
+                        <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Splitting %</th>
                       )}
-                      <td
-                        className={`px-4 py-2 text-right font-mono ${t.type === "income"
-                          ? "text-green-600 dark:text-green-400"
-                          : t.type === "expense"
-                            ? "text-red-600 dark:text-red-400"
-                            : t.type === "transfer"
-                              ? "text-blue-600 dark:text-blue-400"
-                              : ""
-                          }`}
-                      >
-                        {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                        {t.amount.toLocaleString("pt-PT", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}{" "}
-                        €
-                      </td>
-                      <td className="px-4 py-2">
-                        <TransactionRowActions id={t.id} status="confirmed" />
-                      </td>
+                      <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
+                      <th className="px-4 py-2 w-24" />
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {filtered.map((t) => (
+                      <tr key={t.id} className={transactionRowBgClass(t.type)}>
+                        <td className="px-4 py-2">
+                          <TransactionTypeIcon
+                            type={t.type as "income" | "expense" | "transfer"}
+                            label={tType(t.type as "income" | "expense" | "transfer")}
+                          />
+                        </td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{t.date}</td>
+                        <td className="px-4 py-2 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
+                          {t.description || "—"}
+                        </td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                          {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
+                        </td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                          {isSplitOnly ? (
+                            <div className="flex items-center gap-2 min-w-0">
+                              {t.type === "income" ? (
+                                <>
+                                  <span className="text-slate-400">-&gt;</span>
+                                  {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                                </>
+                              ) : t.type === "expense" ? (
+                                <>
+                                  {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                  <span className="text-slate-400">-&gt;</span>
+                                </>
+                              ) : (
+                                <>
+                                  {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                  <span className="text-slate-400">-&gt;</span>
+                                  {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            formatFromTo(t.accountFromName, t.accountToName)
+                          )}
+                        </td>
+                        {isSplitOnly && (
+                          <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
+                            {t.type === "expense" ? splitMethodLabel(t.splitMethod) : "—"}
+                          </td>
+                        )}
+                        <td
+                          className={`px-4 py-2 text-right font-mono ${t.type === "income"
+                            ? "text-green-600 dark:text-green-400"
+                            : t.type === "expense"
+                              ? "text-red-600 dark:text-red-400"
+                              : t.type === "transfer"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : ""
+                            }`}
+                        >
+                          {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
+                          {t.amount.toLocaleString("pt-PT", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          €
+                        </td>
+                        <td className="px-4 py-2">
+                          <TransactionRowActions id={t.id} status="confirmed" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!search.trim() && hasMoreByPeriod && (
+                  <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setPeriodBlocks((prev) => prev + 1)}
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    >
+                      {t("showMore30Days")}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </>

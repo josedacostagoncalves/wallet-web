@@ -12,7 +12,6 @@ import {
   deleteRecurringRule,
   type RecurringRuleRow,
 } from "@/app/actions/recurring";
-import { BalanceHint } from "@/components/BalanceHint";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import {
@@ -28,7 +27,7 @@ type Props = { open: boolean; onClose: () => void; ruleId: string };
 type TransactionType = "income" | "expense" | "transfer";
 
 const inputClass =
-  "w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
+  "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
 
 export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const router = useRouter();
@@ -55,6 +54,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const [workDayIndex, setWorkDayIndex] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [endDate, setEndDate] = useState("");
+  const [nextRunDate, setNextRunDate] = useState("");
   const [weekday, setWeekday] = useState<number | null>(null);
   const [dayOfMonth, setDayOfMonth] = useState("");
   const [currentCategoryName, setCurrentCategoryName] = useState("");
@@ -130,6 +130,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       );
       setIsActive(r.is_active);
       setEndDate(r.end_date ?? "");
+      setNextRunDate(r.next_run_date ?? "");
       if (r.recurrence_type === "weekly") {
         setWeekday(
           r.weekday ?? new Date(r.next_run_date + "T12:00:00Z").getUTCDay()
@@ -289,6 +290,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           recurrenceType === "monthly" && dayOfMonth.trim()
             ? parseInt(dayOfMonth, 10)
             : null,
+        next_run_date: nextRunDate.trim() || null,
       });
       setSaving(false);
       if (res.error) {
@@ -317,6 +319,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       isActive,
       endDate,
       weekday,
+      nextRunDate,
       accountFromId,
       accountToId,
       onClose,
@@ -361,7 +364,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           onClick={onClose}
         />
         <div className="relative rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl px-6 py-4">
-          <p className="text-slate-600 dark:text-slate-400">{tCommon("loading")}</p>
+          <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin mx-auto" aria-hidden />
         </div>
       </div>
     );
@@ -416,17 +419,17 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         onClick={() => !saving && !deleting && onClose()}
       />
       <div
-        className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl"
+        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-xs"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 px-6 pt-6 pb-2 border-b border-slate-200 dark:border-slate-700">
+        <div className="shrink-0 px-4 pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
           <h2
             id="recurring-edit-modal-title"
-            className="text-xl font-semibold text-slate-900 dark:text-slate-100"
+            className="text-base font-semibold text-slate-900 dark:text-slate-100"
           >
             {tRecurring("editModal.title")}
           </h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
             {tRecurring("editModal.subtitle")}
           </p>
         </div>
@@ -434,15 +437,16 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
           onSubmit={handleSubmit}
           className="flex flex-col min-h-0 flex-1 overflow-y-auto"
         >
-          <div className="p-6 space-y-4">
+          <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
             <div>
-              <label className="block text-sm font-medium mb-1">{tRecurring("table.type")}</label>
-              <p className="py-2 capitalize text-slate-600 dark:text-slate-400">
+              <label className="block text-xs font-medium mb-1">{tRecurring("table.type")}</label>
+              <p className="py-1 capitalize text-slate-600 dark:text-slate-400">
                 {type}
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">{tForm("fields.description")}</label>
+              <label className="block text-xs font-medium mb-1">{tForm("fields.description")}</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -452,7 +456,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
+              <label className="block text-xs font-medium mb-1">{tForm("fields.category")}</label>
               <select
                 value={categoryId}
                 onChange={(e) => {
@@ -477,7 +481,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             </div>
             {subOpts.length > 0 && (
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-xs font-medium mb-1">
                   {type === "expense" ? tForm("fields.subcategoryRequired") : tForm("fields.subcategory")}
                 </label>
                 <select
@@ -503,7 +507,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium mb-1">{tForm("fields.amount")}</label>
+              <label className="block text-xs font-medium mb-1">{tForm("fields.amount")}</label>
               <input
                 type="text"
                 inputMode="decimal"
@@ -515,7 +519,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
             </div>
             {type === "income" && (
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-xs font-medium mb-1">
                   {tForm("fields.accountTo")}
                 </label>
                 <select
@@ -531,18 +535,11 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     </option>
                   ))}
                 </select>
-                {(() => {
-                  const acc = accounts.find((a) => a.id === accountToId);
-                  const num = parseFloat(amount.replace(",", "."));
-                  if (acc && !isNaN(num) && num > 0)
-                    return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance + num} />;
-                  return null;
-                })()}
               </div>
             )}
             {type === "expense" && (
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-xs font-medium mb-1">
                   {tForm("fields.accountFrom")}
                 </label>
                 <select
@@ -558,19 +555,12 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                     </option>
                   ))}
                 </select>
-                {(() => {
-                  const acc = accounts.find((a) => a.id === accountFromId);
-                  const num = parseFloat(amount.replace(",", "."));
-                  if (acc && !isNaN(num) && num > 0)
-                    return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance - num} />;
-                  return null;
-                })()}
               </div>
             )}
             {type === "transfer" && (
               <>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-xs font-medium mb-1">
                     {tForm("fields.accountTransferFrom")}
                   </label>
                   <select
@@ -586,16 +576,9 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       </option>
                     ))}
                   </select>
-                  {(() => {
-                    const acc = accounts.find((a) => a.id === accountFromId);
-                    const num = parseFloat(amount.replace(",", "."));
-                    if (acc && !isNaN(num) && num > 0)
-                      return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance - num} />;
-                    return null;
-                  })()}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-xs font-medium mb-1">
                     {tForm("fields.accountTransferTo")}
                   </label>
                   <select
@@ -611,21 +594,28 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       </option>
                     ))}
                   </select>
-                  {(() => {
-                    const acc = accounts.find((a) => a.id === accountToId);
-                    const num = parseFloat(amount.replace(",", "."));
-                    if (acc && !isNaN(num) && num > 0)
-                      return <BalanceHint currentBalance={acc.current_balance} afterBalance={acc.current_balance + num} />;
-                    return null;
-                  })()}
                 </div>
               </>
             )}
+            </div>
+            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
             <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-              <div className="text-sm font-medium">{tRecurring("table.repeat")}</div>
+              <div className="text-xs font-medium">{tRecurring("table.repeat")}</div>
               <div className="space-y-3 pl-0">
                 <div>
-                  <label className="block text-sm font-medium mb-1">{tForm("options.schedule")}</label>
+                  <label className="block text-xs font-medium mb-1">
+                    {tRecurring("table.nextRun")}
+                  </label>
+                  <input
+                    type="date"
+                    value={nextRunDate}
+                    onChange={(e) => setNextRunDate(e.target.value)}
+                    required
+                    className="w-full max-w-xs text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">{tForm("options.schedule")}</label>
                   <select
                     value={recurrenceType}
                     onChange={(e) => {
@@ -657,7 +647,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         setDayOfMonth("");
                       }
                     }}
-                    className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                    className="w-full max-w-xs text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                   >
                     {RECURRENCE_OPTIONS.map((o, i) =>
                       isRecurrenceOptionSeparator(o) ? (
@@ -674,7 +664,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 </div>
                 {recurrenceType === "interval_days" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-xs font-medium mb-1">
                       {tForm("options.intervalDays")}
                     </label>
                     <input
@@ -683,13 +673,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(e.target.value)}
                       placeholder={tForm("options.intervalDaysPlaceholder")}
-                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      className="w-full max-w-[120px] text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 {recurrenceType === "interval_months" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-xs font-medium mb-1">
                       {tForm("options.intervalMonths")}
                     </label>
                     <input
@@ -698,14 +688,14 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       value={intervalMonths}
                       onChange={(e) => setIntervalMonths(e.target.value)}
                       placeholder={tForm("options.intervalMonthsPlaceholder")}
-                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      className="w-full max-w-[120px] text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 {(recurrenceType === "monthly_nth_work_day" ||
                   recurrenceType === "monthly_nth_last_work_day") && (
                     <div>
-                      <label className="block text-sm font-medium mb-1">
+                      <label className="block text-xs font-medium mb-1">
                         {recurrenceType === "monthly_nth_last_work_day"
                           ? tForm("options.nthLastWorkDay")
                           : tForm("options.nthWorkDay")}
@@ -717,13 +707,13 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         value={workDayIndex}
                         onChange={(e) => setWorkDayIndex(e.target.value)}
                         placeholder={tForm("options.workDayPlaceholder")}
-                        className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                        className="w-full max-w-[120px] text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                       />
                     </div>
                   )}
                 {recurrenceType === "weekly" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-xs font-medium mb-1">
                       {tRecurring("editModal.dayOfWeek")}
                     </label>
                     <select
@@ -735,7 +725,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                             : parseInt(e.target.value, 10)
                         )
                       }
-                      className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      className="w-full max-w-xs text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     >
                       {weekdayLabels.map((label, i) => (
                         <option key={i} value={i}>
@@ -747,7 +737,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 )}
                 {recurrenceType === "monthly" && (
                   <div>
-                    <label className="block text-sm font-medium mb-1">
+                    <label className="block text-xs font-medium mb-1">
                       {tRecurring("editModal.dayOfMonth")}
                     </label>
                     <input
@@ -757,19 +747,19 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                       value={dayOfMonth}
                       onChange={(e) => setDayOfMonth(e.target.value)}
                       placeholder={tRecurring("editModal.dayOfMonthPlaceholder")}
-                      className="w-full max-w-[120px] px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                      className="w-full max-w-[120px] text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                     />
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-medium mb-1">
+                  <label className="block text-xs font-medium mb-1">
                     {tRecurring("editModal.endDate")}
                   </label>
                   <input
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                    className="w-full max-w-xs text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
                   />
                   <p className="text-xs text-slate-500 mt-1">
                     {tRecurring("editModal.endDateHint")}
@@ -784,7 +774,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   role="alert"
                   className="p-4 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-600 dark:bg-amber-900/20"
                 >
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-200">
                     {tRecurring("stopped")}
                   </p>
                   <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
@@ -800,10 +790,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                   checked={isActive}
                   onChange={(e) => setIsActive(e.target.checked)}
                 />
-                <label
-                  htmlFor="recurring-isActive"
-                  className="text-sm font-medium"
-                >
+                <label htmlFor="recurring-isActive" className="text-xs font-medium">
                   {tRecurring("editModal.activeLabel")}
                 </label>
               </div>
@@ -812,14 +799,15 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               </p>
             </div>
             {error && (
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
             )}
+            </div>
           </div>
-          <div className="shrink-0 flex flex-wrap gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+          <div className="shrink-0 flex flex-wrap gap-2 px-4 py-2.5 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
             <button
               type="submit"
               disabled={saving || deleting}
-              className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-300 disabled:opacity-50"
             >
               {saving ? tForm("buttons.saving") : tCommon("save")}
             </button>
@@ -827,7 +815,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               type="button"
               onClick={onClose}
               disabled={saving || deleting}
-              className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50"
             >
               {tCommon("cancel")}
             </button>
@@ -835,7 +823,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
               type="button"
               onClick={() => setDeleteDialogOpen(true)}
               disabled={saving || deleting}
-              className="px-4 py-2 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
+              className="px-3 py-1.5 text-xs rounded-lg border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50"
             >
               {deleting ? tForm("buttons.deleting") : tCommon("delete")}
             </button>
