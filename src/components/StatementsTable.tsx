@@ -11,13 +11,10 @@ import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-    Brush,
     Bar,
     BarChart,
     Cell,
     CartesianGrid,
-    Pie,
-    PieChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -46,6 +43,7 @@ type Props = {
 };
 
 const MASK = "••••••";
+type TotalsRangeKey = "thisYear" | "thisMonth" | "custom";
 
 function sortByOrder<T extends { category: string }>(items: T[], order: string[]): T[] {
     if (!order.length) return [...items];
@@ -165,8 +163,9 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     } | null>(null);
     const [chartTotalsOpen, setChartTotalsOpen] = useState(false);
     const [chartTotalsVisibleCategories, setChartTotalsVisibleCategories] = useState<Set<string>>(new Set());
-    const [chartTotalsView, setChartTotalsView] = useState<"bar" | "pie">("bar");
-    const [pieMonthKey, setPieMonthKey] = useState<string | null>(null);
+    const [chartTotalsRange, setChartTotalsRange] = useState<TotalsRangeKey>("thisYear");
+    const [chartTotalsCustomFrom, setChartTotalsCustomFrom] = useState("");
+    const [chartTotalsCustomTo, setChartTotalsCustomTo] = useState("");
     const [sortState, setSortState] = useState<{ key: string | null; direction: "desc" | "asc" | null }>({
         key: null,
         direction: null,
@@ -198,6 +197,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
             : type === "expense"
                 ? "text-red-700 dark:text-red-300"
                 : "text-blue-700 dark:text-blue-300";
+    const categoryPalette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
 
     const toggleCategory = (category: string) => {
         const newExpanded = new Set(expandedCategories);
@@ -250,8 +250,9 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                 .map((row) => row.category)
         );
         setChartTotalsVisibleCategories(initial);
-        setChartTotalsView("bar");
-        setPieMonthKey(dateColumns[0]?.key ?? null);
+        setChartTotalsRange("thisYear");
+        setChartTotalsCustomFrom("");
+        setChartTotalsCustomTo("");
         setChartTotalsOpen(true);
     }, [data, dateColumns]);
     const elapsedMonthCount = (() => {
@@ -454,6 +455,31 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                 : [],
         }));
     }, [data, activeOrder, sortState, orderEditing, elapsedMonthCount]);
+
+    const totalsPeriodColumns = useMemo(() => {
+        if (!dateColumns.length) return [];
+
+        const startKey = dateColumns[0].key;
+        const endKey = dateColumns[dateColumns.length - 1].key;
+        const currentMonthKey = new Date().toISOString().slice(0, 7);
+        const effectiveTodayKey =
+            currentMonthKey < startKey ? startKey : currentMonthKey > endKey ? endKey : currentMonthKey;
+
+        if (chartTotalsRange === "thisMonth") {
+            return dateColumns.filter((c) => c.key === effectiveTodayKey);
+        }
+
+        if (chartTotalsRange === "custom") {
+            if (!chartTotalsCustomFrom || !chartTotalsCustomTo) return [];
+            const from = chartTotalsCustomFrom.slice(0, 7);
+            const to = chartTotalsCustomTo.slice(0, 7);
+            if (from > to) return [];
+            return dateColumns.filter((c) => c.key >= from && c.key <= to);
+        }
+
+        // thisYear: from period start (Jan 1 for selected year) until today.
+        return dateColumns.filter((c) => c.key >= startKey && c.key <= effectiveTodayKey);
+    }, [dateColumns, chartTotalsRange, chartTotalsCustomFrom, chartTotalsCustomTo]);
 
     const handleCategoryDragStart = useCallback(
         (e: React.DragEvent, category: string) => {
@@ -1058,7 +1084,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     >
                         <div className="absolute inset-0 bg-slate-900/50" />
                         <div
-                            className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+                            className="relative w-full max-w-6xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-start justify-between gap-4 mb-4">
@@ -1074,13 +1100,14 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     {tCommon("close")}
                                 </button>
                             </div>
+
                             <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
                                 {chartData.length === 0 ? (
-                                    <div className="h-72 flex items-center justify-center text-slate-500">
+                                    <div className="h-[52vh] min-h-[420px] flex items-center justify-center text-slate-500">
                                         {t("noCategoryChartData")}
                                     </div>
                                 ) : (
-                                    <div className="h-72 w-full">
+                                    <div className="h-[52vh] min-h-[420px] w-full">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <BarChart data={chartData} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
                                                 <CartesianGrid strokeDasharray="3 3" />
@@ -1105,12 +1132,6 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                     ]}
                                                 />
                                                 <Bar dataKey="value" radius={[4, 4, 0, 0]} fill={type === "income" ? "#16a34a" : type === "expense" ? "#dc2626" : "#2563eb"} />
-                                                <Brush
-                                                    dataKey="label"
-                                                    height={20}
-                                                    stroke="#64748b"
-                                                    travellerWidth={10}
-                                                />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -1130,7 +1151,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     >
                         <div className="absolute inset-0 bg-slate-900/50" />
                         <div
-                            className="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+                            className="relative w-full max-w-6xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-start justify-between gap-4 mb-4">
@@ -1147,79 +1168,102 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 </button>
                             </div>
 
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setChartTotalsRange("thisYear")}
+                                    className={
+                                        "rounded-lg px-3 py-1.5 text-[11px] border " +
+                                        (chartTotalsRange === "thisYear"
+                                            ? "border-slate-700 bg-slate-900 text-white"
+                                            : "border-slate-200 dark:border-slate-700 text-slate-600")
+                                    }
+                                >
+                                    {t("rangeThisYear")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setChartTotalsRange("thisMonth")}
+                                    className={
+                                        "rounded-lg px-3 py-1.5 text-[11px] border " +
+                                        (chartTotalsRange === "thisMonth"
+                                            ? "border-slate-700 bg-slate-900 text-white"
+                                            : "border-slate-200 dark:border-slate-700 text-slate-600")
+                                    }
+                                >
+                                    {t("rangeThisMonth")}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setChartTotalsRange("custom")}
+                                    className={
+                                        "rounded-lg px-3 py-1.5 text-[11px] border " +
+                                        (chartTotalsRange === "custom"
+                                            ? "border-slate-700 bg-slate-900 text-white"
+                                            : "border-slate-200 dark:border-slate-700 text-slate-600")
+                                    }
+                                >
+                                    {t("rangeCustom")}
+                                </button>
+                                {chartTotalsRange === "custom" && (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="month"
+                                            value={chartTotalsCustomFrom}
+                                            onChange={(e) => setChartTotalsCustomFrom(e.target.value)}
+                                            className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                                        />
+                                        <span className="text-[11px] text-slate-500">{t("to")}</span>
+                                        <input
+                                            type="month"
+                                            value={chartTotalsCustomTo}
+                                            onChange={(e) => setChartTotalsCustomTo(e.target.value)}
+                                            className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                             {data.length === 0 ? (
-                                <div className="h-72 flex items-center justify-center text-slate-500">{t("noData", { type: title })}</div>
+                                <div className="h-[52vh] min-h-[420px] flex items-center justify-center text-slate-500">{t("noData", { type: title })}</div>
                             ) : (
                                 (() => {
                                     const visibleOrdered = orderedData.filter((row) =>
                                         chartTotalsVisibleCategories.has(row.category)
                                     );
-                                    const barsVisible = visibleOrdered.length > 0;
-                                    const monthKey = pieMonthKey ?? dateColumns[0]?.key ?? "";
-
-                                    const chartDataAll = dateColumns.map((col) => {
-                                        const row: Record<string, number | string> = { label: col.label };
-                                        for (const cat of visibleOrdered) {
-                                            row[cat.category] = cat.monthlyBreakdown?.[col.key] ?? 0;
-                                        }
-                                        return row;
-                                    });
-
-                                    const pieData = visibleOrdered
-                                        .map((row) => ({
-                                            name: row.category,
-                                            value: row.monthlyBreakdown?.[monthKey] ?? 0,
-                                        }))
-                                        .filter((d) => d.value > 0);
-
-                                    const palette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
+                                    const hasVisible = visibleOrdered.length > 0;
+                                    const impactData = visibleOrdered
+                                        .map((row) => {
+                                            const amount = totalsPeriodColumns.reduce(
+                                                (sum, col) => sum + (row.monthlyBreakdown?.[col.key] ?? 0),
+                                                0
+                                            );
+                                            return { category: row.category, amount };
+                                        })
+                                        .filter((r) => r.amount > 0)
+                                        .sort((a, b) => b.amount - a.amount);
+                                    const totalImpact = impactData.reduce((sum, r) => sum + r.amount, 0);
 
                                     return (
                                         <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
-                                            {chartTotalsView === "pie" ? (
-                                                <div className="h-72 w-full">
-                                                    {pieData.length === 0 ? (
-                                                        <div className="h-72 flex items-center justify-center text-slate-500">
-                                                            {t("noCategoryChartData")}
-                                                        </div>
-                                                    ) : (
-                                                        <ResponsiveContainer width="100%" height="100%">
-                                                            <PieChart>
-                                                                <Tooltip
-                                                                    formatter={(value: number) => [
-                                                                        `${value.toLocaleString("pt-PT", {
-                                                                            minimumFractionDigits: 2,
-                                                                            maximumFractionDigits: 2,
-                                                                        })} €`,
-                                                                        "",
-                                                                    ]}
-                                                                />
-                                                                <Pie
-                                                                    data={pieData}
-                                                                    dataKey="value"
-                                                                    nameKey="name"
-                                                                    outerRadius={110}
-                                                                    labelLine={false}
-                                                                    label={({ name, percent }) => `${name} (${Math.round((percent ?? 0) * 100)}%)`}
-                                                                >
-                                                                    {pieData.map((d, idx) => (
-                                                                        <Cell key={`cell-${d.name}`} fill={palette[idx % palette.length]} />
-                                                                    ))}
-                                                                </Pie>
-                                                            </PieChart>
-                                                        </ResponsiveContainer>
-                                                    )}
+                                            {totalsPeriodColumns.length === 0 ? (
+                                                <div className="h-[52vh] min-h-[420px] flex items-center justify-center text-slate-500">
+                                                    {t("noCategoryChartData")}
                                                 </div>
                                             ) : (
-                                                <div className="h-72 w-full">
-                                                    {!barsVisible ? (
-                                                        <div className="h-72 flex items-center justify-center text-slate-500">{t("noCategoryChartData")}</div>
+                                                <div className="h-[52vh] min-h-[420px] w-full">
+                                                    {!hasVisible ? (
+                                                        <div className="h-[52vh] min-h-[420px] flex items-center justify-center text-slate-500">{t("noCategoryChartData")}</div>
                                                     ) : (
                                                         <ResponsiveContainer width="100%" height="100%">
-                                                            <BarChart data={chartDataAll} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                                                            <BarChart
+                                                                data={impactData}
+                                                                layout="vertical"
+                                                                margin={{ top: 8, right: 16, left: 8, bottom: 8 }}
+                                                            >
                                                                 <CartesianGrid strokeDasharray="3 3" />
-                                                                <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                                                                <YAxis
+                                                                <XAxis
+                                                                    type="number"
                                                                     tickFormatter={(v: number) =>
                                                                         `${v.toLocaleString("pt-PT", {
                                                                             minimumFractionDigits: 0,
@@ -1227,31 +1271,37 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                                         })}€`
                                                                     }
                                                                     tick={{ fontSize: 10 }}
-                                                                    width={70}
+                                                                />
+                                                                <YAxis
+                                                                    type="category"
+                                                                    dataKey="category"
+                                                                    tick={{ fontSize: 10 }}
+                                                                    width={170}
                                                                 />
                                                                 <Tooltip
-                                                                    formatter={(value: number, name: string) => [
-                                                                        `${value.toLocaleString("pt-PT", {
-                                                                            minimumFractionDigits: 2,
-                                                                            maximumFractionDigits: 2,
-                                                                        })} €`,
-                                                                        name,
-                                                                    ]}
+                                                                    formatter={(value: number, _name: string, item: any) => {
+                                                                        const pct = totalImpact > 0 ? (Number(value) / totalImpact) * 100 : 0;
+                                                                        return [
+                                                                            `${Number(value).toLocaleString("pt-PT", {
+                                                                                minimumFractionDigits: 2,
+                                                                                maximumFractionDigits: 2,
+                                                                            })} € (${pct.toFixed(1)}%)`,
+                                                                            item?.payload?.category ?? "",
+                                                                        ];
+                                                                    }}
                                                                 />
-                                                                {visibleOrdered.map((cat, idx) => (
-                                                                    <Bar
-                                                                        key={cat.category}
-                                                                        dataKey={cat.category}
-                                                                        radius={[4, 4, 0, 0]}
-                                                                        fill={palette[idx % palette.length]}
-                                                                    />
-                                                                ))}
-                                                                <Brush
-                                                                    dataKey="label"
-                                                                    height={20}
-                                                                    stroke="#64748b"
-                                                                    travellerWidth={10}
-                                                                />
+                                                                <Bar
+                                                                    dataKey="amount"
+                                                                    radius={[0, 4, 4, 0]}
+                                                                    fill={type === "income" ? "#16a34a" : type === "expense" ? "#dc2626" : "#2563eb"}
+                                                                >
+                                                                    {impactData.map((entry, idx) => (
+                                                                        <Cell
+                                                                            key={`impact-${entry.category}`}
+                                                                            fill={categoryPalette[idx % categoryPalette.length]}
+                                                                        />
+                                                                    ))}
+                                                                </Bar>
                                                             </BarChart>
                                                         </ResponsiveContainer>
                                                     )}
@@ -1286,38 +1336,12 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                 >
                                                     {t("clearAll")}
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setChartTotalsView((prev) => (prev === "bar" ? "pie" : "bar"))}
-                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-[11px] hover:bg-slate-100 dark:hover:bg-slate-800"
-                                                >
-                                                    {chartTotalsView === "bar" ? t("showPieByMonth") : t("showBarChart")}
-                                                </button>
                                             </div>
                                         </div>
-                                        {chartTotalsView === "pie" && (
-                                            <div className="mb-2 flex items-center gap-2">
-                                                <span className="text-[11px] text-slate-600 dark:text-slate-300">
-                                                    {t("selectMonth")}:
-                                                </span>
-                                                <select
-                                                    value={pieMonthKey ?? ""}
-                                                    onChange={(e) => setPieMonthKey(e.target.value || null)}
-                                                    className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px]"
-                                                >
-                                                    {dateColumns.map((col) => (
-                                                        <option key={col.key} value={col.key}>
-                                                            {col.label}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
                                         <div className="flex flex-wrap gap-3">
                                             {orderedData.map((row, idx) => {
                                                 const checked = chartTotalsVisibleCategories.has(row.category);
-                                                const palette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
-                                                const color = palette[idx % palette.length];
+                                                const color = categoryPalette[idx % categoryPalette.length];
 
                                                 return (
                                                     <label
