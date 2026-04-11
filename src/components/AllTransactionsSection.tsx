@@ -12,7 +12,7 @@ import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 export type ConfirmedRow = {
   id: string;
@@ -97,6 +97,26 @@ function matchFilter(t: ConfirmedRow, f: FilterState): boolean {
   return true;
 }
 
+function SortDirectionIcon({ direction }: { direction: "desc" | "asc" }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="inline-block shrink-0"
+    >
+      {direction === "desc" ? <path d="m6 9 6 6 6-6" /> : <path d="m18 15-6-6-6 6" />}
+    </svg>
+  );
+}
+
 function FilterIcon({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -120,11 +140,16 @@ function FilterIcon({ className = "" }: { className?: string }) {
 export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
   const t = useTranslations("transactions.allMovements");
   const tType = useTranslations("transactions");
+  const locale = useLocale();
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [periodBlocks, setPeriodBlocks] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>(defaultFilter);
+  const [sortState, setSortState] = useState<{
+    key: "date" | "amount" | null;
+    direction: "desc" | "asc" | null;
+  }>({ key: null, direction: null });
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number } | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
@@ -182,6 +207,59 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     [confirmed, search, filter, periodBlocks]
   );
 
+  const setNextSort = useCallback((key: "date" | "amount") => {
+    setSortState((prev) => {
+      if (prev.key !== key) return { key, direction: "desc" };
+      if (prev.direction === "desc") return { key, direction: "asc" };
+      return { key: null, direction: null };
+    });
+  }, []);
+
+  const sortedFiltered = useMemo(() => {
+    const rows = [...filtered];
+    if (!sortState.key || !sortState.direction) return rows;
+    const dir = sortState.direction === "desc" ? -1 : 1;
+    if (sortState.key === "date") {
+      rows.sort((a, b) => {
+        const da = a.date.slice(0, 10);
+        const db = b.date.slice(0, 10);
+        const c = dir * da.localeCompare(db);
+        if (c !== 0) return c;
+        return a.id.localeCompare(b.id);
+      });
+      return rows;
+    }
+    rows.sort((a, b) => {
+      const c = dir * (a.amount - b.amount);
+      if (c !== 0) return c;
+      return b.date.slice(0, 10).localeCompare(a.date.slice(0, 10)) || a.id.localeCompare(b.id);
+    });
+    return rows;
+  }, [filtered, sortState]);
+
+  const filteredTypeTotals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    let transfer = 0;
+    let nIncome = 0;
+    let nExpense = 0;
+    let nTransfer = 0;
+    for (const row of filtered) {
+      if (row.type === "income") {
+        income += row.amount;
+        nIncome += 1;
+      } else if (row.type === "expense") {
+        expense += row.amount;
+        nExpense += 1;
+      } else if (row.type === "transfer") {
+        transfer += row.amount;
+        nTransfer += 1;
+      }
+    }
+    const net = income - expense + transfer;
+    return { income, expense, transfer, net, nIncome, nExpense, nTransfer };
+  }, [filtered]);
+
   const hasMoreByPeriod = useMemo(() => {
     if (search.trim()) return false;
     const now = new Date();
@@ -206,6 +284,8 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     !!filter.subcategory ||
     !!filter.amountMin.trim() ||
     !!filter.amountMax.trim();
+
+  const showFilteredTotals = !!search.trim() || hasActiveFilter;
 
   const clearFilter = useCallback(() => {
     setFilter(defaultFilter);
@@ -264,6 +344,9 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     if (method === "equally") return "Equal";
     return "—";
   };
+
+  const fmtAmount = (n: number) =>
+    n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const memberChip = (name: string | null, avatar: string | null) => {
     if (!name) return <span className="text-slate-400">—</span>;
@@ -593,7 +676,31 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                   <thead className="bg-slate-100 dark:bg-slate-900/50">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("table.type")}</th>
-                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.date")}</th>
+                      <th
+                        scope="col"
+                        aria-sort={
+                          sortState.key === "date"
+                            ? sortState.direction === "asc"
+                              ? "ascending"
+                              : sortState.direction === "desc"
+                                ? "descending"
+                                : "none"
+                            : undefined
+                        }
+                        className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setNextSort("date")}
+                          className="inline-flex items-center gap-1 font-medium hover:underline text-left"
+                          title={t("table.sortDate")}
+                        >
+                          {t("table.date")}
+                          {sortState.key === "date" && sortState.direction && (
+                            <SortDirectionIcon direction={sortState.direction} />
+                          )}
+                        </button>
+                      </th>
                       <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
                       <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
                         {t("table.categorySubcategory")}
@@ -604,12 +711,36 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       {isSplitOnly && (
                         <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Splitting %</th>
                       )}
-                      <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
+                      <th
+                        scope="col"
+                        aria-sort={
+                          sortState.key === "amount"
+                            ? sortState.direction === "asc"
+                              ? "ascending"
+                              : sortState.direction === "desc"
+                                ? "descending"
+                                : "none"
+                            : undefined
+                        }
+                        className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setNextSort("amount")}
+                          className="inline-flex items-center justify-end gap-1 font-medium hover:underline w-full text-right"
+                          title={t("table.sortAmount")}
+                        >
+                          {t("table.amount")}
+                          {sortState.key === "amount" && sortState.direction && (
+                            <SortDirectionIcon direction={sortState.direction} />
+                          )}
+                        </button>
+                      </th>
                       <th className="px-4 py-2 w-24" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {filtered.map((t) => (
+                    {sortedFiltered.map((t) => (
                       <tr key={t.id} className={transactionRowBgClass(t.type)}>
                         <td className="px-4 py-2">
                           <TransactionTypeIcon
@@ -665,11 +796,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                             }`}
                         >
                           {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                          {t.amount.toLocaleString("pt-PT", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}{" "}
-                          €
+                          {fmtAmount(t.amount)} €
                         </td>
                         <td className="px-4 py-2">
                           <TransactionRowActions id={t.id} status="confirmed" />
@@ -677,6 +804,88 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       </tr>
                     ))}
                   </tbody>
+                  {showFilteredTotals && filtered.length > 0 && (
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 font-medium">
+                        <td
+                          colSpan={5 + (isSplitOnly ? 1 : 0)}
+                          className="px-4 py-2.5 text-slate-800 dark:text-slate-100"
+                        >
+                          {t("table.totalsHeading")}
+                          <span className="ml-1 font-normal text-slate-500 dark:text-slate-400">
+                            ({filtered.length})
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right align-top font-mono">
+                          {(() => {
+                            const { income, expense, transfer, net, nIncome, nExpense, nTransfer } = filteredTypeTotals;
+                            const typeCount = (nIncome > 0 ? 1 : 0) + (nExpense > 0 ? 1 : 0) + (nTransfer > 0 ? 1 : 0);
+                            const line = (label: string, value: string, className: string) => (
+                              <div key={`${label}-${value}`} className={`text-xs font-mono ${className}`}>
+                                <span className="text-slate-600 dark:text-slate-400 mr-1.5 font-sans">{label}</span>
+                                <span className="tabular-nums">{value}</span>
+                              </div>
+                            );
+                            if (typeCount <= 1) {
+                              if (nIncome > 0) {
+                                return (
+                                  <div className="text-xs font-mono text-green-600 dark:text-green-400 tabular-nums">
+                                    +{fmtAmount(income)} €
+                                  </div>
+                                );
+                              }
+                              if (nExpense > 0) {
+                                return (
+                                  <div className="text-xs font-mono text-red-600 dark:text-red-400 tabular-nums">
+                                    −{fmtAmount(expense)} €
+                                  </div>
+                                );
+                              }
+                              if (nTransfer > 0) {
+                                return (
+                                  <div className="text-xs font-mono text-blue-600 dark:text-blue-400 tabular-nums">
+                                    {transfer < 0 ? "−" : ""}
+                                    {fmtAmount(Math.abs(transfer))} €
+                                  </div>
+                                );
+                              }
+                              return null;
+                            }
+                            return (
+                              <div className="space-y-1">
+                                {nIncome > 0 &&
+                                  line(
+                                    `${t("table.totalsIncome")}:`,
+                                    `+${fmtAmount(income)} €`,
+                                    "text-green-600 dark:text-green-400"
+                                  )}
+                                {nExpense > 0 &&
+                                  line(
+                                    `${t("table.totalsExpense")}:`,
+                                    `−${fmtAmount(expense)} €`,
+                                    "text-red-600 dark:text-red-400"
+                                  )}
+                                {nTransfer > 0 &&
+                                  line(
+                                    `${t("table.totalsTransfer")}:`,
+                                    `${transfer < 0 ? "−" : ""}${fmtAmount(Math.abs(transfer))} €`,
+                                    "text-blue-600 dark:text-blue-400"
+                                  )}
+                                <div className="border-t border-slate-200 dark:border-slate-700 pt-1 mt-1 text-xs font-mono text-slate-800 dark:text-slate-100">
+                                  <span className="text-slate-600 dark:text-slate-400 mr-1.5 font-sans">{t("table.totalsNet")}:</span>
+                                  <span className="tabular-nums font-semibold">
+                                    {net >= 0 ? "+" : "−"}
+                                    {fmtAmount(Math.abs(net))} €
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-4 py-2.5" />
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
                 {!search.trim() && hasMoreByPeriod && (
                   <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center">

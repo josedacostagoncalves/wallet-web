@@ -416,12 +416,14 @@ export function SettlementsSection({
       ? rawMonthLabel.charAt(0).toLocaleUpperCase(locale) + rawMonthLabel.slice(1)
       : rawMonthLabel;
     const settlementDescription = t("settlementDescription", { month: monthLabel });
+    const now = new Date();
+    const transactionDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     const res = await confirmSettlementTransfer({
       walletId,
       payerMemberId: confirmFlow.fromId,
       receiverMemberId: confirmFlow.toId,
       amountCents: confirmFlow.amountCents,
-      date: periodEnd,
+      date: transactionDate,
       description: settlementDescription,
     });
     setConfirmingFlow(false);
@@ -893,7 +895,6 @@ export function SettlementsSection({
               from: confirmFlow.fromName,
               to: confirmFlow.toName,
               amount: `${formatAmount(confirmFlow.amountCents / 100)} €`,
-              date: new Date(`${periodEnd}T00:00:00`).toLocaleDateString(locale),
             })
             : ""
         }

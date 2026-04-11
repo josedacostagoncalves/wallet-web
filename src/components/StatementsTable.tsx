@@ -54,6 +54,17 @@ function sortByOrder<T extends { category: string }>(items: T[], order: string[]
     return [...items].sort((a, b) => rank(a.category) - rank(b.category));
 }
 
+type MonthlyTx = { id: string; date: string; description: string | null; amount: number };
+
+/** Newest calendar date first; same-day order is stable via id. */
+function sortMonthlyTransactionsForTooltip(txs: MonthlyTx[]): MonthlyTx[] {
+    return [...txs].sort((a, b) => {
+        const byDate = b.date.localeCompare(a.date);
+        if (byDate !== 0) return byDate;
+        return b.id.localeCompare(a.id);
+    });
+}
+
 function DragHandleIcon() {
     return (
         <svg
@@ -592,7 +603,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         monthLabel: string,
         row: CategoryData
     ) => {
-        const transactions = row.monthlyTransactions?.[monthKey] ?? [];
+        const transactions = sortMonthlyTransactionsForTooltip(row.monthlyTransactions?.[monthKey] ?? []);
         const textClass = valueColorClass(value);
 
         if (value <= 0) {

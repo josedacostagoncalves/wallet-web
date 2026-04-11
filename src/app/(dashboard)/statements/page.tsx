@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { getWalletCookie } from "@/app/actions/wallet-cookie";
+import { useWallet } from "@/contexts/WalletContext";
 import {
     getStatementsByCategory,
     getSavingsInvestmentStatements,
@@ -13,7 +13,7 @@ import { StatementsTable } from "@/components/StatementsTable";
 
 export default function StatementsPage() {
     const t = useTranslations("statements");
-    const [currentWalletId, setCurrentWalletId] = useState<string | null>(null);
+    const { currentWalletId } = useWallet();
     const [incomeData, setIncomeData] = useState<any[]>([]);
     const [expenseData, setExpenseData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -23,15 +23,6 @@ export default function StatementsPage() {
     const [dateRange, setDateRange] = useState<{ start: string; end: string } | null>(null);
     const [viewMode, setViewMode] = useState<StatementsViewMode>("incomeExpenses");
     const [savingsInvestmentsData, setSavingsInvestmentsData] = useState<any[]>([]);
-
-    // Initialize wallet
-    useEffect(() => {
-        async function init() {
-            const cookie = await getWalletCookie();
-            setCurrentWalletId(cookie);
-        }
-        init();
-    }, []);
 
     // Fetch available years based on selected view mode
     useEffect(() => {

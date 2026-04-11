@@ -3,12 +3,16 @@
 import {
   getAccounts,
   getCategories,
+  getCategoriesFlatForSearch,
   getSubcategories,
   getTransaction,
   createTransaction,
   getRecentTransactionsByCategory,
+  type CategoryFlatRow,
 } from "@/app/actions/transactions";
 import { CopyIcon } from "@/components/ActionIcons";
+import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
+import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
@@ -50,6 +54,7 @@ export default function NewTransactionPage() {
 
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categoriesFlat, setCategoriesFlat] = useState<CategoryFlatRow[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
   const [categoryId, setCategoryId] = useState("");
@@ -129,8 +134,12 @@ export default function NewTransactionPage() {
 
   useEffect(() => {
     if (!currentWalletId || !type) return;
-    getCategories(currentWalletId, type).then((data) => {
+    Promise.all([
+      getCategories(currentWalletId, type),
+      getCategoriesFlatForSearch(currentWalletId, type),
+    ]).then(([data, flat]) => {
       setCategories(data);
+      setCategoriesFlat(flat);
       if (copyFrom) {
         setCategoryId(copyFrom.parent_id || copyFrom.category_id);
         setSubcategoryId(copyFrom.parent_id ? copyFrom.category_id : "");
@@ -179,6 +188,21 @@ export default function NewTransactionPage() {
     setType(t);
     setStep("form");
     setError(null);
+  }
+
+  function handleCategorySearchPick(parentId: string, subId: string) {
+    if (didCopyFrom.current) {
+      didCopyFrom.current = false;
+      setDescription("");
+      setAmount("");
+      setAccountFromId("");
+      setAccountToId("");
+      setError(null);
+    }
+    skipNextSubcategoryReset.current = true;
+    setCategoryId(parentId);
+    setSubcategoryId(subId);
+    getSubcategories(parentId).then(setSubcategories);
   }
 
   async function handleCopyFromSimilar(id: string) {
@@ -437,8 +461,7 @@ export default function NewTransactionPage() {
         <form onSubmit={handleSubmit} className="w-full lg:w-1/2 lg:min-w-0 space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">{tForm("fields.date")}</label>
-            <input
-              type="date"
+            <TransactionDateInput
               value={date}
               onChange={(e) => setDate(e.target.value)}
               required
@@ -455,6 +478,12 @@ export default function NewTransactionPage() {
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
           </div>
+          <CategorySubcategorySearchField
+            flat={categoriesFlat}
+            labelClassName="block text-sm font-medium mb-1"
+            inputClassName="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 text-sm"
+            onPick={handleCategorySearchPick}
+          />
           <div>
             <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
             <select

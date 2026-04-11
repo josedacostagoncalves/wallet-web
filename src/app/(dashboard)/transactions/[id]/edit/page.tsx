@@ -4,11 +4,15 @@ import {
   getTransaction,
   getAccounts,
   getCategories,
+  getCategoriesFlatForSearch,
   getSubcategories,
   updateTransaction,
   deleteTransaction,
   confirmTransaction,
+  type CategoryFlatRow,
 } from "@/app/actions/transactions";
+import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
+import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
@@ -36,6 +40,7 @@ export default function EditTransactionPage() {
 
   const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categoriesFlat, setCategoriesFlat] = useState<CategoryFlatRow[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
   const [type, setType] = useState<TransactionType | null>(null);
@@ -94,7 +99,13 @@ export default function EditTransactionPage() {
 
   useEffect(() => {
     if (!currentWalletId || !type) return;
-    getCategories(currentWalletId, type).then(setCategories);
+    Promise.all([
+      getCategories(currentWalletId, type),
+      getCategoriesFlatForSearch(currentWalletId, type),
+    ]).then(([cats, flat]) => {
+      setCategories(cats);
+      setCategoriesFlat(flat);
+    });
   }, [currentWalletId, type]);
 
   useEffect(() => {
@@ -293,6 +304,14 @@ export default function EditTransactionPage() {
   const needsExtraSub =
     subcategoryId && !subOpts.some((s) => s.id === subcategoryId);
 
+  function handleCategorySearchPick(parentId: string, subId: string) {
+    setCategoryId(parentId);
+    setSubcategoryId(subId);
+    getSubcategories(parentId).then(setSubcategories);
+    setCurrentCategoryName("");
+    setCurrentSubcategoryName("");
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">
@@ -318,8 +337,7 @@ export default function EditTransactionPage() {
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">{tForm("fields.date")}</label>
-          <input
-            type="date"
+          <TransactionDateInput
             value={date}
             onChange={(e) => setDate(e.target.value)}
             required
@@ -336,6 +354,12 @@ export default function EditTransactionPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
+        <CategorySubcategorySearchField
+          flat={categoriesFlat}
+          labelClassName="block text-sm font-medium mb-1"
+          inputClassName="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 text-sm"
+          onPick={handleCategorySearchPick}
+        />
         <div>
           <label className="block text-sm font-medium mb-1">{tForm("fields.category")}</label>
           <select

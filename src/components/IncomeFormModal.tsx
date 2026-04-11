@@ -3,6 +3,7 @@
 import {
   getAccounts,
   getCategories,
+  getCategoriesFlatForSearch,
   getSubcategories,
   getTransaction,
   getRecentTransactionsByType,
@@ -11,10 +12,13 @@ import {
   updateTransaction,
   confirmTransaction,
   deleteTransaction,
+  type CategoryFlatRow,
 } from "@/app/actions/transactions";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
+import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
+import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
@@ -60,6 +64,7 @@ export function IncomeFormModal({
 
   const [accounts, setAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categoriesFlat, setCategoriesFlat] = useState<CategoryFlatRow[]>([]);
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -141,7 +146,13 @@ export function IncomeFormModal({
       return;
     }
     getAccounts(currentWalletId).then(setAccounts);
-    getCategories(currentWalletId, "income").then(setCategories);
+    Promise.all([
+      getCategories(currentWalletId, "income"),
+      getCategoriesFlatForSearch(currentWalletId, "income"),
+    ]).then(([cats, flat]) => {
+      setCategories(cats);
+      setCategoriesFlat(flat);
+    });
   }, [open, currentWalletId]);
 
   useEffect(() => {
@@ -326,38 +337,6 @@ export function IncomeFormModal({
       resetForm();
     }
 
-    // Fetch wallet split info and auto-select member AFTER form reset
-    if (currentWalletId) {
-      getWalletSplitInfo(currentWalletId).then((result) => {
-        const sharedOption = result.shared_option ?? null;
-        const members = result.members ?? [];
-        setWalletSharedOption(sharedOption);
-        setWalletSplitType(result.split_type ?? null);
-        setWalletTrackingMode(result.tracking_mode ?? null);
-        setWalletMembers(members);
-
-        // Auto-select current user only for brand-new transactions.
-        if (
-          !isEdit &&
-          !isCopy &&
-          !autoSelectedMember.current &&
-          (sharedOption === "split" || sharedOption === "track_and_split") &&
-          members.length > 0
-        ) {
-          autoSelectedMember.current = true;
-          getCurrentUserId().then((userResult) => {
-            if (userResult.userId) {
-              // Find the member that matches the current user
-              const currentMember = members.find((m) => m.user_id === userResult.userId);
-              if (currentMember) {
-                setPaidByMemberId((prev) => prev ?? currentMember.id);
-              }
-            }
-          });
-        }
-      });
-    }
-
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !loading && !loadingData) onClose();
     };
@@ -369,6 +348,36 @@ export function IncomeFormModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when opening new
   }, [open, currentWalletId, onClose, loading, loadingData, resetForm, mode, transactionId, copyFromTransactionId, copyFromRecurringId]);
+
+  useEffect(() => {
+    if (!open || !currentWalletId) return;
+    getWalletSplitInfo(currentWalletId, { referenceDate: date }).then((result) => {
+      const sharedOption = result.shared_option ?? null;
+      const members = result.members ?? [];
+      setWalletSharedOption(sharedOption);
+      setWalletSplitType(result.split_type ?? null);
+      setWalletTrackingMode(result.tracking_mode ?? null);
+      setWalletMembers(members);
+
+      if (
+        !isEdit &&
+        !isCopy &&
+        !autoSelectedMember.current &&
+        (sharedOption === "split" || sharedOption === "track_and_split") &&
+        members.length > 0
+      ) {
+        autoSelectedMember.current = true;
+        getCurrentUserId().then((userResult) => {
+          if (userResult.userId) {
+            const currentMember = members.find((m) => m.user_id === userResult.userId);
+            if (currentMember) {
+              setPaidByMemberId((prev) => prev ?? currentMember.id);
+            }
+          }
+        });
+      }
+    });
+  }, [open, currentWalletId, date, isEdit, isCopy]);
 
   const isSplitOnly = walletSharedOption === "split" || (!walletSharedOption && !!walletSplitType);
   const isBasicTracking = walletTrackingMode === "basic" || (!walletTrackingMode && isSplitOnly);
@@ -637,8 +646,7 @@ export function IncomeFormModal({
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
-                <input
-                  type="date"
+                <TransactionDateInput
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
@@ -656,6 +664,17 @@ export function IncomeFormModal({
                   className={inputClass}
                 />
               </div>
+              <CategorySubcategorySearchField
+                flat={categoriesFlat}
+                disabled={shouldBlockForm}
+                inputClassName={inputClass}
+                onPick={(parentId, subId) => {
+                  skipNextSubcategoryReset.current = true;
+                  setCategoryId(parentId);
+                  setSubcategoryId(subId);
+                  getSubcategories(parentId).then(setSubcategories);
+                }}
+              />
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.category")}</label>
                 <div className="flex items-center gap-1.5">
@@ -1053,13 +1072,21 @@ export function IncomeFormModal({
           onSaved={(newId) => {
             if (!currentWalletId) return;
             if (catModal.kind === "add-category") {
-              getCategories(currentWalletId, "income").then((cats) => {
+              Promise.all([
+                getCategories(currentWalletId, "income"),
+                getCategoriesFlatForSearch(currentWalletId, "income"),
+              ]).then(([cats, flat]) => {
                 setCategories(cats);
+                setCategoriesFlat(flat);
                 if (newId) setCategoryId(newId);
               });
             } else if (catModal.kind === "add-subcategory") {
-              getSubcategories(categoryId).then((subs) => {
+              Promise.all([
+                getSubcategories(categoryId),
+                getCategoriesFlatForSearch(currentWalletId, "income"),
+              ]).then(([subs, flat]) => {
                 setSubcategories(subs);
+                setCategoriesFlat(flat);
                 if (newId) {
                   skipNextSubcategoryReset.current = true;
                   setSubcategoryId(newId);

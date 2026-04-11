@@ -15,6 +15,28 @@ function normalizeCategoryName(value: string): string {
     .trim();
 }
 
+/** UTC first/last day of the calendar month for a YYYY-MM-DD string; invalid input uses current UTC month. */
+function utcMonthRangeForDate(isoDate: string | undefined | null): { start: string; end: string } {
+  const raw = typeof isoDate === "string" ? isoDate.trim().slice(0, 10) : "";
+  const y = Number(raw.slice(0, 4));
+  const mo = Number(raw.slice(5, 7));
+  const ok =
+    raw.length >= 10 &&
+    Number.isInteger(y) &&
+    Number.isInteger(mo) &&
+    mo >= 1 &&
+    mo <= 12 &&
+    y >= 1900 &&
+    y <= 2500;
+  const now = new Date();
+  const yy = ok ? y : now.getUTCFullYear();
+  const mm = ok ? mo : now.getUTCMonth() + 1;
+  const start = `${yy}-${String(mm).padStart(2, "0")}-01`;
+  const lastDay = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+  const end = `${yy}-${String(mm).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { start, end };
+}
+
 function getDisplayNameFromSources(
   user: { email?: string | null; user_metadata?: Record<string, unknown> },
   profile?: { first_name?: string | null; last_name?: string | null; email?: string | null } | null
@@ -979,19 +1001,31 @@ export async function getWalletSettlements(
 
   const incomeByMember = new Map<string, number>();
   const monthlyIncomeByMember = new Map<string, number>();
+  /** YYYY-MM → member → sum of confirmed income in that month (for by_income share per expense date). */
+  const incomeByMonthAndMember = new Map<string, Map<string, number>>();
+  const ensureMonthIncome = (monthKey: string): Map<string, number> => {
+    let inner = incomeByMonthAndMember.get(monthKey);
+    if (!inner) {
+      inner = new Map();
+      for (const id of memberIds) inner.set(id, 0);
+      incomeByMonthAndMember.set(monthKey, inner);
+    }
+    return inner;
+  };
   for (const id of memberIds) incomeByMember.set(id, 0);
   for (const id of memberIds) monthlyIncomeByMember.set(id, 0);
   for (const inc of (incomes ?? []) as Array<{ date: string; amount: number; received_by_member_id: string | null }>) {
     if (!inc.received_by_member_id || !incomeByMember.has(inc.received_by_member_id)) continue;
-    incomeByMember.set(
-      inc.received_by_member_id,
-      (incomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
-    );
+    const amt = Number(inc.amount ?? 0);
+    incomeByMember.set(inc.received_by_member_id, (incomeByMember.get(inc.received_by_member_id) ?? 0) + amt);
+    const monthKey = String(inc.date).slice(0, 7);
+    const monthInner = ensureMonthIncome(monthKey);
+    monthInner.set(inc.received_by_member_id, (monthInner.get(inc.received_by_member_id) ?? 0) + amt);
     const d = String(inc.date).slice(0, 10);
     if (d >= monthStart && d <= monthEnd) {
       monthlyIncomeByMember.set(
         inc.received_by_member_id,
-        (monthlyIncomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
+        (monthlyIncomeByMember.get(inc.received_by_member_id) ?? 0) + amt
       );
     }
   }
@@ -1027,10 +1061,7 @@ export async function getWalletSettlements(
     transferAdjustments.set(id, 0);
   }
 
-  const totalIncomeFromTransactions = Array.from(incomeByMember.values()).reduce((sum, value) => sum + value, 0);
   const totalIncomeFromMemberSettings = members.reduce((sum: number, m: any) => sum + Number(m.income_monthly ?? 0), 0);
-  const useTransactionIncome = totalIncomeFromTransactions > 0;
-  const totalIncome = useTransactionIncome ? totalIncomeFromTransactions : totalIncomeFromMemberSettings;
 
   for (const tx of (expenses ?? []) as Array<{
     id: string;
@@ -1065,15 +1096,32 @@ export async function getWalletSettlements(
       // Fallback to equally if manual data is missing.
     }
 
-    if (method === "by_income" && totalIncome > 0) {
+    if (method === "by_income") {
+      const monthKey = String(tx.date).slice(0, 7);
+      const monthMap = incomeByMonthAndMember.get(monthKey);
+      let totalMonthTx = 0;
+      const perMemberMonthIncome = new Map<string, number>();
       for (const memberId of memberIds) {
-        const income = useTransactionIncome
-          ? incomeByMember.get(memberId) ?? 0
-          : memberInfo.get(memberId)?.income ?? 0;
-        const share = amount * (income / totalIncome);
-        totalShare.set(memberId, (totalShare.get(memberId) ?? 0) + share);
+        const v = monthMap?.get(memberId) ?? 0;
+        perMemberMonthIncome.set(memberId, v);
+        totalMonthTx += v;
       }
-      continue;
+      if (totalMonthTx > 0) {
+        for (const memberId of memberIds) {
+          const income = perMemberMonthIncome.get(memberId) ?? 0;
+          const share = amount * (income / totalMonthTx);
+          totalShare.set(memberId, (totalShare.get(memberId) ?? 0) + share);
+        }
+        continue;
+      }
+      if (totalIncomeFromMemberSettings > 0) {
+        for (const memberId of memberIds) {
+          const income = memberInfo.get(memberId)?.income ?? 0;
+          const share = amount * (income / totalIncomeFromMemberSettings);
+          totalShare.set(memberId, (totalShare.get(memberId) ?? 0) + share);
+        }
+        continue;
+      }
     }
 
     const equalShare = amount / memberIds.length;
@@ -1106,14 +1154,17 @@ export async function getWalletSettlements(
     const share = totalShare.get(memberId) ?? 0;
     const transferAdjustment = transferAdjustments.get(memberId) ?? 0;
     const balance = paid - share + transferAdjustment;
+    // Show net "Despesas": cash paid on shared expenses, adjusted by member↔member
+    // settlement transfers in the same period (payer +amount, receiver −amount).
+    const paidAfterSettlements = paid + transferAdjustment;
     return {
       member_id: memberId,
       email: memberInfo.get(memberId)?.email ?? memberId,
       avatar_url: memberInfo.get(memberId)?.profile?.avatar_url ?? null,
-      total_paid: Math.round(paid * 100),
+      total_paid: Math.round(paidAfterSettlements * 100),
       total_share: Math.round(share * 100),
       monthly_income: Math.round((monthlyIncomeByMember.get(memberId) ?? 0) * 100),
-      monthly_paid: Math.round((monthlyPaidByMember.get(memberId) ?? 0) * 100),
+      monthly_paid: Math.round(paidAfterSettlements * 100),
       balance: Math.round(balance * 100),
     };
   });
@@ -1122,7 +1173,8 @@ export async function getWalletSettlements(
 }
 
 export async function getWalletSplitInfo(
-  walletId: string
+  walletId: string,
+  options?: { referenceDate?: string }
 ): Promise<{
   shared_option?: string | null;
   split_type?: string | null;
@@ -1192,11 +1244,9 @@ export async function getWalletSplitInfo(
     };
   });
 
-  const now = new Date();
-  const monthStart = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;
-  const monthEnd = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(
-    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate()
-  ).padStart(2, "0")}`;
+  const { start: monthStart, end: monthEnd } = utcMonthRangeForDate(
+    options?.referenceDate?.trim() || new Date().toISOString().slice(0, 10)
+  );
   const { data: currentMonthIncomes } = await supabase
     .from("transactions")
     .select("amount, received_by_member_id")

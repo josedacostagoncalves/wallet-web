@@ -5,10 +5,27 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 
+function parseHomePeriod(searchParams?: {
+  insightPeriod?: string;
+  from?: string;
+  to?: string;
+}): { period: HomeInsightsPeriod; customRange: { start: string; end: string } | null } {
+  const raw = searchParams?.insightPeriod?.trim();
+  const from = searchParams?.from?.trim().slice(0, 10) ?? "";
+  const to = searchParams?.to?.trim().slice(0, 10) ?? "";
+  if (raw === "custom" && /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && from <= to) {
+    return { period: "custom", customRange: { start: from, end: to } };
+  }
+  if (raw === "last_month") return { period: "last_month", customRange: null };
+  if (raw === "this_year") return { period: "this_year", customRange: null };
+  // Legacy: auto, last_30_days, month_to_date, unknown → this month
+  return { period: "month_to_date", customRange: null };
+}
+
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: { insightPeriod?: string };
+  searchParams?: { insightPeriod?: string; from?: string; to?: string };
 }) {
   const t = await getTranslations("home");
   const locale = (await getLocale()) as "en" | "pt" | "es" | "fr";
@@ -21,17 +38,10 @@ export default async function HomePage({
     .is("deleted_at", null);
   const walletIds = (wallets ?? []).map((w) => w.id);
   const currentWalletId = cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
-  const rawPeriod = searchParams?.insightPeriod ?? "auto";
-  const selectedPeriod: HomeInsightsPeriod =
-    rawPeriod === "month_to_date" ||
-      rawPeriod === "last_month" ||
-      rawPeriod === "this_year" ||
-      rawPeriod === "last_30_days"
-      ? rawPeriod
-      : "auto";
+  const { period: selectedPeriod, customRange } = parseHomePeriod(searchParams);
 
   const briefing = currentWalletId
-    ? await getHomeBriefing(currentWalletId, locale, selectedPeriod)
+    ? await getHomeBriefing(currentWalletId, locale, selectedPeriod, customRange)
     : null;
 
   return (
@@ -51,7 +61,13 @@ export default async function HomePage({
           </Link>
         </div>
       ) : (
-        <HomeSmartBriefing walletId={currentWalletId} data={briefing} selectedPeriod={selectedPeriod} />
+        <HomeSmartBriefing
+          walletId={currentWalletId}
+          data={briefing}
+          selectedPeriod={selectedPeriod}
+          customFrom={customRange?.start ?? null}
+          customTo={customRange?.end ?? null}
+        />
       )}
     </div>
   );

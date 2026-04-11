@@ -83,11 +83,17 @@
             "refresh": "Actualiser les widgets",
             "periods": {
                 "label": "Période",
-                "auto": "Automatique",
-                "monthToDate": "Mois à ce jour",
+                "thisMonth": "Ce mois-ci",
                 "lastMonth": "Mois dernier",
                 "thisYear": "Cette année",
-                "last30Days": "30 derniers jours"
+                "custom": "Personnalisé…",
+                "customDialogTitle": "Plage de dates",
+                "fromDate": "Du",
+                "toDate": "Au",
+                "customInvalid": "Indiquez une plage valide (la date de début doit être antérieure ou égale à la date de fin).",
+                "customTooLong": "La plage ne peut pas dépasser 366 jours.",
+                "customApply": "Appliquer",
+                "editCustomRange": "Modifier les dates"
             },
             "scrollLeft": "Faire défiler à gauche",
             "scrollRight": "Faire défiler à droite",
@@ -287,7 +293,7 @@
             "payFlow": "{from} paie {amount} à {to}",
             "confirmSettlement": "Confirmer le règlement",
             "confirmSettlementTitle": "Confirmer le règlement",
-            "confirmSettlementMessage": "Créer un virement de règlement de {amount} de {from} vers {to} daté du {date} ?",
+            "confirmSettlementMessage": "Créer un virement de règlement de {amount} de {from} vers {to} ?",
             "settlementDescription": "Règlement {month}",
             "settlementConfirmedSuccess": "Virement de règlement créé."
         },
@@ -552,7 +558,14 @@
                 "categorySubcategory": "Catégorie :: Sous-catégorie",
                 "fromTo": "De → À",
                 "paidBy": "Payé par",
-                "amount": "Montant"
+                "amount": "Montant",
+                "sortDate": "Trier par date",
+                "sortAmount": "Trier par montant",
+                "totalsHeading": "Totaux (filtré)",
+                "totalsIncome": "Revenus",
+                "totalsExpense": "Dépenses",
+                "totalsTransfer": "Virements",
+                "totalsNet": "Net"
             },
             "empty": "Pas encore de transactions. {link}",
             "addOne": "Ajouter une transaction",
@@ -658,6 +671,7 @@
             "close": "Fermer",
             "fields": {
                 "date": "Date *",
+                "openDateCalendar": "Ouvrir le calendrier",
                 "description": "Description *",
                 "descriptionPlaceholder": "ex.: Courses",
                 "incomeDescriptionPlaceholder": "ex.: Salaire",
@@ -669,6 +683,9 @@
                 "subcategoryRequired": "Sous-catégorie *",
                 "selectSubcategory": "Sélectionner…",
                 "none": "Aucune",
+                "searchCategory": "Rechercher une catégorie ou sous-catégorie",
+                "searchCategoryPlaceholder": "ex. : Fix",
+                "searchCategoryNoMatches": "Aucun résultat",
                 "addSubcategory": "Ajouter une sous-catégorie",
                 "amount": "Montant (€) *",
                 "amountPlaceholder": "0,00",

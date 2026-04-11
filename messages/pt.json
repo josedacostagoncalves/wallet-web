@@ -83,11 +83,17 @@
             "refresh": "Atualizar widgets",
             "periods": {
                 "label": "Período",
-                "auto": "Automático",
-                "monthToDate": "Mês até hoje",
+                "thisMonth": "Este mês",
                 "lastMonth": "Mês passado",
                 "thisYear": "Este ano",
-                "last30Days": "Últimos 30 dias"
+                "custom": "Personalizado…",
+                "customDialogTitle": "Intervalo de datas",
+                "fromDate": "De",
+                "toDate": "Até",
+                "customInvalid": "Indique um intervalo válido (de anterior ou igual a até).",
+                "customTooLong": "O intervalo não pode exceder 366 dias.",
+                "customApply": "Aplicar",
+                "editCustomRange": "Alterar datas"
             },
             "scrollLeft": "Deslocar para a esquerda",
             "scrollRight": "Deslocar para a direita",
@@ -287,7 +293,7 @@
             "payFlow": "{from} paga {amount} a {to}",
             "confirmSettlement": "Confirmar acerto",
             "confirmSettlementTitle": "Confirmar acerto",
-            "confirmSettlementMessage": "Criar uma transferência de acerto de {amount} de {from} para {to} com data de {date}?",
+            "confirmSettlementMessage": "Criar uma transferência de acerto de {amount} de {from} para {to}?",
             "settlementDescription": "Acerto {month}",
             "settlementConfirmedSuccess": "Transferência de acerto criada."
         },
@@ -552,7 +558,14 @@
                 "categorySubcategory": "Categoria :: Subcategoria",
                 "fromTo": "De → Para",
                 "paidBy": "Pago por",
-                "amount": "Montante"
+                "amount": "Montante",
+                "sortDate": "Ordenar por data",
+                "sortAmount": "Ordenar por montante",
+                "totalsHeading": "Totais (filtrado)",
+                "totalsIncome": "Receitas",
+                "totalsExpense": "Despesas",
+                "totalsTransfer": "Transferências",
+                "totalsNet": "Líquido"
             },
             "empty": "Ainda não há transações. {link}",
             "addOne": "Adicionar uma transação",
@@ -658,6 +671,7 @@
             "close": "Fechar",
             "fields": {
                 "date": "Data *",
+                "openDateCalendar": "Abrir calendário",
                 "description": "Descrição *",
                 "descriptionPlaceholder": "ex.: Compras",
                 "incomeDescriptionPlaceholder": "ex.: Salário",
@@ -669,6 +683,9 @@
                 "subcategoryRequired": "Subcategoria *",
                 "selectSubcategory": "Selecionar…",
                 "none": "Nenhuma",
+                "searchCategory": "Pesquisar categoria ou subcategoria",
+                "searchCategoryPlaceholder": "ex.: Fix",
+                "searchCategoryNoMatches": "Sem resultados",
                 "addSubcategory": "Adicionar subcategoria",
                 "amount": "Montante (€) *",
                 "amountPlaceholder": "0,00",

@@ -83,11 +83,17 @@
             "refresh": "Refresh widgets",
             "periods": {
                 "label": "Period",
-                "auto": "Auto",
-                "monthToDate": "Month to date",
+                "thisMonth": "This month",
                 "lastMonth": "Last month",
                 "thisYear": "This year",
-                "last30Days": "Last 30 days"
+                "custom": "Custom…",
+                "customDialogTitle": "Date range",
+                "fromDate": "From",
+                "toDate": "To",
+                "customInvalid": "Enter a valid range (from on or before to).",
+                "customTooLong": "Range cannot exceed 366 days.",
+                "customApply": "Apply",
+                "editCustomRange": "Change dates"
             },
             "scrollLeft": "Scroll left",
             "scrollRight": "Scroll right",
@@ -287,7 +293,7 @@
             "payFlow": "{from} pays {amount} to {to}",
             "confirmSettlement": "Confirm settlement",
             "confirmSettlementTitle": "Confirm settlement",
-            "confirmSettlementMessage": "Create a settlement transfer of {amount} from {from} to {to} dated {date}?",
+            "confirmSettlementMessage": "Create a settlement transfer of {amount} from {from} to {to}?",
             "settlementDescription": "Settlement {month}",
             "settlementConfirmedSuccess": "Settlement transfer created."
         },
@@ -552,7 +558,14 @@
                 "categorySubcategory": "Category :: Subcategory",
                 "fromTo": "From → To",
                 "paidBy": "Paid by",
-                "amount": "Amount"
+                "amount": "Amount",
+                "sortDate": "Sort by date",
+                "sortAmount": "Sort by amount",
+                "totalsHeading": "Totals (filtered)",
+                "totalsIncome": "Income",
+                "totalsExpense": "Expenses",
+                "totalsTransfer": "Transfers",
+                "totalsNet": "Net"
             },
             "empty": "No transactions yet. {link}",
             "addOne": "Add a transaction",
@@ -658,6 +671,7 @@
             "close": "Close",
             "fields": {
                 "date": "Date *",
+                "openDateCalendar": "Open calendar",
                 "description": "Description *",
                 "descriptionPlaceholder": "e.g. Groceries",
                 "incomeDescriptionPlaceholder": "e.g. Salary",
@@ -669,6 +683,9 @@
                 "subcategoryRequired": "Subcategory *",
                 "selectSubcategory": "Select…",
                 "none": "None",
+                "searchCategory": "Search category or subcategory",
+                "searchCategoryPlaceholder": "e.g. Fix",
+                "searchCategoryNoMatches": "No matches",
                 "addSubcategory": "Add subcategory",
                 "amount": "Amount (€) *",
                 "amountPlaceholder": "0,00",

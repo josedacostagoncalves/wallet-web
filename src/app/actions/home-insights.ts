@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 
 type LocaleCode = "en" | "pt" | "es" | "fr";
-export type HomeInsightsPeriod = "auto" | "month_to_date" | "last_month" | "this_year" | "last_30_days";
+export type HomeInsightsPeriod = "month_to_date" | "last_month" | "this_year" | "custom";
 
 type BriefingData = {
   anchorYear: number;
@@ -30,7 +30,7 @@ type BriefingData = {
   prevDiningOut: number;
   diningChangePct: number | null;
   anchorDayCutoff: number;
-  analysisPeriod: Exclude<HomeInsightsPeriod, "auto">;
+  analysisPeriod: HomeInsightsPeriod;
   periodStart: string;
   periodEnd: string;
   previousPeriodStart: string;
@@ -72,6 +72,17 @@ function daysBetweenInclusive(start: string, end: string): number {
   const s = new Date(`${start}T00:00:00Z`).getTime();
   const e = new Date(`${end}T00:00:00Z`).getTime();
   return Math.max(1, Math.floor((e - s) / 86400000) + 1);
+}
+
+const MAX_HOME_CUSTOM_RANGE_DAYS = 366;
+
+function parseCustomRange(start: string, end: string): { start: string; end: string } | null {
+  const s = start.trim().slice(0, 10);
+  const e = end.trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) return null;
+  if (s > e) return null;
+  if (daysBetweenInclusive(s, e) > MAX_HOME_CUSTOM_RANGE_DAYS) return null;
+  return { start: s, end: e };
 }
 
 function stripXml(text: string): string {
@@ -138,7 +149,8 @@ function factForLocale(locale: LocaleCode): string {
 export async function getHomeBriefing(
   walletId: string,
   locale: LocaleCode,
-  selectedPeriod: HomeInsightsPeriod = "auto"
+  selectedPeriod: HomeInsightsPeriod = "month_to_date",
+  customRange?: { start: string; end: string } | null
 ): Promise<BriefingData> {
   const supabase = await createClient();
   const { data: latestTx } = await supabase
@@ -217,19 +229,6 @@ export async function getHomeBriefing(
   const monthToDateStart = currentMonthRange.start;
   const monthToDateEnd = `${year}-${String(month).padStart(2, "0")}-${String(cutoffDay).padStart(2, "0")}`;
 
-  const { count: monthToDateCount } = await supabase
-    .from("transactions")
-    .select("id", { count: "exact", head: true })
-    .eq("wallet_id", walletId)
-    .eq("status", "confirmed")
-    .gte("date", monthToDateStart)
-    .lte("date", monthToDateEnd);
-
-  const rollingEnd = formatDateUTC(now);
-  const rollingStart = addDaysUTC(rollingEnd, -29);
-  const rollingPrevEnd = addDaysUTC(rollingStart, -1);
-  const rollingPrevStart = addDaysUTC(rollingPrevEnd, -29);
-
   const twoMonthsAgoMonth = prevMonth === 1 ? 12 : prevMonth - 1;
   const twoMonthsAgoYear = prevMonth === 1 ? prevYear - 1 : prevYear;
   const twoMonthsAgoRange = monthRangeUTC(twoMonthsAgoYear, twoMonthsAgoMonth);
@@ -247,16 +246,32 @@ export async function getHomeBriefing(
     end: `${year - 1}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`,
   };
 
-  let analysisPeriod: Exclude<HomeInsightsPeriod, "auto"> = "month_to_date";
-  if (selectedPeriod === "last_30_days") analysisPeriod = "last_30_days";
-  else if (selectedPeriod === "last_month") analysisPeriod = "last_month";
-  else if (selectedPeriod === "this_year") analysisPeriod = "this_year";
-  else if (selectedPeriod === "month_to_date") analysisPeriod = "month_to_date";
-  else analysisPeriod = (monthToDateCount ?? 0) < 8 ? "last_30_days" : "month_to_date";
+  let analysisPeriod: HomeInsightsPeriod = "month_to_date";
+  let customParsed: { start: string; end: string } | null = null;
+  if (selectedPeriod === "custom" && customRange) {
+    customParsed = parseCustomRange(customRange.start, customRange.end);
+  }
+  if (selectedPeriod === "custom" && customParsed) {
+    analysisPeriod = "custom";
+  } else if (selectedPeriod === "last_month") {
+    analysisPeriod = "last_month";
+  } else if (selectedPeriod === "this_year") {
+    analysisPeriod = "this_year";
+  } else {
+    analysisPeriod = "month_to_date";
+  }
+
+  const customPreviousRange = (() => {
+    if (!customParsed) return null;
+    const n = daysBetweenInclusive(customParsed.start, customParsed.end);
+    const prevEnd = addDaysUTC(customParsed.start, -1);
+    const prevStart = addDaysUTC(prevEnd, -(n - 1));
+    return { start: prevStart, end: prevEnd };
+  })();
 
   const currentRange =
-    analysisPeriod === "last_30_days"
-      ? { start: rollingStart, end: rollingEnd }
+    analysisPeriod === "custom" && customParsed
+      ? customParsed
       : analysisPeriod === "last_month"
         ? previousMonthRange
         : analysisPeriod === "this_year"
@@ -264,8 +279,8 @@ export async function getHomeBriefing(
           : { start: monthToDateStart, end: monthToDateEnd };
 
   const previousRange =
-    analysisPeriod === "last_30_days"
-      ? { start: rollingPrevStart, end: rollingPrevEnd }
+    analysisPeriod === "custom" && customPreviousRange
+      ? customPreviousRange
       : analysisPeriod === "last_month"
         ? twoMonthsAgoRange
         : analysisPeriod === "this_year"
@@ -437,9 +452,16 @@ export async function getHomeBriefing(
   const news = await fetchLocalizedNews(locale);
   const fact = factForLocale(locale);
 
+  const anchorYearOut =
+    analysisPeriod === "custom" && customParsed ? parseInt(customParsed.end.slice(0, 4), 10) : year;
+  const anchorMonthOut =
+    analysisPeriod === "custom" && customParsed ? parseInt(customParsed.end.slice(5, 7), 10) : month;
+  const anchorDayCutoffOut =
+    analysisPeriod === "custom" && customParsed ? parseInt(customParsed.end.slice(8, 10), 10) : cutoffDay;
+
   return {
-    anchorYear: year,
-    anchorMonth: month,
+    anchorYear: anchorYearOut,
+    anchorMonth: anchorMonthOut,
     prevYear,
     prevMonth,
     hasAnyTransactions,
@@ -461,7 +483,7 @@ export async function getHomeBriefing(
     monthDiningOut: diningOutAmount,
     prevDiningOut,
     diningChangePct,
-    anchorDayCutoff: cutoffDay,
+    anchorDayCutoff: anchorDayCutoffOut,
     analysisPeriod,
     periodStart: currentRange.start,
     periodEnd: currentRange.end,

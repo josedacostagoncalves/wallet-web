@@ -83,11 +83,17 @@
             "refresh": "Actualizar widgets",
             "periods": {
                 "label": "Periodo",
-                "auto": "Automático",
-                "monthToDate": "Mes hasta hoy",
+                "thisMonth": "Este mes",
                 "lastMonth": "Mes pasado",
                 "thisYear": "Este año",
-                "last30Days": "Últimos 30 días"
+                "custom": "Personalizado…",
+                "customDialogTitle": "Rango de fechas",
+                "fromDate": "Desde",
+                "toDate": "Hasta",
+                "customInvalid": "Introduce un rango válido (desde anterior o igual que hasta).",
+                "customTooLong": "El rango no puede superar 366 días.",
+                "customApply": "Aplicar",
+                "editCustomRange": "Cambiar fechas"
             },
             "scrollLeft": "Desplazar a la izquierda",
             "scrollRight": "Desplazar a la derecha",
@@ -287,7 +293,7 @@
             "payFlow": "{from} paga {amount} a {to}",
             "confirmSettlement": "Confirmar liquidación",
             "confirmSettlementTitle": "Confirmar liquidación",
-            "confirmSettlementMessage": "¿Crear una transferencia de liquidación de {amount} desde {from} hacia {to} con fecha {date}?",
+            "confirmSettlementMessage": "¿Crear una transferencia de liquidación de {amount} desde {from} hacia {to}?",
             "settlementDescription": "Liquidación {month}",
             "settlementConfirmedSuccess": "Transferencia de liquidación creada."
         },
@@ -552,7 +558,14 @@
                 "categorySubcategory": "Categoría :: Subcategoría",
                 "fromTo": "De → A",
                 "paidBy": "Pagado por",
-                "amount": "Cantidad"
+                "amount": "Cantidad",
+                "sortDate": "Ordenar por fecha",
+                "sortAmount": "Ordenar por cantidad",
+                "totalsHeading": "Totales (filtrado)",
+                "totalsIncome": "Ingresos",
+                "totalsExpense": "Gastos",
+                "totalsTransfer": "Transferencias",
+                "totalsNet": "Neto"
             },
             "empty": "Aún no hay transacciones. {link}",
             "addOne": "Añadir una transacción",
@@ -658,6 +671,7 @@
             "close": "Cerrar",
             "fields": {
                 "date": "Fecha *",
+                "openDateCalendar": "Abrir calendario",
                 "description": "Descripción *",
                 "descriptionPlaceholder": "ej.: Compras",
                 "incomeDescriptionPlaceholder": "ej.: Nómina",
@@ -669,6 +683,9 @@
                 "subcategoryRequired": "Subcategoría *",
                 "selectSubcategory": "Seleccionar…",
                 "none": "Ninguna",
+                "searchCategory": "Buscar categoría o subcategoría",
+                "searchCategoryPlaceholder": "ej.: Fix",
+                "searchCategoryNoMatches": "Sin coincidencias",
                 "addSubcategory": "Añadir subcategoría",
                 "amount": "Cantidad (€) *",
                 "amountPlaceholder": "0,00",

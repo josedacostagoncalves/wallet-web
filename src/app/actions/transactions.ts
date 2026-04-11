@@ -161,6 +161,33 @@ export async function getSubcategories(parentId: string | null) {
   return (data ?? []).map((c) => ({ id: c.id, name: c.name }));
 }
 
+export type CategoryFlatRow = {
+  id: string;
+  name: string;
+  parent_id: string | null;
+};
+
+/** Top-level and subcategories for search-as-you-type in transaction forms. */
+export async function getCategoriesFlatForSearch(
+  walletId: string | null,
+  type: "income" | "expense" | "transfer"
+): Promise<CategoryFlatRow[]> {
+  if (!walletId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select("id, name, parent_id")
+    .eq("wallet_id", walletId)
+    .eq("type", type)
+    .eq("is_active", true)
+    .order("name");
+  return (data ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    parent_id: c.parent_id,
+  }));
+}
+
 export type RecentSimilarRow = {
   id: string;
   date: string;
@@ -913,8 +940,8 @@ export async function updateTransaction(
         type,
         category_id,
         amount,
-        account_from_id,
-        account_to_id,
+        account_from_id: normalizedAccountFromId,
+        account_to_id: normalizedAccountToId,
         description: desc,
         recurrence_type,
         interval_months: recurrence_type === "interval_months" ? interval_months : null,
@@ -943,7 +970,7 @@ export async function updateTransaction(
       if (e.error) return e;
     }
 
-    const apply = applyEffect(type, amount, account_from_id, account_to_id);
+    const apply = applyEffect(type, amount, normalizedAccountFromId, normalizedAccountToId);
     for (const { id: aid, delta } of apply) {
       const e = await updateBalance(supabase, aid, delta);
       if (e.error) return e;

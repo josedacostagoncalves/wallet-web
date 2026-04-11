@@ -1,14 +1,28 @@
 "use client";
 
+import type { HomeInsightsPeriod } from "@/app/actions/home-insights";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type NewsItem = { title: string; link: string; source: string };
 
+function defaultCustomDateRange() {
+  const today = new Date();
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth();
+  const firstPrev = new Date(Date.UTC(y, m - 1, 1));
+  const lastPrev = new Date(Date.UTC(y, m, 0));
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return { from: fmt(firstPrev), to: fmt(lastPrev) };
+}
+
 type Props = {
   walletId: string;
-  selectedPeriod: "auto" | "month_to_date" | "last_month" | "this_year" | "last_30_days";
+  selectedPeriod: HomeInsightsPeriod;
+  customFrom: string | null;
+  customTo: string | null;
   data: {
     anchorYear: number;
     anchorMonth: number;
@@ -34,7 +48,7 @@ type Props = {
     prevDiningOut: number;
     diningChangePct: number | null;
     anchorDayCutoff: number;
-    analysisPeriod: "month_to_date" | "last_month" | "this_year" | "last_30_days";
+    analysisPeriod: HomeInsightsPeriod;
     periodStart: string;
     periodEnd: string;
     previousPeriodStart: string;
@@ -168,14 +182,27 @@ function hashToUnit(input: string) {
   return (h >>> 0) / 4294967295;
 }
 
-export function HomeSmartBriefing({ walletId, selectedPeriod, data }: Props) {
+/** `isoDate` YYYY-MM-DD — label for that calendar month (UTC). */
+function formatMonthYearFromIsoStart(isoDate: string, loc: string) {
+  const y = Number(isoDate.slice(0, 4));
+  const m = Number(isoDate.slice(5, 7));
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) return isoDate.slice(0, 10);
+  return new Intl.DateTimeFormat(loc, { month: "long", year: "numeric" }).format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
+export function HomeSmartBriefing({ walletId, selectedPeriod, customFrom, customTo, data }: Props) {
   const t = useTranslations("home.smart");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [refreshSeed, setRefreshSeed] = useState(0);
   const [openCard, setOpenCard] = useState<CardModel | null>(null);
+  const [customModalOpen, setCustomModalOpen] = useState(false);
+  const [draftFrom, setDraftFrom] = useState("");
+  const [draftTo, setDraftTo] = useState("");
+  const [customError, setCustomError] = useState<string | null>(null);
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [recentNonPinnedBuckets, setRecentNonPinnedBuckets] = useState<string[][]>([]);
   const cardsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -222,33 +249,65 @@ export function HomeSmartBriefing({ walletId, selectedPeriod, data }: Props) {
   }, [data.busiestDay, locale]);
 
   const periodLabel = useMemo(() => {
-    if (data.analysisPeriod === "last_30_days") {
-      const from = new Date(`${data.periodStart}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
-      const to = new Date(`${data.periodEnd}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
-      return `${from} - ${to}`;
+    if (data.analysisPeriod === "custom") {
+      const from = new Date(`${data.periodStart}T00:00:00`).toLocaleDateString(locale, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      const to = new Date(`${data.periodEnd}T00:00:00`).toLocaleDateString(locale, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      return `${from} – ${to}`;
+    }
+    if (data.analysisPeriod === "last_month") {
+      return formatMonthYearFromIsoStart(data.periodStart, locale);
+    }
+    if (data.analysisPeriod === "this_year") {
+      const y = Number(data.periodStart.slice(0, 4));
+      return Number.isInteger(y) ? String(y) : monthLabel;
     }
     return monthLabel;
   }, [data.analysisPeriod, data.periodStart, data.periodEnd, locale, monthLabel]);
 
   const previousPeriodLabel = useMemo(() => {
-    if (data.analysisPeriod === "last_30_days") {
-      const from = new Date(`${data.previousPeriodStart}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
-      const to = new Date(`${data.previousPeriodEnd}T00:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
-      return `${from} - ${to}`;
+    if (data.analysisPeriod === "custom") {
+      const from = new Date(`${data.previousPeriodStart}T00:00:00`).toLocaleDateString(locale, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      const to = new Date(`${data.previousPeriodEnd}T00:00:00`).toLocaleDateString(locale, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+      return `${from} – ${to}`;
+    }
+    if (data.analysisPeriod === "last_month") {
+      return formatMonthYearFromIsoStart(data.previousPeriodStart, locale);
+    }
+    if (data.analysisPeriod === "this_year") {
+      const y = Number(data.previousPeriodStart.slice(0, 4));
+      return Number.isInteger(y) ? String(y) : prevMonthLabel;
     }
     return prevMonthLabel;
   }, [data.analysisPeriod, data.previousPeriodStart, data.previousPeriodEnd, locale, prevMonthLabel]);
 
   const periodModeLabel = useMemo(() => {
-    if (data.analysisPeriod === "last_30_days") return t("periods.last30Days");
+    if (data.analysisPeriod === "custom") return t("periods.custom");
     if (data.analysisPeriod === "last_month") return t("periods.lastMonth");
     if (data.analysisPeriod === "this_year") return t("periods.thisYear");
-    return t("periods.monthToDate");
+    return t("periods.thisMonth");
   }, [data.analysisPeriod, t]);
 
-  const handlePeriodChange = (period: "auto" | "month_to_date" | "last_month" | "this_year" | "last_30_days") => {
+  const handlePeriodChange = (period: HomeInsightsPeriod) => {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
-    if (period === "auto") {
+    params.delete("from");
+    params.delete("to");
+    if (period === "month_to_date") {
       params.delete("insightPeriod");
     } else {
       params.set("insightPeriod", period);
@@ -257,12 +316,48 @@ export function HomeSmartBriefing({ walletId, selectedPeriod, data }: Props) {
     router.replace(query ? `${pathname}?${query}` : pathname);
   };
 
+  const openCustomModal = () => {
+    setCustomError(null);
+    const def = defaultCustomDateRange();
+    setDraftFrom(customFrom ?? def.from);
+    setDraftTo(customTo ?? def.to);
+    setCustomModalOpen(true);
+  };
+
+  const applyCustomRange = () => {
+    const f = draftFrom.trim().slice(0, 10);
+    const x = draftTo.trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f) || !/^\d{4}-\d{2}-\d{2}$/.test(x)) {
+      setCustomError(t("periods.customInvalid"));
+      return;
+    }
+    if (f > x) {
+      setCustomError(t("periods.customInvalid"));
+      return;
+    }
+    const days =
+      Math.floor((new Date(`${x}T00:00:00Z`).getTime() - new Date(`${f}T00:00:00Z`).getTime()) / 86400000) + 1;
+    if (days > 366) {
+      setCustomError(t("periods.customTooLong"));
+      return;
+    }
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("insightPeriod", "custom");
+    params.set("from", f);
+    params.set("to", x);
+    router.replace(`${pathname}?${params.toString()}`);
+    setCustomModalOpen(false);
+    setCustomError(null);
+  };
+
   const cards = useMemo<CardModel[]>(() => {
     const list: CardModel[] = [];
     const currentDayNote =
-      data.analysisPeriod === "last_30_days"
-        ? t("cards.lastNDays", { days: data.periodDays })
-        : t("cards.dayOfMonth", { day: data.anchorDayCutoff, month: monthLabel });
+      data.analysisPeriod === "custom"
+        ? periodLabel
+        : data.analysisPeriod === "last_month" || data.analysisPeriod === "this_year"
+          ? periodLabel
+          : t("cards.dayOfMonth", { day: data.anchorDayCutoff, month: monthLabel });
     const incomeVsExpensePct = data.monthIncome > 0 ? (data.monthExpenses / data.monthIncome) * 100 : 0;
 
     list.push({
@@ -631,16 +726,31 @@ export function HomeSmartBriefing({ walletId, selectedPeriod, data }: Props) {
           </label>
           <select
             id="home-period"
-            value={selectedPeriod}
-            onChange={(e) => handlePeriodChange(e.target.value as "auto" | "month_to_date" | "last_month" | "this_year" | "last_30_days")}
+            value={customModalOpen ? "custom" : selectedPeriod}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "custom") {
+                openCustomModal();
+                return;
+              }
+              handlePeriodChange(v as "month_to_date" | "last_month" | "this_year");
+            }}
             className="px-2 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200"
           >
-            <option value="auto">{t("periods.auto")}</option>
-            <option value="month_to_date">{t("periods.monthToDate")}</option>
+            <option value="month_to_date">{t("periods.thisMonth")}</option>
             <option value="last_month">{t("periods.lastMonth")}</option>
             <option value="this_year">{t("periods.thisYear")}</option>
-            <option value="last_30_days">{t("periods.last30Days")}</option>
+            <option value="custom">{t("periods.custom")}</option>
           </select>
+          {selectedPeriod === "custom" && !customModalOpen && (
+            <button
+              type="button"
+              onClick={openCustomModal}
+              className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {t("periods.editCustomRange")}
+            </button>
+          )}
           <span className="text-[11px] px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
             {periodModeLabel}: {periodLabel}
           </span>
@@ -799,6 +909,80 @@ export function HomeSmartBriefing({ walletId, selectedPeriod, data }: Props) {
           <p className="text-sm text-slate-700 dark:text-slate-200">{data.fact}</p>
         </div>
       </div>
+      {customModalOpen && (
+        <div
+          className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="home-custom-period-title"
+          onClick={() => {
+            setCustomModalOpen(false);
+            setCustomError(null);
+          }}
+        >
+          <div className="absolute inset-0 bg-black/40" />
+          <div
+            className="relative w-full max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 id="home-custom-period-title" className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+              {t("periods.customDialogTitle")}
+            </h4>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label htmlFor="home-period-custom-from" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  {t("periods.fromDate")}
+                </label>
+                <input
+                  id="home-period-custom-from"
+                  type="date"
+                  value={draftFrom}
+                  onChange={(e) => {
+                    setDraftFrom(e.target.value);
+                    setCustomError(null);
+                  }}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="home-period-custom-to" className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
+                  {t("periods.toDate")}
+                </label>
+                <input
+                  id="home-period-custom-to"
+                  type="date"
+                  value={draftTo}
+                  onChange={(e) => {
+                    setDraftTo(e.target.value);
+                    setCustomError(null);
+                  }}
+                  className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
+                />
+              </div>
+            </div>
+            {customError && <p className="text-xs text-rose-600 dark:text-rose-400 mb-3">{customError}</p>}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomModalOpen(false);
+                  setCustomError(null);
+                }}
+                className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                {tCommon("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={applyCustomRange}
+                className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+              >
+                {t("periods.customApply")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {openCard && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center p-4"
