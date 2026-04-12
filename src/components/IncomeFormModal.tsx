@@ -14,11 +14,13 @@ import {
   deleteTransaction,
   type CategoryFlatRow,
 } from "@/app/actions/transactions";
+import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
 import { getCategory } from "@/app/actions/categories";
 import { BalanceHint } from "@/components/BalanceHint";
 import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
 import { TransactionDateInput } from "@/components/TransactionDateInput";
+import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
 import { CopyIcon } from "@/components/ActionIcons";
@@ -69,6 +71,10 @@ export function IncomeFormModal({
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
+  const [observations, setObservations] = useState("");
+  const [attachments, setAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentFileError, setAttachmentFileError] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
   const [amount, setAmount] = useState("");
@@ -173,6 +179,14 @@ export function IncomeFormModal({
         setDate(m.date);
         setAmount(String(m.amount));
         setDescription(m.description ?? "");
+        setObservations((m as { observations?: string | null }).observations ?? "");
+        setAttachments(
+          Array.isArray((m as { attachments?: TransactionAttachmentRow[] }).attachments)
+            ? ((m as { attachments: TransactionAttachmentRow[] }).attachments ?? [])
+            : []
+        );
+        setPendingFiles([]);
+        setAttachmentFileError(null);
         setAccountToId(m.account_to_id ?? "");
         setPaidByMemberId(m.received_by_member_id ?? null);
         setCategoryId(catId);
@@ -194,6 +208,10 @@ export function IncomeFormModal({
         setDate(new Date().toISOString().slice(0, 10));
         setAmount(String(m.amount));
         setDescription(m.description ?? "");
+        setObservations((m as { observations?: string | null }).observations ?? "");
+        setAttachments([]);
+        setPendingFiles([]);
+        setAttachmentFileError(null);
         setAccountToId(m.account_to_id ?? "");
         setPaidByMemberId(m.received_by_member_id ?? null);
         setCategoryId(catId);
@@ -305,6 +323,10 @@ export function IncomeFormModal({
     skipNextSubcategoryReset.current = true;
     setAmount(String(m.amount));
     setDescription(m.description ?? "");
+    setObservations((m as { observations?: string | null }).observations ?? "");
+    setAttachments([]);
+    setPendingFiles([]);
+    setAttachmentFileError(null);
     setAccountToId(m.account_to_id ?? "");
     setCategoryId(catId);
     setSubcategoryId(subId);
@@ -315,6 +337,10 @@ export function IncomeFormModal({
   const resetForm = useCallback(() => {
     setDate(new Date().toISOString().slice(0, 10));
     setDescription("");
+    setObservations("");
+    setAttachments([]);
+    setPendingFiles([]);
+    setAttachmentFileError(null);
     setCategoryId("");
     setSubcategoryId("");
     setAmount("");
@@ -443,6 +469,7 @@ export function IncomeFormModal({
         account_from_id: null,
         account_to_id: accountToId,
         description: description.trim(),
+        observations: observations.trim() || null,
         is_recurring: useRecurring,
         recurrence_type: useRecurring ? recurrenceType : undefined,
         interval_months:
@@ -481,6 +508,7 @@ export function IncomeFormModal({
       account_from_id: null,
       account_to_id: accountToId,
       description: description.trim(),
+      observations: observations.trim() || null,
       is_recurring: isRecurring,
       recurrence_type: isRecurring ? recurrenceType : undefined,
       interval_months:
@@ -505,6 +533,15 @@ export function IncomeFormModal({
       setError(res.error);
       showToast(res.error, "error");
       return;
+    }
+    if (res.id && currentWalletId && pendingFiles.length > 0) {
+      for (const f of pendingFiles) {
+        const fd = new FormData();
+        fd.set("file", f);
+        const up = await uploadTransactionAttachment(currentWalletId, res.id, fd);
+        if (up.error) showToast(up.error, "error");
+      }
+      setPendingFiles([]);
     }
     showToast(t("toasts.transactionAdded"));
     onClose();
@@ -533,6 +570,7 @@ export function IncomeFormModal({
       account_from_id: null,
       account_to_id: accountToId,
       description: description.trim(),
+      observations: observations.trim() || null,
       is_recurring: false,
       received_by_member_id: paidByMemberId,
       paid_by_member_id: null,
@@ -664,6 +702,20 @@ export function IncomeFormModal({
                   className={inputClass}
                 />
               </div>
+              <TransactionObservationsAttachments
+                observations={observations}
+                onObservationsChange={setObservations}
+                walletId={currentWalletId}
+                transactionId={isEdit && transactionId ? transactionId : null}
+                attachments={attachments}
+                onAttachmentsChange={setAttachments}
+                pendingFiles={pendingFiles}
+                onPendingFilesChange={setPendingFiles}
+                fileError={attachmentFileError}
+                onFileError={setAttachmentFileError}
+                disabled={shouldBlockForm || loading}
+                textareaClassName={inputClass}
+              />
               <CategorySubcategorySearchField
                 flat={categoriesFlat}
                 disabled={shouldBlockForm}

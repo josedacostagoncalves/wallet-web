@@ -22,6 +22,7 @@ type Cat = {
   type: string;
   parent_id: string | null;
   is_active: boolean;
+  is_essential: boolean;
   children: Cat[];
 };
 
@@ -108,6 +109,30 @@ function buildDeleteMessage(t: { name: string; childCount: number; transactionCo
   return `Delete ${parts[0]}? This cannot be undone.`;
 }
 
+function EssentialBadgePill({ label }: { label: string }) {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-amber-200/90 bg-gradient-to-b from-amber-50 to-amber-100/95 px-2 py-0.5 text-[11px] font-semibold leading-none text-amber-950 shadow-sm dark:border-amber-600/40 dark:from-amber-950/50 dark:to-amber-900/35 dark:text-amber-100 dark:shadow-none"
+      title={label}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="size-2.5 text-amber-600 dark:text-amber-400"
+        aria-hidden
+      >
+        <path
+          fillRule="evenodd"
+          d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.006 5.404.434c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.434 2.082-5.005Z"
+          clipRule="evenodd"
+        />
+      </svg>
+      <span className="select-none">{label}</span>
+    </span>
+  );
+}
+
 /* ─── Main Page ─── */
 
 export default function CategoriesPage() {
@@ -149,11 +174,15 @@ export default function CategoriesPage() {
     const supabase = createClient();
     supabase
       .from("categories")
-      .select("id, name, type, parent_id, is_active")
+      .select("id, name, type, parent_id, is_active, is_essential")
       .eq("wallet_id", currentWalletId)
       .order("name")
       .then(({ data }) => {
-        const list = (data ?? []) as Cat[];
+        const list = (data ?? []).map((c) => ({
+          ...(c as Cat),
+          is_essential: !!(c as Cat).is_essential,
+          children: [] as Cat[],
+        }));
         const byParent: Record<string, Cat[]> = {};
         const roots: Cat[] = [];
         for (const c of list) {
@@ -393,6 +422,9 @@ export default function CategoriesPage() {
                                   <span className="text-sm font-medium">
                                     {cat.name}
                                   </span>
+                                  {type === "expense" && !hasSubs && cat.is_essential && (
+                                    <EssentialBadgePill label={tCategoriesPage("page.essentialBadge")} />
+                                  )}
                                   {!cat.is_active && (
                                     <span className="text-[10px] text-slate-400 ml-1">
                                       ({tCategoriesPage("page.inactive")})
@@ -461,6 +493,9 @@ export default function CategoriesPage() {
                                         <span className="text-sm">
                                           {sub.name}
                                         </span>
+                                        {type === "expense" && sub.is_essential && (
+                                          <EssentialBadgePill label={tCategoriesPage("page.essentialBadge")} />
+                                        )}
                                         {!sub.is_active && (
                                           <span className="text-[10px] text-slate-400">
                                             ({tCategoriesPage("page.inactive")})

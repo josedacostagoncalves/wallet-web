@@ -41,6 +41,8 @@ export type Category = {
   parent_id: string | null;
   created_by: string;
   is_active: boolean;
+  /** Expense-only: subcategories and leaf top-level expense categories. */
+  is_essential?: boolean;
   created_at: string;
   updated_at: string;
 };

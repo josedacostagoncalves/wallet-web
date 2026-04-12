@@ -55,6 +55,12 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
 
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [isEssential, setIsEssential] = useState(false);
+  const [editParentId, setEditParentId] = useState<string | null>(null);
+  const [editChildCount, setEditChildCount] = useState(0);
+  const [editType, setEditType] = useState<"income" | "expense" | "transfer" | null>(null);
+  const [parentRootOptions, setParentRootOptions] = useState<{ id: string; name: string }[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,23 +74,70 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
     if (mode.kind === "edit") {
       setLoadingData(true);
       const supabase = createClient();
-      supabase
-        .from("categories")
-        .select("name, is_active")
-        .eq("id", mode.categoryId)
-        .single()
-        .then(({ data, error: e }) => {
+      Promise.all([
+        supabase
+          .from("categories")
+          .select("wallet_id, name, is_active, is_essential, parent_id, type")
+          .eq("id", mode.categoryId)
+          .single(),
+        supabase
+          .from("categories")
+          .select("id", { count: "exact", head: true })
+          .eq("parent_id", mode.categoryId),
+      ]).then(async ([rowRes, countRes]) => {
+        const data = rowRes.data;
+        const e = rowRes.error;
+        if (e || !data) {
           setLoadingData(false);
-          if (e || !data) {
-            setError(e?.message ?? tCategories("notFound"));
-            return;
+          setError(e?.message ?? tCategories("notFound"));
+          setParentRootOptions([]);
+          setSelectedParentId("");
+          return;
+        }
+        setName(data.name);
+        setIsActive(data.is_active);
+        setIsEssential(!!(data as { is_essential?: boolean }).is_essential);
+        const pid = (data as { parent_id?: string | null }).parent_id ?? null;
+        setEditParentId(pid);
+        setEditChildCount(countRes.count ?? 0);
+        const t = (data as { type?: string }).type;
+        const typ = t === "income" || t === "expense" || t === "transfer" ? t : null;
+        setEditType(typ);
+        const wid = (data as { wallet_id?: string }).wallet_id ?? null;
+        if (pid && wid && typ) {
+          setSelectedParentId(pid);
+          const { data: roots } = await supabase
+            .from("categories")
+            .select("id, name")
+            .eq("wallet_id", wid)
+            .eq("type", typ)
+            .is("parent_id", null)
+            .order("name");
+          let list = (roots ?? []) as { id: string; name: string }[];
+          if (!list.some((r) => r.id === pid)) {
+            const { data: cur } = await supabase.from("categories").select("id, name").eq("id", pid).maybeSingle();
+            if (cur) {
+              list = [cur as { id: string; name: string }, ...list].sort((a, b) =>
+                a.name.localeCompare(b.name)
+              );
+            }
           }
-          setName(data.name);
-          setIsActive(data.is_active);
-        });
+          setParentRootOptions(list);
+        } else {
+          setSelectedParentId("");
+          setParentRootOptions([]);
+        }
+        setLoadingData(false);
+      });
     } else {
       setName("");
       setIsActive(true);
+      setIsEssential(false);
+      setEditParentId(null);
+      setEditChildCount(0);
+      setEditType(null);
+      setParentRootOptions([]);
+      setSelectedParentId("");
       setSelectedSuggestionKeys(new Set());
     }
   }, [open, mode, tCategories]);
@@ -138,9 +191,14 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
     let newId: string | undefined;
 
     if (mode.kind === "edit") {
+      const isSub = editParentId != null;
+      const isLeafRoot = editParentId == null && editChildCount === 0;
+      const expenseEdit = editType === "expense";
       const res = await updateCategory(mode.categoryId, {
         name: name.trim(),
         is_active: isActive,
+        ...(expenseEdit && (isSub || isLeafRoot) ? { is_essential: isEssential } : {}),
+        ...(isSub && selectedParentId ? { parent_id: selectedParentId } : {}),
       });
       setLoading(false);
       if (res.error) {
@@ -155,6 +213,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         wallet_id: currentWalletId,
         name: name.trim(),
         type: mode.type,
+        is_essential: mode.type === "expense" ? isEssential : false,
       });
       setLoading(false);
       if (res.error) {
@@ -172,6 +231,7 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
         name: name.trim(),
         type: mode.type,
         parent_id: mode.parentId,
+        is_essential: mode.type === "expense" ? isEssential : false,
       });
       setLoading(false);
       if (res.error) {
@@ -252,6 +312,17 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
       .filter((s) => !name.trim() || s.label.toLowerCase().includes(name.trim().toLowerCase()))
       .sort((a, b) => Number(a.exists) - Number(b.exists) || a.label.localeCompare(b.label));
   }, [mode, tCategories, existingRootNames, name]);
+
+  const expenseContext =
+    mode.kind === "edit"
+      ? editType === "expense"
+      : (mode.kind === "add-category" || mode.kind === "add-subcategory") && mode.type === "expense";
+
+  const showEssentialCheckbox =
+    expenseContext &&
+    (mode.kind === "add-category" ||
+      mode.kind === "add-subcategory" ||
+      (mode.kind === "edit" && (editParentId != null || editChildCount === 0)));
 
   if (!open) return null;
 
@@ -364,6 +435,40 @@ export function CategoryModal({ mode, open, onClose, onSaved }: Props) {
                   autoFocus
                   className={inputClass}
                 />
+              </div>
+            )}
+            {mode.kind === "edit" && editParentId && parentRootOptions.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1" htmlFor="catMoveParent">
+                  {tCategories("parentCategoryEditLabel")}
+                </label>
+                <select
+                  id="catMoveParent"
+                  value={selectedParentId}
+                  onChange={(e) => setSelectedParentId(e.target.value)}
+                  required
+                  className={inputClass}
+                >
+                  {parentRootOptions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">{tCategories("moveSubcategoryHint")}</p>
+              </div>
+            )}
+            {showEssentialCheckbox && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="catEssential"
+                  checked={isEssential}
+                  onChange={(e) => setIsEssential(e.target.checked)}
+                />
+                <label htmlFor="catEssential" className="text-sm">
+                  {tCategories("essentialLabel")}
+                </label>
               </div>
             )}
             {mode.kind === "edit" && (

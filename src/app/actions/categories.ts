@@ -20,11 +20,16 @@ export async function getCategory(id: string | null) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("categories")
-    .select("id, name, parent_id")
+    .select("id, name, parent_id, is_essential")
     .eq("id", id)
     .single();
   if (!data) return null;
-  return { id: data.id, name: data.name, parent_id: data.parent_id as string | null };
+  return {
+    id: data.id,
+    name: data.name,
+    parent_id: data.parent_id as string | null,
+    is_essential: !!(data as { is_essential?: boolean }).is_essential,
+  };
 }
 
 export async function createCategory(params: {
@@ -32,12 +37,15 @@ export async function createCategory(params: {
   name: string;
   type: "income" | "expense" | "transfer";
   parent_id?: string | null;
+  is_essential?: boolean;
 }): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+
+  const isEssential = params.type === "expense" && !!params.is_essential;
 
   const { data, error } = await supabase
     .from("categories")
@@ -48,33 +56,89 @@ export async function createCategory(params: {
       parent_id: params.parent_id ?? null,
       created_by: user.id,
       is_active: true,
+      is_essential: isEssential,
     })
     .select("id")
     .single();
 
   if (error) return { error: error.message };
+
+  if (params.parent_id && params.type === "expense") {
+    const { error: clearErr } = await supabase
+      .from("categories")
+      .update({ is_essential: false })
+      .eq("id", params.parent_id);
+    if (clearErr) {
+      if (data?.id) await supabase.from("categories").delete().eq("id", data.id);
+      return { error: clearErr.message };
+    }
+  }
+
   await logActivity(supabase, {
     action: "category_create",
     entity_type: "category",
     entity_id: data?.id ?? undefined,
     wallet_id: params.wallet_id,
-    payload: { name: params.name, type: params.type, parent_id: params.parent_id },
+    payload: {
+      name: params.name,
+      type: params.type,
+      parent_id: params.parent_id,
+      is_essential: isEssential,
+    },
   });
   return { id: data?.id };
 }
 
 export async function updateCategory(
   id: string,
-  params: { name?: string; is_active?: boolean }
+  params: { name?: string; is_active?: boolean; is_essential?: boolean; parent_id?: string | null }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
 
   const { data: existing } = await supabase
     .from("categories")
-    .select("wallet_id, name")
+    .select("wallet_id, name, parent_id, is_essential, type")
     .eq("id", id)
     .single();
   if (!existing) return { error: "Category not found" };
+
+  const rowType = (existing as { type?: string }).type;
+  let parentIdChanged = false;
+
+  if (params.parent_id !== undefined) {
+    if (existing.parent_id == null) {
+      return { error: "Only subcategories can change parent category." };
+    }
+    if (params.parent_id === null || params.parent_id === "") {
+      return { error: "Subcategory must have a parent category." };
+    }
+    if (params.parent_id === id) {
+      return { error: "Invalid parent category." };
+    }
+    if (params.parent_id !== existing.parent_id) {
+      const { data: newParent, error: pErr } = await supabase
+        .from("categories")
+        .select("id, wallet_id, type, parent_id")
+        .eq("id", params.parent_id)
+        .single();
+      if (pErr || !newParent) return { error: "Parent category not found." };
+      const np = newParent as { wallet_id: string; type: string; parent_id: string | null };
+      if (
+        np.wallet_id !== existing.wallet_id ||
+        np.type !== rowType ||
+        np.parent_id !== null
+      ) {
+        return { error: "Invalid parent category." };
+      }
+    }
+  }
+
+  const { count: childCount } = await supabase
+    .from("categories")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_id", id);
+  const hasChildren = (childCount ?? 0) > 0;
+  const isRoot = existing.parent_id == null;
 
   const updates: Record<string, unknown> = {};
   const payload: Record<string, { old?: unknown; new: unknown }> = {};
@@ -87,11 +151,39 @@ export async function updateCategory(
     updates.is_active = params.is_active;
     payload.is_active = { new: params.is_active };
   }
+  if (isRoot && hasChildren) {
+    updates.is_essential = false;
+    if (existing.is_essential) {
+      payload.is_essential = { old: true, new: false };
+    }
+  } else if (
+    rowType === "expense" &&
+    params.is_essential !== undefined &&
+    existing.is_essential !== params.is_essential
+  ) {
+    updates.is_essential = params.is_essential;
+    payload.is_essential = { old: existing.is_essential, new: params.is_essential };
+  }
+
+  if (rowType !== "expense" && existing.is_essential) {
+    updates.is_essential = false;
+    payload.is_essential = { old: existing.is_essential, new: false };
+  }
+
+  if (params.parent_id !== undefined && existing.parent_id != null && params.parent_id !== existing.parent_id) {
+    updates.parent_id = params.parent_id;
+    payload.parent_id = { old: existing.parent_id, new: params.parent_id };
+    parentIdChanged = true;
+  }
 
   if (Object.keys(updates).length === 0) return {};
 
   const { error: err } = await supabase.from("categories").update(updates).eq("id", id);
   if (err) return { error: err.message };
+
+  if (parentIdChanged && rowType === "expense" && params.parent_id) {
+    await supabase.from("categories").update({ is_essential: false }).eq("id", params.parent_id);
+  }
 
   await logActivity(supabase, {
     action: "category_edit",

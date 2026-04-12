@@ -18,6 +18,7 @@ export default function NewCategoryPage() {
   const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
+  const [isEssential, setIsEssential] = useState(false);
   const [type, setType] = useState<"income" | "expense" | "transfer">("expense");
   const [parentId, setParentId] = useState("");
   const [parents, setParents] = useState<{ id: string; name: string }[]>([]);
@@ -41,6 +42,10 @@ export default function NewCategoryPage() {
       });
   }, [currentWalletId, type]);
 
+  useEffect(() => {
+    if (type !== "expense") setIsEssential(false);
+  }, [type]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!currentWalletId) return;
@@ -51,6 +56,7 @@ export default function NewCategoryPage() {
       name: name.trim(),
       type,
       parent_id: parentId || null,
+      is_essential: type === "expense" ? isEssential : false,
     });
     setLoading(false);
     if (res.error) {
@@ -117,6 +123,19 @@ export default function NewCategoryPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
+        {type === "expense" && (
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="newCatEssential"
+              checked={isEssential}
+              onChange={(e) => setIsEssential(e.target.checked)}
+            />
+            <label htmlFor="newCatEssential" className="text-sm">
+              {tCategories("essentialLabel")}
+            </label>
+          </div>
+        )}
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="flex gap-3">
           <button

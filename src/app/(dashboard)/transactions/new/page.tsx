@@ -10,9 +10,11 @@ import {
   getRecentTransactionsByCategory,
   type CategoryFlatRow,
 } from "@/app/actions/transactions";
+import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { CopyIcon } from "@/components/ActionIcons";
 import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
 import { TransactionDateInput } from "@/components/TransactionDateInput";
+import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import {
@@ -64,6 +66,10 @@ export default function NewTransactionPage() {
   const [accountFromId, setAccountFromId] = useState("");
   const [accountToId, setAccountToId] = useState("");
   const [description, setDescription] = useState("");
+  const [observations, setObservations] = useState("");
+  const [attachments, setAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentFileError, setAttachmentFileError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingCopy, setLoadingCopy] = useState(false);
@@ -125,6 +131,10 @@ export default function NewTransactionPage() {
       setAccountFromId(m.account_from_id ?? "");
       setAccountToId(m.account_to_id ?? "");
       setDescription(m.description ?? "");
+      setObservations((m as { observations?: string | null }).observations ?? "");
+      setAttachments([]);
+      setPendingFiles([]);
+      setAttachmentFileError(null);
       setCategoryId(catId);
       setSubcategoryId(subId);
       skipNextSubcategoryReset.current = true;
@@ -194,6 +204,10 @@ export default function NewTransactionPage() {
     if (didCopyFrom.current) {
       didCopyFrom.current = false;
       setDescription("");
+      setObservations("");
+      setAttachments([]);
+      setPendingFiles([]);
+      setAttachmentFileError(null);
       setAmount("");
       setAccountFromId("");
       setAccountToId("");
@@ -216,6 +230,10 @@ export default function NewTransactionPage() {
     skipNextSubcategoryReset.current = true;
     setAmount(String(m.amount));
     setDescription(m.description ?? "");
+    setObservations((m as { observations?: string | null }).observations ?? "");
+    setAttachments([]);
+    setPendingFiles([]);
+    setAttachmentFileError(null);
     setAccountFromId(m.account_from_id ?? "");
     setAccountToId(m.account_to_id ?? "");
     setCategoryId(catId);
@@ -288,6 +306,7 @@ export default function NewTransactionPage() {
       account_from_id: type === "income" ? null : accountFromId || null,
       account_to_id: type === "expense" ? null : accountToId || null,
       description: description.trim(),
+      observations: observations.trim() || null,
       is_recurring: isRecurring,
       recurrence_type: isRecurring ? recurrenceType : undefined,
       interval_months:
@@ -309,6 +328,15 @@ export default function NewTransactionPage() {
       setError(res.error);
       showToast(res.error, "error");
       return;
+    }
+    if (res.id && currentWalletId && pendingFiles.length > 0) {
+      for (const f of pendingFiles) {
+        const fd = new FormData();
+        fd.set("file", f);
+        const up = await uploadTransactionAttachment(currentWalletId, res.id, fd);
+        if (up.error) showToast(up.error, "error");
+      }
+      setPendingFiles([]);
     }
     showToast(tForm("toasts.transactionAdded"));
     router.push("/transactions");
@@ -448,6 +476,10 @@ export default function NewTransactionPage() {
             setStep("type");
             setType(null);
             setCopyFrom(null);
+            setObservations("");
+            setAttachments([]);
+            setPendingFiles([]);
+            setAttachmentFileError(null);
             setError(null);
             didCopyFrom.current = false;
           }}
@@ -478,6 +510,21 @@ export default function NewTransactionPage() {
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
           </div>
+          <TransactionObservationsAttachments
+            observations={observations}
+            onObservationsChange={setObservations}
+            walletId={currentWalletId}
+            transactionId={null}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            pendingFiles={pendingFiles}
+            onPendingFilesChange={setPendingFiles}
+            fileError={attachmentFileError}
+            onFileError={setAttachmentFileError}
+            disabled={loading}
+            textareaClassName="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+            labelClassName="block text-sm font-medium mb-1"
+          />
           <CategorySubcategorySearchField
             flat={categoriesFlat}
             labelClassName="block text-sm font-medium mb-1"
@@ -493,6 +540,10 @@ export default function NewTransactionPage() {
                 if (didCopyFrom.current) {
                   didCopyFrom.current = false;
                   setDescription("");
+                  setObservations("");
+                  setAttachments([]);
+                  setPendingFiles([]);
+                  setAttachmentFileError(null);
                   setAmount("");
                   setAccountFromId("");
                   setAccountToId("");

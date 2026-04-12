@@ -30,6 +30,7 @@ export default async function TransactionsPage() {
         type: string;
         amount: number;
         description: string | null;
+        observations: string | null;
         account_from_id: string | null;
         account_to_id: string | null;
         paid_by_member_id: string | null;
@@ -45,6 +46,7 @@ export default async function TransactionsPage() {
         type: string;
         amount: number;
         description: string | null;
+        observations: string | null;
         category: CategoryRow | null;
         categoryLabel: string;
         subcategoryLabel: string;
@@ -77,7 +79,7 @@ export default async function TransactionsPage() {
             supabase
                 .from("transactions")
                 .select(
-                    "id, date, type, amount, description, account_from_id, account_to_id, paid_by_member_id, status, hold_balance, " +
+                    "id, date, type, amount, description, observations, account_from_id, account_to_id, paid_by_member_id, status, hold_balance, " +
                     "received_by_member_id, split_method_override, " +
                     "category:categories(name, parent_id)"
                 )
@@ -161,6 +163,7 @@ export default async function TransactionsPage() {
                 type: t.type,
                 amount: Number(t.amount),
                 description: t.description,
+                observations: t.observations ?? null,
                 category: c,
                 categoryLabel,
                 subcategoryLabel,
@@ -251,12 +254,13 @@ export default async function TransactionsPage() {
 
     const confirmed = transactions
         .filter((t) => t.status === "confirmed")
-        .map(({ id, date, type, amount, description, categoryLabel, subcategoryLabel, accountFromName, accountToName, paidByMemberName, paidByMemberAvatar, receivedByMemberName, receivedByMemberAvatar, splitMethod }) => ({
+        .map(({ id, date, type, amount, description, observations, categoryLabel, subcategoryLabel, accountFromName, accountToName, paidByMemberName, paidByMemberAvatar, receivedByMemberName, receivedByMemberAvatar, splitMethod }) => ({
             id,
             date,
             type,
             amount,
             description,
+            observations,
             categoryLabel,
             subcategoryLabel,
             accountFromName,

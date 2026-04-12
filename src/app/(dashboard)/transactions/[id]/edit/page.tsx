@@ -11,8 +11,10 @@ import {
   confirmTransaction,
   type CategoryFlatRow,
 } from "@/app/actions/transactions";
+import { type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
 import { TransactionDateInput } from "@/components/TransactionDateInput";
+import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
@@ -51,6 +53,10 @@ export default function EditTransactionPage() {
   const [accountFromId, setAccountFromId] = useState("");
   const [accountToId, setAccountToId] = useState("");
   const [description, setDescription] = useState("");
+  const [observations, setObservations] = useState("");
+  const [attachments, setAttachments] = useState<TransactionAttachmentRow[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [attachmentFileError, setAttachmentFileError] = useState<string | null>(null);
   const [currentCategoryName, setCurrentCategoryName] = useState("");
   const [currentSubcategoryName, setCurrentSubcategoryName] = useState("");
 
@@ -80,6 +86,14 @@ export default function EditTransactionPage() {
       setAccountFromId(m.account_from_id ?? "");
       setAccountToId(m.account_to_id ?? "");
       setDescription(m.description ?? "");
+      setObservations((m as { observations?: string | null }).observations ?? "");
+      setAttachments(
+        Array.isArray((m as { attachments?: TransactionAttachmentRow[] }).attachments)
+          ? ((m as { attachments: TransactionAttachmentRow[] }).attachments ?? [])
+          : []
+      );
+      setPendingFiles([]);
+      setAttachmentFileError(null);
       if (m.parent_id) {
         setCategoryId(m.parent_id);
         setSubcategoryId(m.category_id);
@@ -196,6 +210,7 @@ export default function EditTransactionPage() {
       account_from_id: type === "income" ? null : accountFromId || null,
       account_to_id: type === "expense" ? null : accountToId || null,
       description: description.trim(),
+      observations: observations.trim() || null,
       is_recurring: status === "confirmed" ? isRecurring : false,
       recurrence_type: status === "confirmed" && isRecurring ? recurrenceType : undefined,
       interval_months:
@@ -247,6 +262,7 @@ export default function EditTransactionPage() {
       account_from_id: type === "income" ? null : accountFromId || null,
       account_to_id: type === "expense" ? null : accountToId || null,
       description: description.trim(),
+      observations: observations.trim() || null,
       is_recurring: false,
     });
     if (res.error) {
@@ -354,6 +370,21 @@ export default function EditTransactionPage() {
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>
+        <TransactionObservationsAttachments
+          observations={observations}
+          onObservationsChange={setObservations}
+          walletId={currentWalletId}
+          transactionId={id}
+          attachments={attachments}
+          onAttachmentsChange={setAttachments}
+          pendingFiles={pendingFiles}
+          onPendingFilesChange={setPendingFiles}
+          fileError={attachmentFileError}
+          onFileError={setAttachmentFileError}
+          disabled={saving || confirming || deleting}
+          textareaClassName="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+          labelClassName="block text-sm font-medium mb-1"
+        />
         <CategorySubcategorySearchField
           flat={categoriesFlat}
           labelClassName="block text-sm font-medium mb-1"

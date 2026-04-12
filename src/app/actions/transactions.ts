@@ -513,7 +513,8 @@ export async function createTransaction(params: {
   received_by_member_id?: string | null;
   split_method_override?: SplitMethod | null;
   manual_splits?: ManualSplitInput[];
-}): Promise<{ error?: string }> {
+  observations?: string | null;
+}): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -543,7 +544,11 @@ export async function createTransaction(params: {
     received_by_member_id = null,
     split_method_override = null,
     manual_splits = [],
+    observations = null,
   } = params;
+
+  const obs =
+    observations == null || String(observations).trim() === "" ? null : String(observations).trim().slice(0, 8000);
 
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
@@ -657,6 +662,7 @@ export async function createTransaction(params: {
       paid_by_member_id: normalizedPaidByMemberId,
       received_by_member_id: normalizedReceivedByMemberId,
       split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
+      observations: obs,
     })
     .select("id")
     .single();
@@ -700,7 +706,7 @@ export async function createTransaction(params: {
     payload: { amount, type, date, category_id, account_from_id, account_to_id, is_recurring: !!ruleId, status },
   });
 
-  return {};
+  return { id: t.id };
 }
 
 function undoEffect(
@@ -743,6 +749,11 @@ export async function getTransaction(id: string) {
     .from("transaction_splits")
     .select("member_id, percentage")
     .eq("transaction_id", id);
+  const { data: attachmentRows } = await supabase
+    .from("transaction_attachments")
+    .select("id, file_name, mime_type, size_bytes")
+    .eq("transaction_id", id)
+    .order("created_at", { ascending: true });
   const c = data.category as { id: string; name: string; type: string; parent_id: string | null } | null;
   return {
     id: data.id,
@@ -764,6 +775,13 @@ export async function getTransaction(id: string) {
       percentage: Number(s.percentage),
     })),
     description: data.description,
+    observations: (data as { observations?: string | null }).observations ?? null,
+    attachments: (attachmentRows ?? []).map((a) => ({
+      id: a.id,
+      file_name: a.file_name,
+      mime_type: a.mime_type,
+      size_bytes: a.size_bytes != null ? Number(a.size_bytes) : null,
+    })),
     status: (data.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
     hold_balance: !!data.hold_balance,
   };
@@ -788,6 +806,7 @@ export async function updateTransaction(
     received_by_member_id?: string | null;
     split_method_override?: SplitMethod | null;
     manual_splits?: ManualSplitInput[];
+    observations?: string | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -820,7 +839,11 @@ export async function updateTransaction(
     received_by_member_id = null,
     split_method_override = null,
     manual_splits = [],
+    observations = null,
   } = params;
+
+  const obs =
+    observations == null || String(observations).trim() === "" ? null : String(observations).trim().slice(0, 8000);
 
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
@@ -882,6 +905,7 @@ export async function updateTransaction(
       account_from_id: normalizedAccountFromId,
       account_to_id: normalizedAccountToId,
       description: desc,
+      observations: obs,
       paid_by_member_id: normalizedPaidByMemberId,
       received_by_member_id: normalizedReceivedByMemberId,
       split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
@@ -985,6 +1009,7 @@ export async function updateTransaction(
     account_from_id: string | null;
     account_to_id: string | null;
     description: string;
+    observations: string | null;
     recurring_rule_id?: string | null;
     paid_by_member_id: string | null;
     received_by_member_id: string | null;
@@ -997,6 +1022,7 @@ export async function updateTransaction(
     account_from_id: normalizedAccountFromId,
     account_to_id: normalizedAccountToId,
     description: desc,
+    observations: obs,
     paid_by_member_id: normalizedPaidByMemberId,
     received_by_member_id: normalizedReceivedByMemberId,
     split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
@@ -1048,6 +1074,18 @@ export async function deleteTransaction(id: string): Promise<{ error?: string }>
     .eq("id", id)
     .single();
   if (!t) return { error: "Transaction not found" };
+
+  const { data: attachmentPaths } = await supabase
+    .from("transaction_attachments")
+    .select("storage_path")
+    .eq("transaction_id", id);
+  if (attachmentPaths?.length) {
+    const paths = attachmentPaths.map((r) => r.storage_path).filter(Boolean);
+    if (paths.length) {
+      const { error: stErr } = await supabase.storage.from("transaction-files").remove(paths);
+      if (stErr) return { error: stErr.message };
+    }
+  }
 
   // Reverse balance if: confirmed (always updated), or pending with hold_balance=false (was already applied)
   const balanceWasApplied = t.status === "confirmed" || (t.status === "pending" && !t.hold_balance);

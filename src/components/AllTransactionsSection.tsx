@@ -20,6 +20,7 @@ export type ConfirmedRow = {
   type: string;
   amount: number;
   description: string | null;
+  observations: string | null;
   categoryLabel: string;
   subcategoryLabel: string;
   accountFromName: string;
@@ -63,6 +64,7 @@ function matchSearch(t: ConfirmedRow, q: string): boolean {
   });
   return (
     s(t.description).includes(qq) ||
+    s(t.observations).includes(qq) ||
     s(t.categoryLabel).includes(qq) ||
     s(t.subcategoryLabel).includes(qq) ||
     s(t.accountFromName).includes(qq) ||
