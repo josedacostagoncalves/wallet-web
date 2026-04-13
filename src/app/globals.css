@@ -112,3 +112,30 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Scrollbars that match dark UI (e.g. transaction modals / similar list) */
+.friendly-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184) rgb(241 245 249);
+}
+.dark .friendly-scroll {
+  scrollbar-color: rgb(71 85 105) rgb(31 33 39);
+}
+.friendly-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.friendly-scroll::-webkit-scrollbar-track {
+  background: rgb(241 245 249);
+  border-radius: 9999px;
+}
+.friendly-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(148 163 184);
+  border-radius: 9999px;
+}
+.dark .friendly-scroll::-webkit-scrollbar-track {
+  background: rgb(31 33 39);
+}
+.dark .friendly-scroll::-webkit-scrollbar-thumb {
+  background-color: rgb(71 85 105);
+}

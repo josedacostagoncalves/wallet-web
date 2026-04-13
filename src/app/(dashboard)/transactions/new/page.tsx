@@ -9,6 +9,7 @@ import {
   createTransaction,
   getRecentTransactionsByCategory,
   type CategoryFlatRow,
+  type RecentSimilarRow,
 } from "@/app/actions/transactions";
 import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { CopyIcon } from "@/components/ActionIcons";
@@ -25,13 +26,20 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+} from "@/lib/money-format";
 
 type TransactionType = "income" | "expense" | "transfer";
 
 export default function NewTransactionPage() {
   const tForm = useTranslations("transactions.form");
   const tTransactions = useTranslations("transactions");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
@@ -74,9 +82,7 @@ export default function NewTransactionPage() {
   const [loading, setLoading] = useState(false);
   const [loadingCopy, setLoadingCopy] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [recentSimilar, setRecentSimilar] = useState<
-    { id: string; date: string; description: string | null; amount: number }[]
-  >([]);
+  const [recentSimilar, setRecentSimilar] = useState<RecentSimilarRow[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [copyingSimilarId, setCopyingSimilarId] = useState<string | null>(null);
   const [isRecurring, setIsRecurring] = useState(false);
@@ -127,7 +133,7 @@ export default function NewTransactionPage() {
       setType(m.type as TransactionType);
       setStep("form");
       setDate(new Date().toISOString().slice(0, 10));
-      setAmount(String(m.amount));
+      setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
       setAccountFromId(m.account_from_id ?? "");
       setAccountToId(m.account_to_id ?? "");
       setDescription(m.description ?? "");
@@ -140,7 +146,7 @@ export default function NewTransactionPage() {
       skipNextSubcategoryReset.current = true;
       didCopyFrom.current = true;
     });
-  }, [copyId, currentWalletId, tForm]);
+  }, [copyId, currentWalletId, tForm, localeTag]);
 
   useEffect(() => {
     if (!currentWalletId || !type) return;
@@ -228,7 +234,7 @@ export default function NewTransactionPage() {
     const catId = parentId || m.category_id;
     const subId = parentId ? m.category_id : "";
     skipNextSubcategoryReset.current = true;
-    setAmount(String(m.amount));
+    setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
     setDescription(m.description ?? "");
     setObservations((m as { observations?: string | null }).observations ?? "");
     setAttachments([]);
@@ -590,6 +596,7 @@ export default function NewTransactionPage() {
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onBlur={() => setAmount((a) => normalizeMoneyInputString(a, localeTag))}
               required
               placeholder={tForm("fields.amountPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
@@ -790,64 +797,69 @@ export default function NewTransactionPage() {
         </form>
 
         {type && categoryId && (
-          <div className="w-full lg:w-1/2 lg:min-w-0 rounded-xl border border-slate-200 overflow-hidden">
-            <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-              <h3 className="text-xs font-medium">
+          <div className="w-full lg:w-1/2 lg:min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-800/80 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-xs font-medium text-slate-700 dark:text-slate-200">
                 {similarTitle()}
               </h3>
             </div>
-            <div className="p-4 min-h-[140px]">
+            <div className="p-4 min-h-[140px] max-h-[min(50vh,420px)] overflow-y-auto friendly-scroll">
               {loadingSimilar ? (
                 <p className="text-xs text-slate-500">{tForm("similar.loading")}</p>
               ) : recentSimilar.length === 0 ? (
                 <p className="text-xs text-slate-500">{tForm("similar.noSimilar")}</p>
               ) : (
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-left text-slate-500">
-                      <th className="pb-2 pr-3 font-medium">{tForm("similar.tableDate")}</th>
-                      <th className="pb-2 pr-3 font-medium min-w-0">{tForm("similar.tableDescription")}</th>
-                      <th className="pb-2 pr-3 font-medium text-right">{tForm("similar.tableAmount")}</th>
-                      <th className="pb-2 font-medium w-14"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <div className="w-full min-w-0 text-xs">
+                  <div className="flex items-center justify-between gap-6 pb-1.5 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400">
+                    <span className="font-medium min-w-0 max-w-[42%] truncate">{tForm("similar.tableDescription")}</span>
+                    <span className="font-medium shrink-0">{tForm("similar.tableAmount")}</span>
+                  </div>
+                  <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                     {recentSimilar.map((r) => (
-                      <tr
-                        key={r.id}
-                        className="border-t border-slate-100"
-                      >
-                        <td className="py-2 pr-3 whitespace-nowrap">{r.date}</td>
-                        <td className="py-2 pr-3 min-w-0 max-w-[240px] truncate text-slate-700">
-                          {r.description || "—"}
-                        </td>
-                        <td
-                          className={`py-2 pr-3 text-right font-mono ${type === "income"
-                            ? "text-green-600"
-                            : type === "expense"
-                              ? "text-red-600"
-                              : ""
-                            }`}
-                        >
-                          {type === "income" ? "+" : type === "expense" ? "−" : ""}
-                          {r.amount.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                        </td>
-                        <td className="py-2">
-                          <button
-                            type="button"
-                            onClick={() => handleCopyFromSimilar(r.id)}
-                            disabled={!!copyingSimilarId}
-                            className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                            title={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
-                            aria-label={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
-                          >
-                            <CopyIcon aria-hidden />
-                          </button>
-                        </td>
-                      </tr>
+                      <li key={r.id} className="py-1.5 min-w-0">
+                        <div className="text-[10px] leading-tight text-slate-500 tabular-nums">{r.date}</div>
+                        <div className="mt-0.5 flex items-start justify-between gap-4 min-w-0">
+                          <div className="min-w-0 max-w-[38%] flex-none text-left sm:max-w-[40%]">
+                            <p className="text-slate-700 dark:text-slate-200 break-words hyphens-auto">
+                              {r.description || "—"}
+                            </p>
+                            <p className="mt-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400 break-words">
+                              {type === "transfer"
+                                ? `${r.account_from_name ?? "—"} → ${r.account_to_name ?? "—"}`
+                                : type === "expense"
+                                  ? (r.account_from_name ?? "—")
+                                  : (r.account_to_name ?? "—")}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-start gap-2">
+                            <span
+                              className={`font-mono text-right whitespace-nowrap pt-px ${type === "income"
+                                ? "text-green-600 dark:text-green-400"
+                                : type === "expense"
+                                  ? "text-red-600 dark:text-red-400"
+                                  : "text-blue-600 dark:text-blue-400"
+                                }`}
+                            >
+                              {type === "income" ? "+" : type === "expense" ? "−" : ""}
+                              {formatMoneyAmountTwoDecimals(r.amount, localeTag)}{" "}
+                              €
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyFromSimilar(r.id)}
+                              disabled={!!copyingSimilarId}
+                              className="p-1 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors shrink-0"
+                              title={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
+                              aria-label={copyingSimilarId === r.id ? tForm("similar.copying") : tForm("similar.copy")}
+                            >
+                              <CopyIcon aria-hidden />
+                            </button>
+                          </div>
+                        </div>
+                      </li>
                     ))}
-                  </tbody>
-                </table>
+                  </ul>
+                </div>
               )}
             </div>
           </div>

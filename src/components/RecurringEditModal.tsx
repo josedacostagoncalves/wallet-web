@@ -21,7 +21,13 @@ import {
 } from "@/lib/recurrence";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 type Props = { open: boolean; onClose: () => void; ruleId: string };
 type TransactionType = "income" | "expense" | "transfer";
@@ -35,6 +41,8 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const tRecurring = useTranslations("transactions.recurring");
   const tCalendar = useTranslations("calendar");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const { showToast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -106,7 +114,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       setLoading(false);
       if (!r) return;
       setRule(r);
-      setAmount(String(r.amount));
+      setAmount(formatMoneyAmountTwoDecimals(r.amount, localeTag));
       setAccountFromId(r.account_from_id ?? "");
       setAccountToId(r.account_to_id ?? "");
       setDescription(r.description ?? "");
@@ -160,7 +168,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         }
       }
     });
-  }, [open, ruleId]);
+  }, [open, ruleId, localeTag]);
 
   useEffect(() => {
     if (!rule?.wallet_id) return;
@@ -200,8 +208,8 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
       if (!rule) return;
       setError(null);
       setSaving(true);
-      const num = parseFloat(amount.replace(",", "."));
-      if (isNaN(num) || num <= 0) {
+      const num = parseMoneyInputString(amount);
+      if (Number.isNaN(num) || num <= 0) {
         setError(tForm("validation.amountPositive"));
         setSaving(false);
         return;
@@ -435,7 +443,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col min-h-0 flex-1 overflow-y-auto"
+          className="flex flex-col min-h-0 flex-1 overflow-y-auto friendly-scroll"
         >
           <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
             <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
@@ -513,6 +521,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onBlur={() => setAmount((a) => normalizeMoneyInputString(a, localeTag))}
                 required
                 className={inputClass}
               />

@@ -7,32 +7,46 @@ import { useWallet } from "@/contexts/WalletContext";
 import type { AccountType } from "@/lib/account-types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 export default function NewAccountPage() {
   const tAccounts = useTranslations("accounts.modal");
   const tCommon = useTranslations("common");
   const tNavigation = useTranslations("navigation");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const { currentWalletId } = useWallet();
   const { showToast } = useToast();
   const router = useRouter();
   const [name, setName] = useState("");
   const [accountType, setAccountType] = useState<AccountType>("bank_account");
-  const [initialBalance, setInitialBalance] = useState("0");
+  const [initialBalance, setInitialBalance] = useState("");
   const [plafond, setPlafond] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setInitialBalance((v) => (v === "" ? formatMoneyAmountTwoDecimals(0, localeTag) : v));
+  }, [localeTag]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!currentWalletId) return;
     setError(null);
     setLoading(true);
-    const num = parseFloat(initialBalance.replace(",", ".")) || 0;
+    const parsed = parseMoneyInputString(initialBalance);
+    const num = Number.isNaN(parsed) ? 0 : parsed;
+    const plafondParsed = parseMoneyInputString(plafond);
     const plafondNum =
-      accountType === "credit_card" && plafond.trim()
-        ? parseFloat(plafond.replace(",", ".")) || null
+      accountType === "credit_card" && plafond.trim() && !Number.isNaN(plafondParsed)
+        ? plafondParsed
         : null;
     const res = await createAccount({
       wallet_id: currentWalletId,
@@ -87,6 +101,7 @@ export default function NewAccountPage() {
               inputMode="decimal"
               value={plafond}
               onChange={(e) => setPlafond(e.target.value)}
+              onBlur={() => setPlafond((p) => normalizeMoneyInputString(p, localeTag))}
               placeholder={tAccounts("plafondPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
@@ -102,6 +117,7 @@ export default function NewAccountPage() {
             inputMode="decimal"
             value={initialBalance}
             onChange={(e) => setInitialBalance(e.target.value)}
+            onBlur={() => setInitialBalance((b) => normalizeMoneyInputString(b, localeTag))}
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
         </div>

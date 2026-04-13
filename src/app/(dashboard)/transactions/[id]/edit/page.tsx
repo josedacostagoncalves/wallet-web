@@ -26,7 +26,13 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 type TransactionType = "income" | "expense" | "transfer";
 
@@ -34,6 +40,8 @@ export default function EditTransactionPage() {
   const tForm = useTranslations("transactions.form");
   const tTransactions = useTranslations("transactions");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const params = useParams();
   const id = String(params.id);
   const { currentWalletId } = useWallet();
@@ -82,7 +90,7 @@ export default function EditTransactionPage() {
       setStatus(m.status);
       setType(m.type as TransactionType);
       setDate(m.date);
-      setAmount(String(m.amount));
+      setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
       setAccountFromId(m.account_from_id ?? "");
       setAccountToId(m.account_to_id ?? "");
       setDescription(m.description ?? "");
@@ -104,7 +112,7 @@ export default function EditTransactionPage() {
         setCurrentCategoryName(m.category_name ?? "");
       }
     });
-  }, [id]);
+  }, [id, localeTag]);
 
   useEffect(() => {
     if (!currentWalletId) return;
@@ -132,8 +140,8 @@ export default function EditTransactionPage() {
   }, [categoryId]);
 
   function validateForm(): string | null {
-    const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) return tForm("validation.amountPositive");
+    const num = parseMoneyInputString(amount);
+    if (Number.isNaN(num) || num <= 0) return tForm("validation.amountPositive");
     const catId = subcategoryId || categoryId;
     if (!catId) return tForm("validation.categoryRequired");
     if (type === "expense" && subcategories.length > 0 && !subcategoryId)
@@ -195,7 +203,7 @@ export default function EditTransactionPage() {
       return;
     }
     setSaving(true);
-    const num = parseFloat(amount.replace(",", "."));
+    const num = parseMoneyInputString(amount);
     const catId = subcategoryId || categoryId;
     const isWorkDay =
       status === "confirmed" &&
@@ -252,7 +260,7 @@ export default function EditTransactionPage() {
       return;
     }
     setConfirming(true);
-    const num = parseFloat(amount.replace(",", "."));
+    const num = parseMoneyInputString(amount);
     const catId = subcategoryId || categoryId;
     const res = await updateTransaction(id, {
       type,
@@ -442,6 +450,7 @@ export default function EditTransactionPage() {
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            onBlur={() => setAmount((a) => normalizeMoneyInputString(a, localeTag))}
             required
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />

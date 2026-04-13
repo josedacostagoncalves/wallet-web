@@ -193,7 +193,44 @@ export type RecentSimilarRow = {
   date: string;
   description: string | null;
   amount: number;
+  account_from_name: string | null;
+  account_to_name: string | null;
 };
+
+type SimilarTxRaw = {
+  id: string;
+  date: string;
+  description: string | null;
+  amount: number;
+  account_from_id: string | null;
+  account_to_id: string | null;
+};
+
+async function withSimilarAccountNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: SimilarTxRaw[]
+): Promise<RecentSimilarRow[]> {
+  const ids = new Set<string>();
+  for (const r of rows) {
+    if (r.account_from_id) ids.add(r.account_from_id);
+    if (r.account_to_id) ids.add(r.account_to_id);
+  }
+  const nameById = new Map<string, string>();
+  if (ids.size > 0) {
+    const { data: accs } = await supabase.from("accounts").select("id, name").in("id", Array.from(ids));
+    for (const a of accs ?? []) {
+      if (a.id != null && a.name != null) nameById.set(String(a.id), String(a.name));
+    }
+  }
+  return rows.map((r) => ({
+    id: r.id,
+    date: r.date,
+    description: r.description,
+    amount: Number(r.amount),
+    account_from_name: r.account_from_id ? nameById.get(r.account_from_id) ?? null : null,
+    account_to_name: r.account_to_id ? nameById.get(r.account_to_id) ?? null : null,
+  }));
+}
 
 export type TransactionByAccountRow = {
   id: string;
@@ -441,18 +478,21 @@ export async function getRecentTransactionsByType(
   const supabase = await createClient();
   const { data } = await supabase
     .from("transactions")
-    .select("id, date, description, amount")
+    .select("id, date, description, amount, account_from_id, account_to_id")
     .eq("wallet_id", walletId)
     .eq("type", transactionType)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
-  return (data ?? []).map((t) => ({
-    id: t.id,
-    date: t.date,
-    description: t.description,
+  const raw = (data ?? []).map((t) => ({
+    id: t.id as string,
+    date: t.date as string,
+    description: (t.description as string | null) ?? null,
     amount: Number(t.amount),
+    account_from_id: (t as { account_from_id?: string | null }).account_from_id ?? null,
+    account_to_id: (t as { account_to_id?: string | null }).account_to_id ?? null,
   }));
+  return withSimilarAccountNames(supabase, raw);
 }
 
 export async function getRecentTransactionsByCategory(
@@ -475,19 +515,22 @@ export async function getRecentTransactionsByCategory(
   }
   const { data } = await supabase
     .from("transactions")
-    .select("id, date, description, amount")
+    .select("id, date, description, amount, account_from_id, account_to_id")
     .eq("wallet_id", walletId)
     .eq("type", transactionType)
     .in("category_id", categoryIds)
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
-  return (data ?? []).map((t) => ({
-    id: t.id,
-    date: t.date,
-    description: t.description,
+  const raw = (data ?? []).map((t) => ({
+    id: t.id as string,
+    date: t.date as string,
+    description: (t.description as string | null) ?? null,
     amount: Number(t.amount),
+    account_from_id: (t as { account_from_id?: string | null }).account_from_id ?? null,
+    account_to_id: (t as { account_to_id?: string | null }).account_to_id ?? null,
   }));
+  return withSimilarAccountNames(supabase, raw);
 }
 
 export async function createTransaction(params: {
@@ -514,6 +557,8 @@ export async function createTransaction(params: {
   split_method_override?: SplitMethod | null;
   manual_splits?: ManualSplitInput[];
   observations?: string | null;
+  /** Expense only: null = inherit category default; true/false = override. Ignored for income/transfer. */
+  is_essential?: boolean | null;
 }): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const {
@@ -545,6 +590,7 @@ export async function createTransaction(params: {
     split_method_override = null,
     manual_splits = [],
     observations = null,
+    is_essential: isEssentialParam = null,
   } = params;
 
   const obs =
@@ -644,6 +690,13 @@ export async function createTransaction(params: {
   // For confirmed transactions, balances are always updated.
   const effectiveHold = status === "pending" ? hold_balance : false;
 
+  const resolvedIsEssential =
+    type === "expense"
+      ? isEssentialParam === true || isEssentialParam === false
+        ? isEssentialParam
+        : null
+      : null;
+
   const { data: t, error: insertErr } = await supabase
     .from("transactions")
     .insert({
@@ -663,6 +716,7 @@ export async function createTransaction(params: {
       received_by_member_id: normalizedReceivedByMemberId,
       split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
       observations: obs,
+      is_essential: resolvedIsEssential,
     })
     .select("id")
     .single();
@@ -784,6 +838,11 @@ export async function getTransaction(id: string) {
     })),
     status: (data.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
     hold_balance: !!data.hold_balance,
+    is_essential:
+      (data as { is_essential?: boolean | null }).is_essential === true ||
+      (data as { is_essential?: boolean | null }).is_essential === false
+        ? (data as { is_essential: boolean }).is_essential
+        : null,
   };
 }
 
@@ -807,6 +866,8 @@ export async function updateTransaction(
     split_method_override?: SplitMethod | null;
     manual_splits?: ManualSplitInput[];
     observations?: string | null;
+    /** Expense only. Omit to leave DB unchanged; null = inherit from category; true/false = override. */
+    is_essential?: boolean | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -840,6 +901,7 @@ export async function updateTransaction(
     split_method_override = null,
     manual_splits = [],
     observations = null,
+    is_essential: isEssentialUpdate = undefined,
   } = params;
 
   const obs =
@@ -847,6 +909,13 @@ export async function updateTransaction(
 
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
+
+  const expenseEssentialForDb =
+    type === "expense" && isEssentialUpdate !== undefined
+      ? isEssentialUpdate === true || isEssentialUpdate === false
+        ? isEssentialUpdate
+        : null
+      : undefined;
 
   const {
     isBasicTracking: isBasicTrackingForUpdate,
@@ -897,7 +966,7 @@ export async function updateTransaction(
 
   const isPending = old.status === "pending";
   if (isPending) {
-    const updatePayload = {
+    const updatePayload: Record<string, unknown> = {
       type,
       category_id,
       date,
@@ -910,6 +979,9 @@ export async function updateTransaction(
       received_by_member_id: normalizedReceivedByMemberId,
       split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
     };
+    if (expenseEssentialForDb !== undefined) {
+      updatePayload.is_essential = expenseEssentialForDb;
+    }
     const { error: upErr } = await supabase
       .from("transactions")
       .update(updatePayload)
@@ -1014,6 +1086,7 @@ export async function updateTransaction(
     paid_by_member_id: string | null;
     received_by_member_id: string | null;
     split_method_override: string | null;
+    is_essential?: boolean | null;
   } = {
     type,
     category_id,
@@ -1028,6 +1101,9 @@ export async function updateTransaction(
     split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
   };
   if (ruleId != null) updatePayload.recurring_rule_id = ruleId;
+  if (expenseEssentialForDb !== undefined) {
+    updatePayload.is_essential = expenseEssentialForDb;
+  }
 
   const { error: upErr } = await supabase
     .from("transactions")

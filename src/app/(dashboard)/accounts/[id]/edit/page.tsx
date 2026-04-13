@@ -9,12 +9,20 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 export default function EditAccountPage() {
   const tAccounts = useTranslations("accounts.modal");
   const tCommon = useTranslations("common");
   const tNavigation = useTranslations("navigation");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const params = useParams();
   const id = String(params.id);
   const { showToast } = useToast();
@@ -47,27 +55,32 @@ export default function EditAccountPage() {
         setAccountType(
           (data.account_type as AccountType) ?? "bank_account"
         );
-        setInitialBalance(String(data.initial_balance));
+        setInitialBalance(formatMoneyAmountTwoDecimals(Number(data.initial_balance), localeTag));
         setOriginalInitialBalance(Number(data.initial_balance));
         setCurrentBalance(Number(data.current_balance));
-        setPlafond(data.plafond != null ? String(data.plafond) : "");
+        setPlafond(
+          data.plafond != null
+            ? formatMoneyAmountTwoDecimals(Number(data.plafond), localeTag)
+            : ""
+        );
         setIsActive(data.is_active);
       });
-  }, [id, tAccounts]);
+  }, [id, tAccounts, localeTag]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSaving(true);
-    const num = parseFloat(initialBalance.replace(",", "."));
-    if (isNaN(num)) {
+    const num = parseMoneyInputString(initialBalance);
+    if (Number.isNaN(num)) {
       setError(tAccounts("invalidInitialBalance"));
       setSaving(false);
       return;
     }
+    const plafondParsed = parseMoneyInputString(plafond);
     const plafondNum =
-      accountType === "credit_card" && plafond.trim()
-        ? parseFloat(plafond.replace(",", ".")) || null
+      accountType === "credit_card" && plafond.trim() && !Number.isNaN(plafondParsed)
+        ? plafondParsed
         : null;
     const res = await updateAccount(id, {
       name: name.trim(),
@@ -120,6 +133,7 @@ export default function EditAccountPage() {
               inputMode="decimal"
               value={plafond}
               onChange={(e) => setPlafond(e.target.value)}
+              onBlur={() => setPlafond((p) => normalizeMoneyInputString(p, localeTag))}
               placeholder={tAccounts("plafondPlaceholder")}
               className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
             />
@@ -135,6 +149,7 @@ export default function EditAccountPage() {
             inputMode="decimal"
             value={initialBalance}
             onChange={(e) => setInitialBalance(e.target.value)}
+            onBlur={() => setInitialBalance((b) => normalizeMoneyInputString(b, localeTag))}
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />
           <p className="text-xs text-slate-500 mt-1">
@@ -142,8 +157,8 @@ export default function EditAccountPage() {
           </p>
           {(() => {
             if (currentBalance == null) return null;
-            const newInit = parseFloat(initialBalance.replace(",", "."));
-            if (isNaN(newInit)) return null;
+            const newInit = parseMoneyInputString(initialBalance);
+            if (Number.isNaN(newInit)) return null;
             const diff = newInit - originalInitialBalance;
             const afterBalance = currentBalance + diff;
             if (diff === 0) return null;

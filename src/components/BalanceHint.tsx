@@ -1,11 +1,7 @@
 "use client";
 
-function fmt(n: number) {
-  return n.toLocaleString("pt-PT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+import { intlLocaleFromAppLocale, formatMoneyAmountTwoDecimals } from "@/lib/money-format";
+import { useLocale, useTranslations } from "next-intl";
 
 type Props = {
   currentBalance: number;
@@ -15,15 +11,22 @@ type Props = {
 };
 
 /**
- * Small inline hint showing "Balance: X € → Y €" below an account selector.
- * When `label` is provided, shows "AccountName: Balance: X € → Y €".
+ * Small inline hint showing localized "Balance: X € → Y €" below an account selector.
+ * When `label` is provided, shows "AccountName: …".
  */
 export function BalanceHint({ currentBalance, afterBalance, label }: Props) {
+  const t = useTranslations("common");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
+  const fmt = (n: number) => formatMoneyAmountTwoDecimals(n, localeTag);
   const changed = currentBalance !== afterBalance;
+  const balanceWord = t("balanceHintLabel");
   return (
     <p className="text-xs mt-1 text-slate-500 dark:text-slate-400">
       {label && <span className="font-medium">{label}: </span>}
-      <span>Balance: {fmt(currentBalance)} €</span>
+      <span>
+        {balanceWord}: {fmt(currentBalance)} €
+      </span>
       <span className="mx-1.5">→</span>
       <span
         className={

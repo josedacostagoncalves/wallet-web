@@ -15,7 +15,8 @@
         "pleaseWait": "Por favor espera...",
         "error": "Error",
         "success": "Éxito",
-        "hello": "Hola"
+        "hello": "Hola",
+        "balanceHintLabel": "Saldo"
     },
     "navigation": {
         "home": "Inicio",
@@ -699,6 +700,13 @@
                 "addSubcategory": "Añadir subcategoría",
                 "amount": "Cantidad (€) *",
                 "amountPlaceholder": "0,00",
+                "essential": "Esencial",
+                "essentialFollowMarked": "Seguir categoría (esencial)",
+                "essentialFollowUnmarked": "Seguir categoría (no esencial)",
+                "essentialForceYes": "Esencial (solo este movimiento)",
+                "essentialForceNo": "No esencial (solo este movimiento)",
+                "essentialDismissAria": "Marcar como no esencial para esta transacción",
+                "essentialActivateAria": "Marcar como esencial para esta transacción",
                 "accountFrom": "Cuenta (pagar desde) *",
                 "accountTo": "Cuenta (recibir en) *",
                 "accountTransferFrom": "Desde cuenta *",

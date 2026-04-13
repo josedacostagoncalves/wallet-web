@@ -13,6 +13,7 @@ import {
   confirmTransaction,
   deleteTransaction,
   type CategoryFlatRow,
+  type RecentSimilarRow,
 } from "@/app/actions/transactions";
 import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
@@ -23,7 +24,7 @@ import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { CategoryModal } from "@/components/CategoryModal";
 import { getRecurringRule } from "@/app/actions/recurring";
-import { CopyIcon } from "@/components/ActionIcons";
+import { CopyIcon, TransactionTypeIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
@@ -35,7 +36,12 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TransactionModalMode } from "@/contexts/TransactionModalsContext";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+} from "@/lib/money-format";
 
 type Props = {
   open: boolean;
@@ -59,6 +65,8 @@ export function TransferFormModal({
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const t = useTranslations("transactions.form");
   const { showToast } = useToast();
   const { currentWalletId } = useWallet();
@@ -107,9 +115,7 @@ export function TransferFormModal({
   const [loadingData, setLoadingData] = useState(false);
   const [status, setStatus] = useState<"confirmed" | "pending">("confirmed");
   const [dialog, setDialog] = useState<"confirm" | "cancel" | null>(null);
-  const [recentSimilar, setRecentSimilar] = useState<
-    { id: string; date: string; description: string | null; amount: number }[]
-  >([]);
+  const [recentSimilar, setRecentSimilar] = useState<RecentSimilarRow[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [copyingSimilarId, setCopyingSimilarId] = useState<string | null>(null);
   const [catModal, setCatModal] = useState<
@@ -182,7 +188,7 @@ export function TransferFormModal({
         const catId = parentId || m.category_id;
         const subId = parentId ? m.category_id : "";
         setDate(m.date);
-        setAmount(String(m.amount));
+        setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
         setDescription(m.description ?? "");
         setObservations((m as { observations?: string | null }).observations ?? "");
         setAttachments(
@@ -213,7 +219,7 @@ export function TransferFormModal({
         const catId = parentId || m.category_id;
         const subId = parentId ? m.category_id : "";
         setDate(new Date().toISOString().slice(0, 10));
-        setAmount(String(m.amount));
+        setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
         setDescription(m.description ?? "");
         setObservations((m as { observations?: string | null }).observations ?? "");
         setAttachments([]);
@@ -250,7 +256,7 @@ export function TransferFormModal({
           }
         }
         setDate(new Date().toISOString().slice(0, 10));
-        setAmount(String(r.amount));
+        setAmount(formatMoneyAmountTwoDecimals(r.amount, localeTag));
         setDescription(r.description ?? "");
         setAccountFromId(r.account_from_id ?? "");
         setAccountToId(r.account_to_id ?? "");
@@ -282,7 +288,7 @@ export function TransferFormModal({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
-  }, [open, currentWalletId, isEdit, isCopy, transactionId, copyFromTransactionId, copyFromRecurringId]);
+  }, [open, currentWalletId, isEdit, isCopy, transactionId, copyFromTransactionId, copyFromRecurringId, localeTag]);
 
   useEffect(() => {
     if (!categoryId) {
@@ -331,7 +337,7 @@ export function TransferFormModal({
     const catId = parentId || m.category_id;
     const subId = parentId ? m.category_id : "";
     skipNextSubcategoryReset.current = true;
-    setAmount(String(m.amount));
+    setAmount(formatMoneyAmountTwoDecimals(m.amount, localeTag));
     setDescription(m.description ?? "");
     setObservations((m as { observations?: string | null }).observations ?? "");
     setAttachments([]);
@@ -667,29 +673,36 @@ export function TransferFormModal({
         onClick={() => !loading && !loadingData && onClose()}
       />
       <div
-        className="relative w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-xs"
+        className="relative w-full max-w-[76.8rem] h-[min(78vh,780px)] max-h-[min(78vh,780px)] overflow-hidden flex flex-col rounded-xl border border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-700 shadow-xl text-xs"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="shrink-0 px-4 pt-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-          <h2 id="transfer-modal-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            {isEdit
-              ? status === "pending"
-                ? t("editPendingTransfer")
-                : t("editTransfer")
-              : t("newTransfer")}
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <TransactionTypeIcon
+              type="transfer"
+              aria-hidden
+              className="[&_svg]:h-5 [&_svg]:w-5 dark:text-blue-400"
+            />
+            <h2 id="transfer-modal-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
+              {isEdit
+                ? status === "pending"
+                  ? t("editPendingTransfer")
+                  : t("editTransfer")
+                : t("newTransfer")}
+            </h2>
+          </div>
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex flex-col min-h-0 flex-1 overflow-y-auto"
+          className="flex flex-col min-h-0 flex-1 overflow-hidden"
         >
           {shouldBlockForm ? (
-            <div className="min-h-[360px] flex items-center justify-center">
+            <div className="min-h-[200px] flex items-center justify-center">
               <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
             </div>
           ) : (
-            <div className="p-3 flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
-            <div className="w-full sm:min-w-0 sm:w-1/2 space-y-2.5">
+            <div className="p-2 sm:p-3 flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 items-stretch overflow-hidden">
+            <div className="min-h-0 overflow-y-auto min-w-0 space-y-2.5 lg:pr-1 friendly-scroll">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
                 <TransactionDateInput
@@ -724,6 +737,8 @@ export function TransferFormModal({
                 disabled={shouldBlockForm || loading}
                 textareaClassName={inputClass}
               />
+            </div>
+            <div className="min-h-0 overflow-y-auto min-w-0 space-y-2.5 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-700 lg:pl-3 friendly-scroll">
               <CategorySubcategorySearchField
                 flat={categoriesFlat}
                 disabled={shouldBlockForm}
@@ -802,6 +817,7 @@ export function TransferFormModal({
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  onBlur={() => setAmount((a) => normalizeMoneyInputString(a, localeTag))}
                   required
                   placeholder={t("fields.amountPlaceholder")}
                   className={inputClass}
@@ -1084,8 +1100,8 @@ export function TransferFormModal({
                 <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               )}
             </div>
-            <div className="w-full sm:min-w-0 sm:w-1/2 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shrink-0">
-              <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+            <div className="min-h-0 flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 lg:min-w-0">
+              <div className="shrink-0 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 lg:px-4 lg:py-3 border-b border-slate-200 dark:border-slate-700">
                 <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
                   {!categoryId
                     ? t("similar.transfers")
@@ -1094,7 +1110,7 @@ export function TransferFormModal({
                       : t("similar.transfersCategory")}
                 </h3>
               </div>
-              <div className="p-3 min-h-[120px] max-h-[360px] overflow-y-auto">
+              <div className="p-2 lg:p-3 flex-1 min-h-0 overflow-y-auto min-h-[100px] friendly-scroll">
                 {loadingSimilar ? (
                   <p className="text-xs text-slate-500">{t("similar.loading")}</p>
                 ) : recentSimilar.length === 0 ? (
@@ -1102,41 +1118,50 @@ export function TransferFormModal({
                     {t("similar.noSimilar")}
                   </p>
                 ) : (
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left text-slate-500">
-                        <th className="pb-2 pr-3 font-medium">{t("similar.tableDate")}</th>
-                        <th className="pb-2 pr-3 font-medium min-w-0">{t("similar.tableDescription")}</th>
-                        <th className="pb-2 pr-3 font-medium text-right">{t("similar.tableAmount")}</th>
-                        <th className="pb-2 font-medium w-10"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                  <div className="w-full min-w-0 text-xs">
+                    <div className="flex items-center justify-between gap-6 pb-1.5 border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                      <span className="font-medium min-w-0 max-w-[42%] truncate">{t("similar.tableDescription")}</span>
+                      <span className="font-medium shrink-0">{t("similar.tableAmount")}</span>
+                    </div>
+                    <ul className="divide-y divide-slate-100 dark:divide-slate-700">
                       {recentSimilar.map((r) => (
-                        <tr key={r.id} className="border-t border-slate-100 dark:border-slate-700">
-                          <td className="py-2 pr-3 whitespace-nowrap">{r.date}</td>
-                          <td className="py-2 pr-3 min-w-0 max-w-[180px] sm:max-w-[240px] truncate text-slate-700 dark:text-slate-300">
-                            {r.description || "—"}
-                          </td>
-                          <td className="py-2 pr-3 text-right font-mono text-slate-700 dark:text-slate-300">
-                            {r.amount.toLocaleString("pt-PT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                          </td>
-                          <td className="py-2">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyFromSimilar(r.id)}
-                              disabled={!!copyingSimilarId}
-                              className="p-1.5 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 disabled:opacity-50 transition-colors"
-                              title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
-                              aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
-                            >
-                              <CopyIcon aria-hidden />
-                            </button>
-                          </td>
-                        </tr>
+                        <li key={r.id} className="py-1.5 min-w-0">
+                          <div className="text-[10px] leading-tight text-slate-500 dark:text-slate-400 tabular-nums">
+                            {r.date}
+                          </div>
+                          <div className="mt-0.5 flex items-start justify-between gap-4 min-w-0">
+                            <div className="min-w-0 max-w-[38%] flex-none text-left sm:max-w-[40%]">
+                              <p className="text-slate-700 dark:text-slate-200 break-words hyphens-auto">
+                                {r.description || "—"}
+                              </p>
+                              <p className="mt-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400 break-words">
+                                {(r.account_from_name ?? "—") + " → " + (r.account_to_name ?? "—")}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 items-start gap-2">
+                              <span className="font-mono text-right text-blue-600 dark:text-blue-400 whitespace-nowrap pt-px">
+                                {r.amount.toLocaleString("pt-PT", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                €
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleCopyFromSimilar(r.id)}
+                                disabled={!!copyingSimilarId}
+                                className="p-1 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 disabled:opacity-50 transition-colors shrink-0"
+                                title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                                aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                              >
+                                <CopyIcon aria-hidden />
+                              </button>
+                            </div>
+                          </div>
+                        </li>
                       ))}
-                    </tbody>
-                  </table>
+                    </ul>
+                  </div>
                 )}
               </div>
             </div>

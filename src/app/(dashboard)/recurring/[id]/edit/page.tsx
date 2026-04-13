@@ -22,7 +22,13 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 type TransactionType = "income" | "expense" | "transfer";
 
@@ -31,6 +37,8 @@ export default function EditRecurringPage() {
   const tForm = useTranslations("transactions.form");
   const tTransactions = useTranslations("transactions");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const params = useParams();
   const id = String(params.id);
   const { showToast } = useToast();
@@ -91,7 +99,7 @@ export default function EditRecurringPage() {
       setLoading(false);
       if (!r) return;
       setRule(r);
-      setAmount(String(r.amount));
+      setAmount(formatMoneyAmountTwoDecimals(r.amount, localeTag));
       setAccountFromId(r.account_from_id ?? "");
       setAccountToId(r.account_to_id ?? "");
       setDescription(r.description ?? "");
@@ -145,7 +153,7 @@ export default function EditRecurringPage() {
         }
       }
     });
-  }, [id]);
+  }, [id, localeTag]);
 
   useEffect(() => {
     if (!rule?.wallet_id) return;
@@ -171,8 +179,8 @@ export default function EditRecurringPage() {
     if (!rule) return;
     setError(null);
     setSaving(true);
-    const num = parseFloat(amount.replace(",", "."));
-    if (isNaN(num) || num <= 0) {
+    const num = parseMoneyInputString(amount);
+    if (Number.isNaN(num) || num <= 0) {
       setError(tForm("validation.amountPositive"));
       setSaving(false);
       return;
@@ -391,6 +399,7 @@ export default function EditRecurringPage() {
             inputMode="decimal"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            onBlur={() => setAmount((a) => normalizeMoneyInputString(a, localeTag))}
             required
             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
           />

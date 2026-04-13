@@ -8,7 +8,13 @@ import type { AccountType } from "@/lib/account-types";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  intlLocaleFromAppLocale,
+  formatMoneyAmountTwoDecimals,
+  normalizeMoneyInputString,
+  parseMoneyInputString,
+} from "@/lib/money-format";
 
 type Props = {
   accountId: string;
@@ -21,6 +27,8 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
   const tAccounts = useTranslations("accounts.modal");
   const tCommon = useTranslations("common");
   const tForm = useTranslations("transactions.form");
+  const locale = useLocale();
+  const localeTag = intlLocaleFromAppLocale(locale);
   const { showToast } = useToast();
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -54,13 +62,17 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
         }
         setName(data.name);
         setAccountType((data.account_type as AccountType) ?? "bank_account");
-        setInitialBalance(String(data.initial_balance));
+        setInitialBalance(formatMoneyAmountTwoDecimals(Number(data.initial_balance), localeTag));
         setOriginalInitialBalance(Number(data.initial_balance));
         setCurrentBalance(Number(data.current_balance));
-        setPlafond(data.plafond != null ? String(data.plafond) : "");
+        setPlafond(
+          data.plafond != null
+            ? formatMoneyAmountTwoDecimals(Number(data.plafond), localeTag)
+            : ""
+        );
         setIsActive(data.is_active);
       });
-  }, [open, accountId, tAccounts]);
+  }, [open, accountId, tAccounts, localeTag]);
 
   // Keyboard & scroll lock
   useEffect(() => {
@@ -80,15 +92,16 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
     e.preventDefault();
     setError(null);
     setSaving(true);
-    const num = parseFloat(initialBalance.replace(",", "."));
-    if (isNaN(num)) {
+    const num = parseMoneyInputString(initialBalance);
+    if (Number.isNaN(num)) {
       setError(tAccounts("invalidInitialBalance"));
       setSaving(false);
       return;
     }
+    const plafondParsed = parseMoneyInputString(plafond);
     const plafondNum =
-      accountType === "credit_card" && plafond.trim()
-        ? parseFloat(plafond.replace(",", ".")) || null
+      accountType === "credit_card" && plafond.trim() && !Number.isNaN(plafondParsed)
+        ? plafondParsed
         : null;
     const res = await updateAccount(accountId, {
       name: name.trim(),
@@ -121,7 +134,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
         if (e.target === overlayRef.current && !saving) onClose();
       }}
     >
-      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-700 p-6">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto friendly-scroll rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-200 dark:border-slate-700 p-6">
         {/* Close button */}
         <button
           onClick={onClose}
@@ -164,6 +177,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                   inputMode="decimal"
                   value={plafond}
                   onChange={(e) => setPlafond(e.target.value)}
+                  onBlur={() => setPlafond((p) => normalizeMoneyInputString(p, localeTag))}
                   placeholder={tAccounts("plafondPlaceholder")}
                   className={inputClass}
                 />
@@ -181,6 +195,7 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
                 inputMode="decimal"
                 value={initialBalance}
                 onChange={(e) => setInitialBalance(e.target.value)}
+                onBlur={() => setInitialBalance((b) => normalizeMoneyInputString(b, localeTag))}
                 className={inputClass}
               />
               <p className="text-xs text-slate-500 mt-1">
@@ -188,8 +203,8 @@ export function EditAccountModal({ accountId, open, onClose, onSaved }: Props) {
               </p>
               {(() => {
                 if (currentBalance == null) return null;
-                const newInit = parseFloat(initialBalance.replace(",", "."));
-                if (isNaN(newInit)) return null;
+                const newInit = parseMoneyInputString(initialBalance);
+                if (Number.isNaN(newInit)) return null;
                 const diff = newInit - originalInitialBalance;
                 const afterBalance = currentBalance + diff;
                 if (diff === 0) return null;
