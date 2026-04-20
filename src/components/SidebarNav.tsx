@@ -69,8 +69,10 @@ export function SidebarNav() {
     const showAccounts = shouldShowAccounts(currentWallet);
     const showUsers = shouldShowUsers(currentWallet);
 
+    const sidebarSlotClass = isExpanded ? "w-56" : "w-14";
+
     return (
-        <div className="relative hidden lg:block w-14 z-40">
+        <div className={`relative hidden lg:block z-40 transition-[width] duration-200 ${sidebarSlotClass}`}>
             <aside
                 className={
                     "group flex flex-col sticky top-14 h-[calc(100vh-56px)] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-[var(--background)] transition-[width] duration-200 " +

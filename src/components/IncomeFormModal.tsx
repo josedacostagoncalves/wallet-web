@@ -1084,7 +1084,7 @@ export function IncomeFormModal({
                               </p>
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
-                              <span className="font-mono text-right text-green-600 dark:text-green-400 whitespace-nowrap pt-px">
+                              <span className="tabular-nums text-right text-green-600 dark:text-green-400 whitespace-nowrap pt-px">
                                 +{r.amount.toLocaleString("pt-PT", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,

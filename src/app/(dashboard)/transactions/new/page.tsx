@@ -938,7 +938,7 @@ export default function NewTransactionPage() {
                           </div>
                           <div className="flex shrink-0 items-start gap-2">
                             <span
-                              className={`font-mono text-right whitespace-nowrap pt-px ${type === "income"
+                              className={`tabular-nums text-right whitespace-nowrap pt-px ${type === "income"
                                 ? "text-green-600 dark:text-green-400"
                                 : type === "expense"
                                   ? "text-red-600 dark:text-red-400"

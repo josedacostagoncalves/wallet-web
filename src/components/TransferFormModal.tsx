@@ -1139,7 +1139,7 @@ export function TransferFormModal({
                               </p>
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
-                              <span className="font-mono text-right text-blue-600 dark:text-blue-400 whitespace-nowrap pt-px">
+                              <span className="tabular-nums text-right text-blue-600 dark:text-blue-400 whitespace-nowrap pt-px">
                                 {r.amount.toLocaleString("pt-PT", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,

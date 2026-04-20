@@ -796,7 +796,7 @@ export function SettlementsSection({
                             <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
                               {formatCategorySubcategory(row.categoryLabel, row.subcategoryLabel)}
                             </td>
-                            <td className={`px-3 py-2 text-right font-mono ${row.type === "income"
+                            <td className={`px-3 py-2 text-right tabular-nums ${row.type === "income"
                               ? "text-green-600 dark:text-green-400"
                               : row.type === "expense"
                                 ? "text-red-600 dark:text-red-400"
@@ -1112,7 +1112,7 @@ export function SettlementsSection({
                             <td className="px-4 py-2 text-slate-600 dark:text-slate-400 max-w-[220px] truncate">
                               {formatCategorySubcategory(row.categoryLabel, row.subcategoryLabel)}
                             </td>
-                            <td className={`px-4 py-2 text-right font-mono ${row.type === "income"
+                            <td className={`px-4 py-2 text-right tabular-nums ${row.type === "income"
                               ? "text-green-600 dark:text-green-400"
                               : row.type === "expense"
                                 ? "text-red-600 dark:text-red-400"

@@ -165,7 +165,7 @@ export function RecurringSection({ recurring }: Props) {
                         {formatFromTo(r.accountFromName, r.accountToName)}
                       </td>
                       <td
-                        className={`px-4 py-3 text-right font-mono ${r.type === "income"
+                        className={`px-4 py-3 text-right tabular-nums ${r.type === "income"
                           ? "text-green-600 dark:text-green-400"
                           : r.type === "expense"
                             ? "text-red-600 dark:text-red-400"

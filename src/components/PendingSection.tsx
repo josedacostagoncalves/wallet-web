@@ -129,7 +129,7 @@ export function PendingSection({ pending }: Props) {
                       />
                     </td>
                     <td
-                      className={`px-4 py-3 text-right font-mono ${p.type === "income"
+                      className={`px-4 py-3 text-right tabular-nums ${p.type === "income"
                         ? "text-green-600 dark:text-green-400"
                         : p.type === "expense"
                           ? "text-red-600 dark:text-red-400"

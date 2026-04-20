@@ -198,12 +198,12 @@ function AccountDetailsPopup({
           </div>
           <div className="space-y-0.5">
             <div className="text-slate-500">{tAccounts("page.details.initialBalance")}</div>
-            <div className="font-medium font-mono">{fmt(details.initialBalance)} €</div>
+            <div className="font-medium tabular-nums">{fmt(details.initialBalance)} €</div>
           </div>
           {details.plafond != null && (
             <div className="space-y-0.5">
               <div className="text-slate-500">{tAccounts("page.details.plafond")}</div>
-              <div className="font-medium font-mono">{fmt(details.plafond)} €</div>
+              <div className="font-medium tabular-nums">{fmt(details.plafond)} €</div>
             </div>
           )}
           <div className="space-y-0.5">
@@ -490,15 +490,15 @@ export default function AccountsPage() {
                         {accountTypeLabel(a.account_type)}
                       </td>
                       {displayOpts.showInitialBalance && (
-                        <td className="p-3 text-right font-mono">
+                        <td className="p-3 text-right tabular-nums">
                           {hideBalances ? "••••••" : `${fmt(a.initial_balance)} €`}
                         </td>
                       )}
-                      <td className="p-3 text-right font-mono">
+                      <td className="p-3 text-right tabular-nums">
                         {hideBalances ? "••••••" : `${fmt(a.current_balance)} €`}
                       </td>
                       {displayOpts.showPlafond && hasAnyCreditCard && (
-                        <td className="p-3 text-right font-mono">
+                        <td className="p-3 text-right tabular-nums">
                           {a.account_type === "credit_card" && a.plafond != null
                             ? hideBalances ? "••••••" : `${fmt(a.plafond)} €`
                             : "—"}

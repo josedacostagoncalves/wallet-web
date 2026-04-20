@@ -1,5 +1,3 @@
-@import url("https://cdn.jsdelivr.net/npm/@vetixy/circular-std@1.0.0/dist/index.css");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,68 +5,71 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-app: "CircularStd", system-ui, -apple-system, sans-serif;
 }
 
 .dark {
-  --background: #171a20;
+  --background: #0a0a0a;
   --foreground: #e5e7eb;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-app);
   overflow-x: hidden;
 }
 
-/* Cursor-like neutral dark palette for slate utilities */
+/* Use Geist Mono where components ask for monospace (amounts/code-like text). */
+.font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Dark palette aligned with Vercel-like black/gray UI */
 .dark .dark\:bg-slate-950 {
-  background-color: #1f2127 !important;
+  background-color: #0a0a0a !important;
 }
 .dark .dark\:bg-slate-900 {
-  background-color: #252830 !important;
+  background-color: #111111 !important;
 }
 .dark .dark\:bg-slate-900\/50 {
-  background-color: rgba(37, 40, 48, 0.7) !important;
+  background-color: rgba(17, 17, 17, 0.72) !important;
 }
 .dark .dark\:bg-slate-950\/40 {
-  background-color: rgba(31, 33, 39, 0.7) !important;
+  background-color: rgba(10, 10, 10, 0.7) !important;
 }
 .dark .dark\:bg-slate-900\/30 {
-  background-color: rgba(37, 40, 48, 0.5) !important;
+  background-color: rgba(17, 17, 17, 0.5) !important;
 }
 .dark .dark\:bg-slate-900\/20 {
-  background-color: rgba(37, 40, 48, 0.35) !important;
+  background-color: rgba(17, 17, 17, 0.35) !important;
 }
 .dark .dark\:bg-slate-900\/10 {
-  background-color: rgba(37, 40, 48, 0.2) !important;
+  background-color: rgba(17, 17, 17, 0.2) !important;
 }
 .dark .dark\:bg-slate-800 {
-  background-color: #2a2e36 !important;
+  background-color: #171717 !important;
 }
 .dark .dark\:bg-slate-800\/50 {
-  background-color: rgba(42, 46, 54, 0.6) !important;
+  background-color: rgba(23, 23, 23, 0.62) !important;
 }
 .dark .dark\:bg-slate-700\/50 {
-  background-color: rgba(56, 60, 70, 0.6) !important;
+  background-color: rgba(38, 38, 38, 0.6) !important;
 }
 
 .dark .dark\:border-slate-900,
 .dark .dark\:border-slate-800 {
-  border-color: #3a3f4a !important;
+  border-color: #2a2a2a !important;
 }
 .dark .dark\:border-slate-700 {
-  border-color: #4a505d !important;
+  border-color: #3a3a3a !important;
 }
 .dark .dark\:border-slate-600 {
-  border-color: #5a6170 !important;
+  border-color: #4a4a4a !important;
 }
 .dark .dark\:ring-slate-600 {
-  --tw-ring-color: #5a6170 !important;
+  --tw-ring-color: #4a4a4a !important;
 }
 .dark .dark\:ring-slate-700 {
-  --tw-ring-color: #4a505d !important;
+  --tw-ring-color: #3a3a3a !important;
 }
 
 .dark .dark\:text-slate-100 {
@@ -89,17 +90,17 @@ body {
 
 .dark .dark\:divide-slate-900 > :not([hidden]) ~ :not([hidden]),
 .dark .dark\:divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #3a3f4a !important;
+  border-color: #2a2a2a !important;
 }
 
 .dark .dark\:hover\:bg-slate-800:hover {
-  background-color: #2f333d !important;
+  background-color: #1a1a1a !important;
 }
 .dark .dark\:hover\:bg-slate-700:hover {
-  background-color: #3a404b !important;
+  background-color: #222222 !important;
 }
 .dark .dark\:hover\:bg-slate-900:hover {
-  background-color: #2a2e36 !important;
+  background-color: #171717 !important;
 }
 
 @keyframes toast-in {
@@ -119,7 +120,7 @@ body {
   scrollbar-color: rgb(148 163 184) rgb(241 245 249);
 }
 .dark .friendly-scroll {
-  scrollbar-color: rgb(71 85 105) rgb(31 33 39);
+  scrollbar-color: rgb(82 82 82) rgb(10 10 10);
 }
 .friendly-scroll::-webkit-scrollbar {
   width: 8px;
@@ -134,8 +135,8 @@ body {
   border-radius: 9999px;
 }
 .dark .friendly-scroll::-webkit-scrollbar-track {
-  background: rgb(31 33 39);
+  background: rgb(10 10 10);
 }
 .dark .friendly-scroll::-webkit-scrollbar-thumb {
-  background-color: rgb(71 85 105);
+  background-color: rgb(82 82 82);
 }

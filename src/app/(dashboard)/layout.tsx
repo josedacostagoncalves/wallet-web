@@ -44,8 +44,8 @@ export default async function DashboardLayout({
           <Header />
           <div className="flex w-full">
             <SidebarNav />
-            <main className="flex-1 py-6">
-              <div className="max-w-[1350px] w-full mx-auto px-3">{children}</div>
+            <main className="flex-1 min-w-0 py-6">
+              <div className="w-full px-4 lg:px-6 xl:px-8 2xl:px-10">{children}</div>
             </main>
           </div>
           <TransactionModals />

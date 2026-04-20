@@ -572,7 +572,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
                                     <label htmlFor="filter-amount-min" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.min")}</label>
-                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMin)} €</span>
+                                    <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{fmt(safeMin)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-min"
@@ -599,7 +599,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
                                     <label htmlFor="filter-amount-max" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.max")}</label>
-                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMax)} €</span>
+                                    <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{fmt(safeMax)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-max"
@@ -809,7 +809,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                           </td>
                         )}
                         <td
-                          className={`px-4 py-2 text-right font-mono ${row.type === "income"
+                          className={`px-4 py-2 text-right tabular-nums ${row.type === "income"
                             ? "text-green-600 dark:text-green-400"
                             : row.type === "expense"
                               ? "text-red-600 dark:text-red-400"
@@ -839,12 +839,12 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                             ({filtered.length})
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right align-top font-mono">
+                        <td className="px-4 py-2.5 text-right align-top tabular-nums">
                           {(() => {
                             const { income, expense, transfer, net, nIncome, nExpense, nTransfer } = filteredTypeTotals;
                             const typeCount = (nIncome > 0 ? 1 : 0) + (nExpense > 0 ? 1 : 0) + (nTransfer > 0 ? 1 : 0);
                             const line = (label: string, value: string, className: string) => (
-                              <div key={`${label}-${value}`} className={`text-xs font-mono ${className}`}>
+                              <div key={`${label}-${value}`} className={`text-xs tabular-nums ${className}`}>
                                 <span className="text-slate-600 dark:text-slate-400 mr-1.5 font-sans">{label}</span>
                                 <span className="tabular-nums">{value}</span>
                               </div>
@@ -852,21 +852,21 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                             if (typeCount <= 1) {
                               if (nIncome > 0) {
                                 return (
-                                  <div className="text-xs font-mono text-green-600 dark:text-green-400 tabular-nums">
+                                  <div className="text-xs text-green-600 dark:text-green-400 tabular-nums">
                                     +{fmtAmount(income)} €
                                   </div>
                                 );
                               }
                               if (nExpense > 0) {
                                 return (
-                                  <div className="text-xs font-mono text-red-600 dark:text-red-400 tabular-nums">
+                                  <div className="text-xs text-red-600 dark:text-red-400 tabular-nums">
                                     −{fmtAmount(expense)} €
                                   </div>
                                 );
                               }
                               if (nTransfer > 0) {
                                 return (
-                                  <div className="text-xs font-mono text-blue-600 dark:text-blue-400 tabular-nums">
+                                  <div className="text-xs text-blue-600 dark:text-blue-400 tabular-nums">
                                     {transfer < 0 ? "−" : ""}
                                     {fmtAmount(Math.abs(transfer))} €
                                   </div>
@@ -894,7 +894,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                                     `${transfer < 0 ? "−" : ""}${fmtAmount(Math.abs(transfer))} €`,
                                     "text-blue-600 dark:text-blue-400"
                                   )}
-                                <div className="border-t border-slate-200 dark:border-slate-700 pt-1 mt-1 text-xs font-mono text-slate-800 dark:text-slate-100">
+                                <div className="border-t border-slate-200 dark:border-slate-700 pt-1 mt-1 text-xs tabular-nums text-slate-800 dark:text-slate-100">
                                   <span className="text-slate-600 dark:text-slate-400 mr-1.5 font-sans">{t("table.totalsNet")}:</span>
                                   <span className="tabular-nums font-semibold">
                                     {net >= 0 ? "+" : "−"}

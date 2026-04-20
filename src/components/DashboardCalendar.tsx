@@ -267,7 +267,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
                             {t.status === "pending" ? "Pending" : null}
                           </span>
                           <span
-                            className={`font-mono shrink-0 ${t.type === "income"
+                            className={`tabular-nums shrink-0 ${t.type === "income"
                               ? "text-green-600"
                               : t.type === "expense"
                                 ? "text-red-600"
@@ -301,7 +301,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
                         <span className="flex justify-between items-center gap-2">
                           <span className="text-slate-500">Next run</span>
                           <span
-                            className={`font-mono shrink-0 ${r.type === "income"
+                            className={`tabular-nums shrink-0 ${r.type === "income"
                               ? "text-green-600"
                               : r.type === "expense"
                                 ? "text-red-600"

@@ -411,7 +411,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
                                     <label htmlFor="filter-amount-min" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.min")}</label>
-                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMin)} €</span>
+                                    <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{fmt(safeMin)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-min"
@@ -438,7 +438,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                                 <div>
                                   <div className="flex justify-between items-center gap-2 mb-1">
                                     <label htmlFor="filter-amount-max" className="text-xs text-slate-600 dark:text-slate-300">{t("filterDialog.max")}</label>
-                                    <span className="text-xs font-mono text-slate-700 dark:text-slate-200">{fmt(safeMax)} €</span>
+                                    <span className="text-xs tabular-nums text-slate-700 dark:text-slate-200">{fmt(safeMax)} €</span>
                                   </div>
                                   <input
                                     id="filter-amount-max"
@@ -572,7 +572,7 @@ export function AllMovementsSection({ confirmed, isSplitOnly }: Props) {
                         )}
                       </td>
                       <td
-                        className={`px-4 py-2 text-right font-mono ${t.type === "income"
+                        className={`px-4 py-2 text-right tabular-nums ${t.type === "income"
                           ? "text-green-600 dark:text-green-400"
                           : t.type === "expense"
                             ? "text-red-600 dark:text-red-400"

@@ -53,11 +53,11 @@ function BalancePreviewTable({ rows, labels }: { rows: BalancePreviewRow[]; labe
             return (
               <tr key={r.accountName}>
                 <td className="px-3 py-1.5 text-slate-700">{r.accountName}</td>
-                <td className="px-3 py-1.5 text-right font-mono text-slate-600">
+                <td className="px-3 py-1.5 text-right tabular-nums text-slate-600">
                   {fmt(r.currentBalance)} €
                 </td>
                 <td
-                  className={`px-3 py-1.5 text-right font-mono ${changed
+                  className={`px-3 py-1.5 text-right tabular-nums ${changed
                     ? r.afterBalance < r.currentBalance
                       ? "text-red-600 font-semibold"
                       : "text-green-600 font-semibold"

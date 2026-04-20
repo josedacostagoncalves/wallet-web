@@ -1178,7 +1178,7 @@ export function ExpenseFormModal({
                                   </span>
                                 )}
                               </td>
-                              <td className="px-2 py-1.5 text-right font-mono text-slate-700 dark:text-slate-200">
+                              <td className="px-2 py-1.5 text-right tabular-nums text-slate-700 dark:text-slate-200">
                                 {r.value.toLocaleString("pt-PT", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,
@@ -1362,7 +1362,7 @@ export function ExpenseFormModal({
                               </p>
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
-                              <span className="font-mono text-right text-red-600 dark:text-red-400 whitespace-nowrap pt-px">
+                              <span className="tabular-nums text-right text-red-600 dark:text-red-400 whitespace-nowrap pt-px">
                                 −{r.amount.toLocaleString("pt-PT", {
                                   minimumFractionDigits: 2,
                                   maximumFractionDigits: 2,

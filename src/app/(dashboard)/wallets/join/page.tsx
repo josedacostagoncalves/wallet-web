@@ -64,7 +64,7 @@ export default function JoinWalletPage() {
               placeholder={tWallets("page.joinPage.shareCodePlaceholder")}
               maxLength={8}
               required
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 font-mono text-lg tracking-wider text-center"
+              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800 tabular-nums text-lg tracking-wider text-center"
             />
             <p className="text-xs text-slate-500 mt-1">
               {tWallets("page.joinPage.shareCodeHint")}

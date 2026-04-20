@@ -322,7 +322,7 @@ export default function EditWalletPage() {
                 <p className="text-sm text-slate-500">{tCommon("loading")}</p>
               ) : shareCode ? (
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg font-mono text-lg font-semibold">
+                  <code className="flex-1 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg tabular-nums text-lg font-semibold">
                     {shareCode}
                   </code>
                   <button

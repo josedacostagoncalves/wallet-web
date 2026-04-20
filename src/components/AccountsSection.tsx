@@ -599,11 +599,11 @@ export function AccountsSection({
                       </span>
                     </td>
                     {showInitialBalance && (
-                      <td className="px-4 py-3 text-right font-mono">
+                      <td className="px-4 py-3 text-right tabular-nums">
                         {fmt(a.initial_balance, hideBalances)} €
                       </td>
                     )}
-                    <td className="px-4 py-3 text-right font-mono">
+                    <td className="px-4 py-3 text-right tabular-nums">
                       <div className="flex items-center justify-end gap-2">
                         {showPlafond && a.account_type === "credit_card" && a.plafond != null && a.plafond > 0 && (
                           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans truncate">
@@ -739,7 +739,7 @@ export function AccountsSection({
                                         />
                                       </td>
                                       <td
-                                        className={`px-3 py-2 text-right font-mono ${m.type === "income"
+                                        className={`px-3 py-2 text-right tabular-nums ${m.type === "income"
                                           ? "text-green-600 dark:text-green-400"
                                           : m.type === "expense"
                                             ? "text-red-600 dark:text-red-400"
@@ -810,11 +810,11 @@ export function AccountsSection({
                 </span>
               </td>
               {showInitialBalance && (
-                <td className="px-4 py-3 text-right font-mono">
+                <td className="px-4 py-3 text-right tabular-nums">
                   {fmt(totalInitialBalance, hideBalances)} €
                 </td>
               )}
-              <td className="px-4 py-3 text-right font-mono">
+              <td className="px-4 py-3 text-right tabular-nums">
                 {fmt(totalBalance, hideBalances)} €
               </td>
               <td className="px-4 py-3" />
@@ -1071,7 +1071,7 @@ export function AccountsSection({
                                 />
                               </td>
                               <td
-                                className={`px-4 py-2 text-right font-mono ${m.type === "income"
+                                className={`px-4 py-2 text-right tabular-nums ${m.type === "income"
                                   ? "text-green-600"
                                   : m.type === "expense"
                                     ? "text-red-600"

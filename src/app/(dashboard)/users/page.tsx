@@ -259,7 +259,7 @@ export default function UsersPage() {
                       <td className="p-3 text-slate-600 dark:text-slate-400">
                         {r.role === "owner" ? t("roles.owner") : t("roles.member")}
                       </td>
-                      <td className={"p-3 text-right font-mono " + (r.balance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
+                      <td className={"p-3 text-right tabular-nums " + (r.balance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")}>
                         {r.balance >= 0 ? "+" : ""}
                         {r.balance.toFixed(2)} €
                       </td>
