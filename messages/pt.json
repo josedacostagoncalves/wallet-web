@@ -1179,6 +1179,48 @@
             "pending": "Pendente",
             "noExpenses": "Sem despesas no mês selecionado",
             "categories": "categorias"
+        },
+        "radar": {
+            "titleIncome": "Receitas por categoria",
+            "titleExpenses": "Despesas por categoria",
+            "thisMonth": "Este mês",
+            "statementsAverage": "Média",
+            "emptyIncome": "Sem receitas confirmadas neste mês.",
+            "emptyExpenses": "Sem despesas confirmadas neste mês.",
+            "footerInChart": "No gráfico",
+            "footerPeak": "Maior categoria"
+        },
+        "comparison": {
+            "title": "Receitas vs despesas",
+            "income": "Receitas",
+            "expenses": "Despesas",
+            "net": "Saldo",
+            "empty": "Sem receitas nem despesas confirmadas neste mês.",
+            "viewDonut": "Vista circular",
+            "viewBars": "Vista em barras",
+            "donutSpent": "Despesas",
+            "donutRemaining": "Não gasto",
+            "donutCenterHint": "da receita gasta",
+            "donutNoIncome": "Sem receitas este mês"
+        },
+        "daily": {
+            "titleIncome": "Receitas diárias",
+            "titleExpense": "Despesas diárias",
+            "emptyIncome": "Sem receitas confirmadas neste mês.",
+            "emptyExpense": "Sem despesas confirmadas neste mês.",
+            "footerDaysLabel": "Dias"
+        },
+        "essentialSplit": {
+            "title": "Despesas essenciais",
+            "empty": "Sem despesas confirmadas neste mês.",
+            "legendEssential": "Essenciais",
+            "legendNonEssential": "Não essenciais",
+            "donutCenterHint": "não essenciais",
+            "footerMonthTotal": "Total no mês"
+        },
+        "placeholder": {
+            "title": "Em breve",
+            "description": "Este espaço está reservado para um gráfico futuro."
         }
     },
     "recurring": {

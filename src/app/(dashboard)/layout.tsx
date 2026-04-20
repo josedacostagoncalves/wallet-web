@@ -5,7 +5,6 @@ import { getOrEnsureProfile } from "@/app/actions/profiles";
 import { TransactionModalsProvider } from "@/contexts/TransactionModalsContext";
 import { ThemeProvider, ThemeScript } from "@/contexts/ThemeContext";
 import { WalletProvider } from "@/contexts/WalletContext";
-import { Header } from "@/components/Header";
 import { TransactionModals } from "@/components/TransactionModals";
 import { SidebarNav } from "@/components/SidebarNav";
 
@@ -23,6 +22,8 @@ export default async function DashboardLayout({
   const profile = await getOrEnsureProfile(user.id, user.user_metadata as { first_name?: string | null; last_name?: string | null } | undefined);
   const firstName = (profile.first_name ?? "").trim() || null;
   const theme = profile.theme ?? "system";
+  const meta = user.user_metadata as { avatar_url?: string } | undefined;
+  const avatarUrl = profile.avatar_url?.trim() || meta?.avatar_url?.trim() || null;
 
   const { data: wallets } = await supabase
     .from("wallets")
@@ -39,10 +40,15 @@ export default async function DashboardLayout({
   return (
     <ThemeProvider initialTheme={theme}>
       <ThemeScript theme={theme} />
-      <WalletProvider currentWalletId={currentWalletId} wallets={list} user={user} firstName={firstName}>
+      <WalletProvider
+        currentWalletId={currentWalletId}
+        wallets={list}
+        user={user}
+        firstName={firstName}
+        avatarUrl={avatarUrl}
+      >
         <TransactionModalsProvider>
-          <Header />
-          <div className="flex w-full">
+          <div className="flex w-full min-h-screen">
             <SidebarNav />
             <main className="flex-1 min-w-0 py-6">
               <div className="w-full px-4 lg:px-6 xl:px-8 2xl:px-10">{children}</div>

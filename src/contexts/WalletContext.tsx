@@ -11,6 +11,8 @@ type WalletContextValue = {
   wallets: Wallet[];
   user: User | null;
   firstName: string | null;
+  /** Profile or OAuth avatar for sidebar. */
+  avatarUrl: string | null;
   setCurrentWallet: (id: string) => Promise<void>;
 };
 
@@ -21,12 +23,14 @@ export function WalletProvider({
   wallets,
   user,
   firstName,
+  avatarUrl,
   children,
 }: {
   currentWalletId: string | null;
   wallets: Wallet[];
   user: User | null;
   firstName: string | null;
+  avatarUrl: string | null;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -49,6 +53,7 @@ export function WalletProvider({
         wallets,
         user,
         firstName,
+        avatarUrl,
         setCurrentWallet,
       }}
     >

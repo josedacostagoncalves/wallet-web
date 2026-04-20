@@ -1,6 +1,33 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { transactionsForWalletOrReceiverUserIncomes } from "@/lib/income-scope";
+
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
+
+/** Shared wallet: include user-scoped incomes for every member. Personal wallet: only the current user. */
+async function getIncomeReceiverUserIdsForStatements(
+    supabase: SupabaseServer,
+    walletId: string,
+    currentUserId: string
+): Promise<string[]> {
+    const [{ data: wallet }, { data: members }] = await Promise.all([
+        supabase.from("wallets").select("is_shared").eq("id", walletId).single(),
+        supabase.from("wallet_members").select("user_id").eq("wallet_id", walletId),
+    ]);
+    const memberIds = Array.from(
+        new Set(
+            (members ?? [])
+                .map((m: { user_id: string }) => m.user_id)
+                .filter((id: string | null | undefined): id is string => !!id && String(id).trim().length > 0)
+        )
+    );
+    const isShared = !!wallet?.is_shared || memberIds.length > 1;
+    if (isShared && memberIds.length > 0) {
+        return memberIds;
+    }
+    return [currentUserId];
+}
 
 type StatementRow = {
     category: string;
@@ -175,19 +202,28 @@ export async function getStatementsByCategory(
     endDate: string
 ): Promise<StatementsResult> {
     const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
     // Fetch all transactions for the wallet in the date range with category info
     // Exclude transfers - only show income and expense
-    const { data: transactions, error } = await supabase
+    const txQuery = supabase
         .from("transactions")
         .select("id, date, type, amount, description, category_id, category:categories(id, name, parent_id)")
-        .eq("wallet_id", walletId)
         .eq("status", "confirmed")
         .in("type", ["income", "expense"])
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: false })
         .order("created_at", { ascending: false });
+    if (user?.id) {
+        const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
+        txQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
+    } else {
+        txQuery.eq("wallet_id", walletId);
+    }
+    const { data: transactions, error } = await txQuery;
 
     if (error) {
         console.error("Error fetching transactions:", error);
@@ -202,13 +238,28 @@ export async function getStatementsByCategory(
     const incomeMap = new Map<string, StatementRow>();
     const expenseMap = new Map<string, StatementRow>();
 
-    // Also fetch parent categories to build subcategory map
-    const { data: allCategories } = await supabase
+    // Build category map from wallet categories + any category/parent used by cross-wallet incomes.
+    const { data: walletCategories } = await supabase
         .from("categories")
         .select("id, name, parent_id")
         .eq("wallet_id", walletId);
-
-    const categoryMap = buildCategoryMap(allCategories || []);
+    const categoryMap = buildCategoryMap(walletCategories || []);
+    const categoryIdsNeeded = new Set<string>();
+    (transactions as any as TransactionWithCategory[]).forEach((transaction) => {
+        const categoryId = transaction.category?.id || transaction.category_id || "";
+        if (categoryId) categoryIdsNeeded.add(categoryId);
+        if (transaction.category?.parent_id) categoryIdsNeeded.add(transaction.category.parent_id);
+    });
+    const missingCategoryIds = Array.from(categoryIdsNeeded).filter((id) => !categoryMap.has(id));
+    if (missingCategoryIds.length > 0) {
+        const { data: extraCategories } = await supabase
+            .from("categories")
+            .select("id, name, parent_id")
+            .in("id", missingCategoryIds);
+        (extraCategories || []).forEach((cat) => {
+            categoryMap.set(cat.id, { name: cat.name, parent_id: cat.parent_id });
+        });
+    }
 
     (transactions as any as TransactionWithCategory[]).forEach((transaction) => {
         const { categoryName, parentCategoryName, isSubcategory } = getCategoryContext(transaction, categoryMap);
@@ -316,19 +367,28 @@ export async function getAvailableYears(
     mode: StatementsViewMode = "incomeExpenses"
 ): Promise<number[]> {
     const supabase = await createClient();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
 
     let transactions: { date: string }[] = [];
     let error: { message: string } | null = null;
 
     if (mode === "incomeExpenses") {
-        const res = await supabase
+        const txQuery = supabase
             .from("transactions")
             .select("date")
-            .eq("wallet_id", walletId)
             .eq("status", "confirmed")
             .in("type", ["income", "expense"])
             .order("date", { ascending: true })
             .order("created_at", { ascending: true });
+        if (user?.id) {
+            const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
+            txQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
+        } else {
+            txQuery.eq("wallet_id", walletId);
+        }
+        const res = await txQuery;
         transactions = (res.data as { date: string }[] | null) || [];
         error = res.error;
     } else {

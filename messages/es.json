@@ -1179,6 +1179,48 @@
             "pending": "Pendiente",
             "noExpenses": "Sin gastos en el mes seleccionado",
             "categories": "categorías"
+        },
+        "radar": {
+            "titleIncome": "Ingresos por categoría",
+            "titleExpenses": "Gastos por categoría",
+            "thisMonth": "Este mes",
+            "statementsAverage": "Media",
+            "emptyIncome": "No hay ingresos confirmados en este mes.",
+            "emptyExpenses": "No hay gastos confirmados en este mes.",
+            "footerInChart": "En el gráfico",
+            "footerPeak": "Mayor categoría"
+        },
+        "comparison": {
+            "title": "Ingresos vs gastos",
+            "income": "Ingresos",
+            "expenses": "Gastos",
+            "net": "Saldo",
+            "empty": "No hay ingresos ni gastos confirmados en este mes.",
+            "viewDonut": "Vista circular",
+            "viewBars": "Vista de barras",
+            "donutSpent": "Gastos",
+            "donutRemaining": "No gastado",
+            "donutCenterHint": "del ingreso gastado",
+            "donutNoIncome": "Sin ingresos este mes"
+        },
+        "daily": {
+            "titleIncome": "Ingresos diarios",
+            "titleExpense": "Gastos diarios",
+            "emptyIncome": "No hay ingresos confirmados este mes.",
+            "emptyExpense": "No hay gastos confirmados este mes.",
+            "footerDaysLabel": "Días"
+        },
+        "essentialSplit": {
+            "title": "Gastos esenciales",
+            "empty": "No hay gastos confirmados este mes.",
+            "legendEssential": "Esenciales",
+            "legendNonEssential": "No esenciales",
+            "donutCenterHint": "no esenciales",
+            "footerMonthTotal": "Total del mes"
+        },
+        "placeholder": {
+            "title": "Próximamente",
+            "description": "Este espacio está reservado para un gráfico futuro."
         }
     },
     "recurring": {

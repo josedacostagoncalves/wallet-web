@@ -1179,6 +1179,48 @@
             "pending": "En attente",
             "noExpenses": "Aucune dépense pour le mois sélectionné",
             "categories": "catégories"
+        },
+        "radar": {
+            "titleIncome": "Revenus par catégorie",
+            "titleExpenses": "Dépenses par catégorie",
+            "thisMonth": "Ce mois",
+            "statementsAverage": "Moyenne",
+            "emptyIncome": "Aucun revenu confirmé pour ce mois.",
+            "emptyExpenses": "Aucune dépense confirmée pour ce mois.",
+            "footerInChart": "Dans le graphique",
+            "footerPeak": "Plus grande catégorie"
+        },
+        "comparison": {
+            "title": "Revenus vs dépenses",
+            "income": "Revenus",
+            "expenses": "Dépenses",
+            "net": "Solde",
+            "empty": "Aucun revenu ni dépense confirmé pour ce mois.",
+            "viewDonut": "Vue circulaire",
+            "viewBars": "Vue en barres",
+            "donutSpent": "Dépenses",
+            "donutRemaining": "Non dépensé",
+            "donutCenterHint": "du revenu dépensé",
+            "donutNoIncome": "Pas de revenu ce mois-ci"
+        },
+        "daily": {
+            "titleIncome": "Revenus quotidiens",
+            "titleExpense": "Dépenses quotidiennes",
+            "emptyIncome": "Aucun revenu confirmé ce mois-ci.",
+            "emptyExpense": "Aucune dépense confirmée ce mois-ci.",
+            "footerDaysLabel": "Jours"
+        },
+        "essentialSplit": {
+            "title": "Dépenses essentielles",
+            "empty": "Aucune dépense confirmée ce mois-ci.",
+            "legendEssential": "Essentielles",
+            "legendNonEssential": "Non essentielles",
+            "donutCenterHint": "non essentielles",
+            "footerMonthTotal": "Total du mois"
+        },
+        "placeholder": {
+            "title": "Bientôt",
+            "description": "Cet emplacement est réservé pour un futur graphique."
         }
     },
     "recurring": {

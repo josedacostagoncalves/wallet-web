@@ -7,6 +7,7 @@ import { RecurringSection, type RecurringRow } from "@/components/RecurringSecti
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
 import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
 import { workDayDateInMonth } from "@/lib/recurrence";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { getTranslations } from "next-intl/server";
 
 export const dynamic = "force-dynamic";
@@ -417,18 +418,14 @@ export default async function TransactionsPage() {
         <div className="space-y-6">
             {!currentWalletId ? (
                 <>
-                    <h1 className="text-2xl font-semibold">{t("title")}</h1>
-                    <p className="text-slate-600 dark:text-slate-400 -mt-3">{t("subtitle")}</p>
-                    <p className="text-slate-600">
+                    <DashboardPageHeader title={t("title")} description={t("subtitle")} />
+                    <p className="text-slate-600 dark:text-slate-400">
                         {t("emptyWalletMessage")}
                     </p>
                 </>
             ) : (
                 <div className="space-y-8">
-                    <div>
-                        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-                        <p className="text-slate-600 dark:text-slate-400 mt-1">{t("subtitle")}</p>
-                    </div>
+                    <DashboardPageHeader title={t("title")} description={t("subtitle")} />
                     <section>
                         <RecurringSection recurring={recurring} />
                     </section>

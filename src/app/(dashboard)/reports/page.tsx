@@ -1,43 +1,15 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { DashboardCalendar } from "@/components/DashboardCalendar";
-import { ReportsWidgets } from "@/components/ReportsWidgets";
+import { ReportsDailySeriesChart } from "@/components/ReportsDailySeriesChart";
+import { ReportsMonthEssentialExpenseDonut } from "@/components/ReportsMonthEssentialExpenseDonut";
+import { ReportsMonthIncomeExpenseComparison } from "@/components/ReportsMonthIncomeExpenseComparison";
+import { ReportsMonthRadarChart } from "@/components/ReportsMonthRadarChart";
+import { ReportsPlaceholderCard } from "@/components/ReportsPlaceholderCard";
 import { getReportsData } from "@/app/actions/reports";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { useTranslations } from "next-intl";
-
-type MonthlyPoint = {
-  key: string;
-  label: string;
-  income: number;
-  expense: number;
-  net: number;
-};
-
-type CalendarTransaction = {
-  id: string;
-  date: string;
-  type: string;
-  amount: number;
-  description: string | null;
-  categoryLabel: string;
-  subcategoryLabel: string;
-  accountFromName: string;
-  accountToName: string;
-  status: "confirmed" | "pending";
-};
-
-type CalendarRecurringNextRun = {
-  id: string;
-  date: string;
-  type: string;
-  amount: number;
-  description: string;
-  categoryLabel: string;
-  subcategoryLabel: string;
-  accountFromName: string;
-  accountToName: string;
-};
 
 export default function ReportsPage() {
   const t = useTranslations("reports");
@@ -66,11 +38,8 @@ export default function ReportsPage() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">{t("description")}</p>
-        </div>
+      <div className="space-y-6">
+        <DashboardPageHeader title={t("title")} description={t("description")} />
         <p className="text-slate-600 dark:text-slate-400">{t("loading")}</p>
       </div>
     );
@@ -78,11 +47,8 @@ export default function ReportsPage() {
 
   if (!data.currentWalletId) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-2">{t("description")}</p>
-        </div>
+      <div className="space-y-6">
+        <DashboardPageHeader title={t("title")} description={t("description")} />
         <p className="text-slate-600 dark:text-slate-400">
           {t("noWallet")}
         </p>
@@ -91,35 +57,47 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <p className="text-slate-600 dark:text-slate-400 mt-2">{t("description")}</p>
-      </div>
+    <div className="space-y-6">
+      <DashboardPageHeader title={t("title")} description={t("description")} />
 
-      <section>
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* Calendar */}
-          <div className="flex-1">
-            <DashboardCalendar
-              transactions={data.calendarTransactions}
-              recurringNextRuns={data.recurringNextRuns}
-              onMonthChange={handleMonthChange}
-            />
-          </div>
-          <div className="lg:w-[520px]">
-            <ReportsWidgets
-              monthlySeries={data.monthlySeries}
-              incomeTotal={data.totalIncome}
-              expenseTotal={data.totalExpenses}
-              netTotal={data.netTotal}
-              avgDailySpend={data.avgDailySpend}
-              pendingVsConfirmed={data.pendingVsConfirmed}
-              categories={data.chartData}
-              defaultPeriodMonths={data.defaultPeriodMonths}
-              selectedMonth={selectedMonth}
-            />
-          </div>
+      <section className="space-y-6">
+        <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
+          <DashboardCalendar
+            transactions={data.calendarTransactions}
+            recurringNextRuns={data.recurringNextRuns}
+            onMonthChange={handleMonthChange}
+          />
+          <ReportsMonthIncomeExpenseComparison
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsMonthEssentialExpenseDonut
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsPlaceholderCard />
+        </div>
+        <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
+          <ReportsMonthRadarChart
+            variant="income"
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsMonthRadarChart
+            variant="expense"
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsDailySeriesChart
+            variant="income"
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsDailySeriesChart
+            variant="expense"
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
         </div>
       </section>
     </div>

@@ -1179,6 +1179,48 @@
             "pending": "Pending",
             "noExpenses": "No expenses in the selected month",
             "categories": "categories"
+        },
+        "radar": {
+            "titleIncome": "Income by category",
+            "titleExpenses": "Expenses by category",
+            "thisMonth": "This month",
+            "statementsAverage": "Average",
+            "emptyIncome": "No confirmed income in this month.",
+            "emptyExpenses": "No confirmed expenses in this month.",
+            "footerInChart": "In chart",
+            "footerPeak": "Top category"
+        },
+        "comparison": {
+            "title": "Incomes vs Expenses",
+            "income": "Income",
+            "expenses": "Expenses",
+            "net": "Balance",
+            "empty": "No confirmed income or expenses this month.",
+            "viewDonut": "Donut view",
+            "viewBars": "Bar view",
+            "donutSpent": "Expenses",
+            "donutRemaining": "Not spent",
+            "donutCenterHint": "of income spent",
+            "donutNoIncome": "No income this month"
+        },
+        "daily": {
+            "titleIncome": "Daily income",
+            "titleExpense": "Daily expenses",
+            "emptyIncome": "No confirmed income in this month.",
+            "emptyExpense": "No confirmed expenses in this month.",
+            "footerDaysLabel": "Days"
+        },
+        "essentialSplit": {
+            "title": "Essential Expenses",
+            "empty": "No confirmed expenses in this month.",
+            "legendEssential": "Essential",
+            "legendNonEssential": "Non-essential",
+            "donutCenterHint": "non-essential",
+            "footerMonthTotal": "Month total"
+        },
+        "placeholder": {
+            "title": "Coming soon",
+            "description": "This space is reserved for a future chart."
         }
     },
     "recurring": {

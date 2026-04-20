@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
+import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
 
 export async function getReportsData() {
     const supabase = await createClient();
@@ -53,6 +54,8 @@ export async function getReportsData() {
         accountFromName: string;
         accountToName: string;
         status: "confirmed" | "pending";
+        /** Effective essential flag for expenses (category + transaction override). */
+        isExpenseEssential?: boolean;
     };
 
     type CalendarRecurringNextRun = {
@@ -77,7 +80,7 @@ export async function getReportsData() {
             data: { user },
         } = await supabase.auth.getUser();
 
-        type CategoryRow = { id: string; name: string; parent_id: string | null };
+        type CategoryRow = { id: string; name: string; parent_id: string | null; is_essential?: boolean | null };
         type TxRow = {
             id: string;
             wallet_id: string;
@@ -89,13 +92,14 @@ export async function getReportsData() {
             account_to_id: string | null;
             category: CategoryRow | null;
             status?: string | null;
+            is_essential?: boolean | null;
         };
 
         const txQuery = supabase
             .from("transactions")
             .select(
-                "id, wallet_id, date, type, amount, description, account_from_id, account_to_id, status, " +
-                "category:categories(id, name, parent_id)"
+                "id, wallet_id, date, type, amount, description, account_from_id, account_to_id, status, is_essential, " +
+                "category:categories(id, name, parent_id, is_essential)"
             )
             .gte("date", seriesStartStr)
             .order("date", { ascending: false })
@@ -192,6 +196,15 @@ export async function getReportsData() {
                 accountFromName,
                 accountToName,
                 status: (t.status as "confirmed" | "pending") ?? "confirmed",
+                ...(t.type === "expense"
+                    ? {
+                          isExpenseEssential: expenseIsEffectivelyEssential(
+                              t.type,
+                              t.is_essential ?? null,
+                              cat
+                          ),
+                      }
+                    : {}),
             };
         });
 

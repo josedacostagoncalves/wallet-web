@@ -9,6 +9,7 @@ import {
     getAvailableYears,
     type StatementsViewMode,
 } from "@/app/actions/statements";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { StatementsTable } from "@/components/StatementsTable";
 
 export default function StatementsPage() {
@@ -98,14 +99,7 @@ export default function StatementsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                    {t("title")}
-                </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    {t("description")}
-                </p>
-            </div>
+            <DashboardPageHeader title={t("title")} description={t("description")} />
 
             {/* Filters */}
             <div className="flex items-center gap-4 p-4 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
@@ -187,6 +181,6 @@ export default function StatementsPage() {
                     )
                 )
             }
-        </div >
+        </div>
     );
 }
