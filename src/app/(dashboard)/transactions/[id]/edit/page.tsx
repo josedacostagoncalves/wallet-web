@@ -18,6 +18,7 @@ import { TransactionObservationsAttachments } from "@/components/TransactionObse
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
+import { getWalletSplitInfo } from "@/app/actions/wallets";
 import {
   type RecurrenceType,
   RECURRENCE_OPTIONS,
@@ -33,6 +34,7 @@ import {
   normalizeMoneyInputString,
   parseMoneyInputString,
 } from "@/lib/money-format";
+import { incomeScopeForInsert, normalizeIncomeScope } from "@/lib/income-scope";
 
 type TransactionType = "income" | "expense" | "transfer";
 
@@ -82,6 +84,12 @@ export default function EditTransactionPage() {
   const [status, setStatus] = useState<"confirmed" | "pending" | null>(null);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [incomeScopeWalletOnly, setIncomeScopeWalletOnly] = useState(false);
+  const [walletIsShared, setWalletIsShared] = useState(false);
+  const [incomeReceiverMemberId, setIncomeReceiverMemberId] = useState<string | null>(null);
+  const [incomeReceiverOptions, setIncomeReceiverOptions] = useState<{ user_id: string; display_name: string }[]>(
+    []
+  );
 
   useEffect(() => {
     getTransaction(id).then((m) => {
@@ -111,12 +119,29 @@ export default function EditTransactionPage() {
         setSubcategoryId("");
         setCurrentCategoryName(m.category_name ?? "");
       }
+      if (m.type === "income") {
+        setIncomeScopeWalletOnly(
+          normalizeIncomeScope(m.type, (m as { income_scope?: string | null }).income_scope) === "wallet"
+        );
+        setIncomeReceiverMemberId(m.received_by_member_id ?? null);
+      } else {
+        setIncomeScopeWalletOnly(false);
+        setIncomeReceiverMemberId(null);
+      }
     });
   }, [id, localeTag]);
 
   useEffect(() => {
     if (!currentWalletId) return;
     getAccounts(currentWalletId).then(setAccounts);
+  }, [currentWalletId]);
+
+  useEffect(() => {
+    if (!currentWalletId) return;
+    getWalletSplitInfo(currentWalletId).then((r) => {
+      setWalletIsShared(!!r.is_shared);
+      setIncomeReceiverOptions((r.members ?? []).map((m) => ({ user_id: m.user_id, display_name: m.display_name })));
+    });
   }, [currentWalletId]);
 
   useEffect(() => {
@@ -147,6 +172,8 @@ export default function EditTransactionPage() {
     if (type === "expense" && subcategories.length > 0 && !subcategoryId)
       return tForm("validation.subcategoryRequired");
     if (!description.trim()) return tForm("validation.descriptionRequired");
+    if (type === "income" && walletIsShared && !incomeReceiverMemberId)
+      return tForm("validation.memberReceivedRequired");
     if (!status) return null;
     if (status === "confirmed" && isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
@@ -237,6 +264,12 @@ export default function EditTransactionPage() {
           : null,
       work_day_index:
         isWorkDay && workDayIndex.trim() ? parseInt(workDayIndex, 10) : null,
+      ...(type === "income"
+        ? {
+            income_scope: incomeScopeForInsert("income", incomeScopeWalletOnly ? "wallet" : "user"),
+            received_by_member_id: incomeReceiverMemberId,
+          }
+        : {}),
     });
     setSaving(false);
     if (res.error) {
@@ -272,6 +305,12 @@ export default function EditTransactionPage() {
       description: description.trim(),
       observations: observations.trim() || null,
       is_recurring: false,
+      ...(type === "income"
+        ? {
+            income_scope: incomeScopeForInsert("income", incomeScopeWalletOnly ? "wallet" : "user"),
+            received_by_member_id: incomeReceiverMemberId,
+          }
+        : {}),
     });
     if (res.error) {
       setError(res.error);
@@ -456,20 +495,57 @@ export default function EditTransactionPage() {
           />
         </div>
         {type === "income" && (
-          <div>
-            <label className="block text-sm font-medium mb-1">{tForm("fields.accountTo")}</label>
-            <select
-              value={accountToId}
-              onChange={(e) => setAccountToId(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
-            >
-              <option value="">{tForm("fields.selectAccount")}</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name}</option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div>
+              <label className="block text-sm font-medium mb-1">{tForm("fields.accountTo")}</label>
+              <select
+                value={accountToId}
+                onChange={(e) => setAccountToId(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+              >
+                <option value="">{tForm("fields.selectAccount")}</option>
+                {accounts.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+            {walletIsShared && (
+              <div>
+                <label className="block text-sm font-medium mb-1">{tForm("fields.receivedByMemberRequired")}</label>
+                <select
+                  value={incomeReceiverMemberId ?? ""}
+                  onChange={(e) => setIncomeReceiverMemberId(e.target.value || null)}
+                  required
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800"
+                >
+                  <option value="">{tForm("fields.selectIncomeReceiver")}</option>
+                  {incomeReceiverOptions.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.display_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 px-3 py-2.5 space-y-1">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  id="income-scope-wallet-only-edit"
+                  checked={incomeScopeWalletOnly}
+                  onChange={(e) => setIncomeScopeWalletOnly(e.target.checked)}
+                  className="mt-0.5 shrink-0"
+                />
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {tForm("fields.incomeScopeWalletOnly")}
+                </span>
+              </label>
+              <p className="text-xs text-slate-500 dark:text-slate-400 pl-6">
+                {tForm("fields.incomeScopeHint")}
+              </p>
+            </div>
+          </>
         )}
         {type === "expense" && (
           <div>

@@ -2,6 +2,7 @@
 
 import { TransactionTypeIcon } from "@/components/ActionIcons";
 import { AvatarImage } from "@/components/AvatarImage";
+import { TransactionListIndicators } from "@/components/TransactionListIndicators";
 import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
@@ -30,6 +31,10 @@ export type ConfirmedRow = {
   receivedByMemberName: string | null;
   receivedByMemberAvatar: string | null;
   splitMethod: "equally" | "by_income" | "manual" | null;
+  hasAttachment: boolean;
+  isEssential: boolean;
+  /** User-scoped income credited in another wallet (display hint). */
+  postedFromWalletName: string | null;
 };
 
 type Props = { confirmed: ConfirmedRow[]; isSplitOnly: boolean };
@@ -710,6 +715,9 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                       <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
                         {isSplitOnly ? "Paid by -> Received by" : t("table.fromTo")}
                       </th>
+                      <th className="px-4 py-2 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
+                        <span className="sr-only">{t("table.symbolsColumn")}</span>
+                      </th>
                       {isSplitOnly && (
                         <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">Splitting %</th>
                       )}
@@ -742,66 +750,79 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {sortedFiltered.map((t) => (
-                      <tr key={t.id} className={transactionRowBgClass(t.type)}>
+                    {sortedFiltered.map((row) => (
+                      <tr key={row.id} className={transactionRowBgClass(row.type)}>
                         <td className="px-4 py-2">
                           <TransactionTypeIcon
-                            type={t.type as "income" | "expense" | "transfer"}
-                            label={tType(t.type as "income" | "expense" | "transfer")}
+                            type={row.type as "income" | "expense" | "transfer"}
+                            label={tType(row.type as "income" | "expense" | "transfer")}
                           />
                         </td>
-                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{t.date}</td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300">{row.date}</td>
                         <td className="px-4 py-2 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
-                          {t.description || "—"}
+                          <span className="block truncate">{row.description || "—"}</span>
+                          {row.postedFromWalletName ? (
+                            <span className="block text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {t("postedInWallet", { wallet: row.postedFromWalletName })}
+                            </span>
+                          ) : null}
                         </td>
                         <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                          {formatCategorySubcategory(t.categoryLabel, t.subcategoryLabel)}
+                          {formatCategorySubcategory(row.categoryLabel, row.subcategoryLabel)}
                         </td>
                         <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
                           {isSplitOnly ? (
                             <div className="flex items-center gap-2 min-w-0">
-                              {t.type === "income" ? (
+                              {row.type === "income" ? (
                                 <>
                                   <span className="text-slate-400">-&gt;</span>
-                                  {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                                  {memberChip(row.receivedByMemberName, row.receivedByMemberAvatar)}
                                 </>
-                              ) : t.type === "expense" ? (
+                              ) : row.type === "expense" ? (
                                 <>
-                                  {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                  {memberChip(row.paidByMemberName, row.paidByMemberAvatar)}
                                   <span className="text-slate-400">-&gt;</span>
                                 </>
                               ) : (
                                 <>
-                                  {memberChip(t.paidByMemberName, t.paidByMemberAvatar)}
+                                  {memberChip(row.paidByMemberName, row.paidByMemberAvatar)}
                                   <span className="text-slate-400">-&gt;</span>
-                                  {memberChip(t.receivedByMemberName, t.receivedByMemberAvatar)}
+                                  {memberChip(row.receivedByMemberName, row.receivedByMemberAvatar)}
                                 </>
                               )}
                             </div>
                           ) : (
-                            formatFromTo(t.accountFromName, t.accountToName)
+                            formatFromTo(row.accountFromName, row.accountToName)
                           )}
+                        </td>
+                        <td className="px-4 py-2 text-slate-600 dark:text-slate-300 align-middle">
+                          <TransactionListIndicators
+                            hasAttachment={row.hasAttachment}
+                            isEssential={row.isEssential}
+                            ariaAttachment={t("table.hasAttachment")}
+                            ariaEssential={t("table.essentialExpense")}
+                          />
                         </td>
                         {isSplitOnly && (
                           <td className="px-4 py-2 text-slate-600 dark:text-slate-300">
-                            {t.type === "expense" ? splitMethodLabel(t.splitMethod) : "—"}
+                            {row.type === "expense" ? splitMethodLabel(row.splitMethod) : "—"}
                           </td>
                         )}
                         <td
-                          className={`px-4 py-2 text-right font-mono ${t.type === "income"
+                          className={`px-4 py-2 text-right font-mono ${row.type === "income"
                             ? "text-green-600 dark:text-green-400"
-                            : t.type === "expense"
+                            : row.type === "expense"
                               ? "text-red-600 dark:text-red-400"
-                              : t.type === "transfer"
+                              : row.type === "transfer"
                                 ? "text-blue-600 dark:text-blue-400"
                                 : ""
                             }`}
                         >
-                          {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                          {fmtAmount(t.amount)} €
+                          {row.type === "income" ? "+" : row.type === "expense" ? "−" : ""}
+                          {fmtAmount(row.amount)} €
                         </td>
                         <td className="px-4 py-2">
-                          <TransactionRowActions id={t.id} status="confirmed" />
+                          <TransactionRowActions id={row.id} status="confirmed" />
                         </td>
                       </tr>
                     ))}
@@ -810,7 +831,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     <tfoot>
                       <tr className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/60 font-medium">
                         <td
-                          colSpan={5 + (isSplitOnly ? 1 : 0)}
+                          colSpan={6 + (isSplitOnly ? 1 : 0)}
                           className="px-4 py-2.5 text-slate-800 dark:text-slate-100"
                         >
                           {t("table.totalsHeading")}

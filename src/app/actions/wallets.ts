@@ -987,15 +987,29 @@ export async function getWalletSettlements(
     .lte("date", periodEnd);
   if (transfersErr) return { error: transfersErr.message };
 
-  const { data: incomes, error: incomesErr } = await supabase
+  const { data: incomesLocal, error: incomesErr } = await supabase
     .from("transactions")
-    .select("date, amount, received_by_member_id")
+    .select("date, amount, received_by_member_id, created_by")
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
     .eq("type", "income")
     .gte("date", periodStart)
     .lte("date", periodEnd);
   if (incomesErr) return { error: incomesErr.message };
+
+  const { data: incomesUserOtherWallets, error: incomesOtherErr } = await supabase
+    .from("transactions")
+    .select("date, amount, received_by_member_id, created_by")
+    .neq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "income")
+    .eq("income_scope", "user")
+    .in("received_by_member_id", memberIds)
+    .gte("date", periodStart)
+    .lte("date", periodEnd);
+  if (incomesOtherErr) return { error: incomesOtherErr.message };
+
+  const incomes = [...(incomesLocal ?? []), ...(incomesUserOtherWallets ?? [])];
   const monthStart = periodStart;
   const monthEnd = periodEnd;
 
@@ -1014,19 +1028,33 @@ export async function getWalletSettlements(
   };
   for (const id of memberIds) incomeByMember.set(id, 0);
   for (const id of memberIds) monthlyIncomeByMember.set(id, 0);
-  for (const inc of (incomes ?? []) as Array<{ date: string; amount: number; received_by_member_id: string | null }>) {
-    if (!inc.received_by_member_id || !incomeByMember.has(inc.received_by_member_id)) continue;
+  const memberIdSet = new Set(memberIds);
+  const attributeIncomeToMember = (inc: {
+    received_by_member_id: string | null;
+    created_by: string | null;
+  }): string | null => {
+    if (inc.received_by_member_id && memberIdSet.has(inc.received_by_member_id)) {
+      return inc.received_by_member_id;
+    }
+    return null;
+  };
+
+  for (const inc of incomes as Array<{
+    date: string;
+    amount: number;
+    received_by_member_id: string | null;
+    created_by: string | null;
+  }>) {
+    const memberKey = attributeIncomeToMember(inc);
+    if (!memberKey || !incomeByMember.has(memberKey)) continue;
     const amt = Number(inc.amount ?? 0);
-    incomeByMember.set(inc.received_by_member_id, (incomeByMember.get(inc.received_by_member_id) ?? 0) + amt);
+    incomeByMember.set(memberKey, (incomeByMember.get(memberKey) ?? 0) + amt);
     const monthKey = String(inc.date).slice(0, 7);
     const monthInner = ensureMonthIncome(monthKey);
-    monthInner.set(inc.received_by_member_id, (monthInner.get(inc.received_by_member_id) ?? 0) + amt);
+    monthInner.set(memberKey, (monthInner.get(memberKey) ?? 0) + amt);
     const d = String(inc.date).slice(0, 10);
     if (d >= monthStart && d <= monthEnd) {
-      monthlyIncomeByMember.set(
-        inc.received_by_member_id,
-        (monthlyIncomeByMember.get(inc.received_by_member_id) ?? 0) + amt
-      );
+      monthlyIncomeByMember.set(memberKey, (monthlyIncomeByMember.get(memberKey) ?? 0) + amt);
     }
   }
 
@@ -1176,6 +1204,7 @@ export async function getWalletSplitInfo(
   walletId: string,
   options?: { referenceDate?: string }
 ): Promise<{
+  is_shared?: boolean;
   shared_option?: string | null;
   split_type?: string | null;
   tracking_mode?: string | null;
@@ -1201,7 +1230,7 @@ export async function getWalletSplitInfo(
   // Fetch wallet split_type and shared_option
   const { data: wallet, error: walletErr } = await supabase
     .from("wallets")
-    .select("split_type, shared_option, tracking_mode, split_mode, default_split_method")
+    .select("split_type, shared_option, tracking_mode, split_mode, default_split_method, is_shared")
     .eq("id", walletId)
     .single();
   if (walletErr || !wallet) return { error: walletErr?.message ?? "Wallet not found" };
@@ -1247,22 +1276,39 @@ export async function getWalletSplitInfo(
   const { start: monthStart, end: monthEnd } = utcMonthRangeForDate(
     options?.referenceDate?.trim() || new Date().toISOString().slice(0, 10)
   );
-  const { data: currentMonthIncomes } = await supabase
+  const { data: incomesLocalSplit } = await supabase
     .from("transactions")
-    .select("amount, received_by_member_id")
+    .select("amount, received_by_member_id, created_by")
     .eq("wallet_id", walletId)
     .eq("status", "confirmed")
     .eq("type", "income")
     .gte("date", monthStart)
     .lte("date", monthEnd);
+  const { data: incomesOtherSplit } = await supabase
+    .from("transactions")
+    .select("amount, received_by_member_id, created_by")
+    .neq("wallet_id", walletId)
+    .eq("status", "confirmed")
+    .eq("type", "income")
+    .eq("income_scope", "user")
+    .in("received_by_member_id", memberIds)
+    .gte("date", monthStart)
+    .lte("date", monthEnd);
+  const currentMonthIncomes = [...(incomesLocalSplit ?? []), ...(incomesOtherSplit ?? [])];
   const monthIncomeByMember = new Map<string, number>();
   for (const m of members) monthIncomeByMember.set(m.user_id, 0);
-  for (const inc of (currentMonthIncomes ?? []) as Array<{ amount: number; received_by_member_id: string | null }>) {
-    if (!inc.received_by_member_id || !monthIncomeByMember.has(inc.received_by_member_id)) continue;
-    monthIncomeByMember.set(
-      inc.received_by_member_id,
-      (monthIncomeByMember.get(inc.received_by_member_id) ?? 0) + Number(inc.amount ?? 0)
-    );
+  const memberIdSetSplit = new Set(memberIds);
+  for (const inc of currentMonthIncomes as Array<{
+    amount: number;
+    received_by_member_id: string | null;
+    created_by: string | null;
+  }>) {
+    const key =
+      inc.received_by_member_id && memberIdSetSplit.has(inc.received_by_member_id)
+        ? inc.received_by_member_id
+        : null;
+    if (!key || !monthIncomeByMember.has(key)) continue;
+    monthIncomeByMember.set(key, (monthIncomeByMember.get(key) ?? 0) + Number(inc.amount ?? 0));
   }
   members = members.map((m) => ({
     ...m,
@@ -1324,6 +1370,7 @@ export async function getWalletSplitInfo(
   }
 
   return {
+    is_shared: !!wallet.is_shared,
     shared_option: sharedOption,
     split_type: wallet.split_type,
     tracking_mode: wallet.tracking_mode ?? null,

@@ -1,6 +1,7 @@
 "use client";
 
 import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionListIndicators } from "@/components/TransactionListIndicators";
 import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   formatCategorySubcategory,
@@ -21,6 +22,9 @@ export type PendingRow = {
   accountFromName: string;
   accountToName: string;
   holdBalance?: boolean;
+  hasAttachment: boolean;
+  isEssential: boolean;
+  postedFromWalletName: string | null;
 };
 
 type Props = { pending: PendingRow[] };
@@ -29,6 +33,8 @@ export function PendingSection({ pending }: Props) {
   const router = useRouter();
   const t = useTranslations("transactions.pending");
   const tType = useTranslations("transactions");
+  const tAllTable = useTranslations("transactions.allMovements.table");
+  const tAllMovements = useTranslations("transactions.allMovements");
   const hasAny = pending.length > 0;
   const [expanded, setExpanded] = useState(hasAny);
   const prevHasAny = useRef(hasAny);
@@ -83,6 +89,9 @@ export function PendingSection({ pending }: Props) {
                     {t("table.categorySubcategory")}
                   </th>
                   <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.fromTo")}</th>
+                  <th className="px-4 py-3 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
+                    <span className="sr-only">{tAllTable("symbolsColumn")}</span>
+                  </th>
                   <th className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">{t("table.amount")}</th>
                   <th className="px-4 py-3 w-24" />
                 </tr>
@@ -98,13 +107,26 @@ export function PendingSection({ pending }: Props) {
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{p.date}</td>
                     <td className="px-4 py-3 text-slate-700 dark:text-slate-200 max-w-[180px] truncate">
-                      {p.description || "—"}
+                      <span className="block truncate">{p.description || "—"}</span>
+                      {p.postedFromWalletName ? (
+                        <span className="block text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          {tAllMovements("postedInWallet", { wallet: p.postedFromWalletName })}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {formatCategorySubcategory(p.categoryLabel, p.subcategoryLabel)}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                       {formatFromTo(p.accountFromName, p.accountToName)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 align-middle">
+                      <TransactionListIndicators
+                        hasAttachment={p.hasAttachment}
+                        isEssential={p.isEssential}
+                        ariaAttachment={tAllTable("hasAttachment")}
+                        ariaEssential={tAllTable("essentialExpense")}
+                      />
                     </td>
                     <td
                       className={`px-4 py-3 text-right font-mono ${p.type === "income"

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
+import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
 
 export async function getReportsData() {
     const supabase = await createClient();
@@ -72,9 +73,14 @@ export async function getReportsData() {
     if (currentWalletId) {
         await ensureRecurringGenerated(currentWalletId);
 
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
         type CategoryRow = { id: string; name: string; parent_id: string | null };
         type TxRow = {
             id: string;
+            wallet_id: string;
             date: string;
             type: string;
             amount: number;
@@ -85,6 +91,22 @@ export async function getReportsData() {
             status?: string | null;
         };
 
+        const txQuery = supabase
+            .from("transactions")
+            .select(
+                "id, wallet_id, date, type, amount, description, account_from_id, account_to_id, status, " +
+                "category:categories(id, name, parent_id)"
+            )
+            .gte("date", seriesStartStr)
+            .order("date", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(2000);
+        if (user?.id) {
+            txQuery.or(transactionsForWalletOrUserIncomes(currentWalletId, user.id));
+        } else {
+            txQuery.eq("wallet_id", currentWalletId);
+        }
+
         const [
             { data: accs },
             { data: cats },
@@ -93,17 +115,7 @@ export async function getReportsData() {
         ] = await Promise.all([
             supabase.from("accounts").select("id, name").eq("wallet_id", currentWalletId),
             supabase.from("categories").select("id, name, parent_id").eq("wallet_id", currentWalletId),
-            supabase
-                .from("transactions")
-                .select(
-                    "id, date, type, amount, description, account_from_id, account_to_id, status, " +
-                    "category:categories(id, name, parent_id)"
-                )
-                .eq("wallet_id", currentWalletId)
-                .gte("date", seriesStartStr)
-                .order("date", { ascending: false })
-                .order("created_at", { ascending: false })
-                .limit(2000),
+            txQuery,
             supabase
                 .from("recurring_rules")
                 .select("id, type, amount, description, category_id, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, next_run_date, is_active, end_date")
@@ -114,6 +126,33 @@ export async function getReportsData() {
         const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
         const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
         const txRows = (tx ?? []) as unknown as TxRow[];
+
+        const catIdsNeeded = new Set<string>();
+        const accountIdsNeeded = new Set<string>();
+        for (const t of txRows) {
+            const c = t.category;
+            if (c?.id) catIdsNeeded.add(c.id);
+            if (c?.parent_id) catIdsNeeded.add(c.parent_id);
+            if (t.account_from_id) accountIdsNeeded.add(t.account_from_id);
+            if (t.account_to_id) accountIdsNeeded.add(t.account_to_id);
+        }
+        const missingCatIds = Array.from(catIdsNeeded).filter((id) => !catIdToName.has(id));
+        if (missingCatIds.length) {
+            const { data: extraCats } = await supabase
+                .from("categories")
+                .select("id, name, parent_id")
+                .in("id", missingCatIds);
+            for (const c of extraCats ?? []) {
+                catIdToName.set(c.id, c.name);
+            }
+        }
+        const missingAccIds = Array.from(accountIdsNeeded).filter((id) => !accountsMap.has(id));
+        if (missingAccIds.length) {
+            const { data: extraAccs } = await supabase.from("accounts").select("id, name").in("id", missingAccIds);
+            for (const a of extraAccs ?? []) {
+                accountsMap.set(a.id, a.name);
+            }
+        }
         const currentMonthKey = thisMonthStart.slice(0, 7);
         const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastMonthKey = lastMonthDate.toISOString().slice(0, 7);
@@ -135,8 +174,9 @@ export async function getReportsData() {
         // Process transactions for calendar
         calendarTransactions = txRows.map((t) => {
             const cat = t.category as CategoryRow | null;
-            const parentCat = cat?.parent_id ? cats?.find((c) => c.id === cat.parent_id) : null;
-            const categoryLabel = parentCat?.name ?? cat?.name ?? "—";
+            const categoryLabel = cat?.parent_id
+                ? (catIdToName.get(cat.parent_id) ?? cat.name ?? "—")
+                : (cat?.name ?? "—");
             const subcategoryLabel = cat?.parent_id ? (cat?.name ?? "") : "";
             const accountFromName = accountsMap.get(t.account_from_id ?? "") ?? "";
             const accountToName = accountsMap.get(t.account_to_id ?? "") ?? "";
@@ -187,14 +227,15 @@ export async function getReportsData() {
         const thisMonthTx = txRows.filter(
             (t) =>
                 t.date >= thisMonthStart &&
-                (t.status === "confirmed" || !t.status)
+                (t.status === "confirmed" || !t.status) &&
+                (t.type !== "expense" || t.wallet_id === currentWalletId)
         );
 
         for (const t of thisMonthTx) {
             const amount = Number(t.amount);
             if (t.type === "income") {
                 totalIncome += amount;
-            } else if (t.type === "expense") {
+            } else if (t.type === "expense" && t.wallet_id === currentWalletId) {
                 totalExpenses += Math.abs(amount);
             }
         }
@@ -210,7 +251,7 @@ export async function getReportsData() {
             const absAmount = Math.abs(amount);
             const monthKey = t.date.slice(0, 7);
 
-            if (monthKey === currentMonthKey) {
+            if (t.wallet_id === currentWalletId && monthKey === currentMonthKey) {
                 if (statusConfirmed) confirmedTotal += absAmount;
                 else pendingTotal += absAmount;
             }
@@ -218,10 +259,10 @@ export async function getReportsData() {
             if (statusConfirmed && monthIndex.has(monthKey)) {
                 const item = monthIndex.get(monthKey)!;
                 if (t.type === "income") item.income += amount;
-                if (t.type === "expense") item.expense += absAmount;
+                if (t.type === "expense" && t.wallet_id === currentWalletId) item.expense += absAmount;
             }
 
-            if (statusConfirmed && t.type === "expense") {
+            if (statusConfirmed && t.type === "expense" && t.wallet_id === currentWalletId) {
                 if (monthKey === currentMonthKey) currentMonthExpense += absAmount;
                 if (monthKey === lastMonthKey) lastMonthExpense += absAmount;
             }
@@ -241,7 +282,7 @@ export async function getReportsData() {
         // Calculate expenses by category for chart
         const byCategory: Record<string, number> = {};
         for (const t of thisMonthTx) {
-            if (t.type !== "expense") continue;
+            if (t.type !== "expense" || t.wallet_id !== currentWalletId) continue;
             const cat = t.category as CategoryRow | null;
             const categoryLabel = cat
                 ? cat.parent_id

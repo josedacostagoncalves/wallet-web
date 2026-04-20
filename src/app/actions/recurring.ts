@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createTransaction } from "@/app/actions/transactions";
+import { incomeScopeForInsert } from "@/lib/income-scope";
 import {
   type RecurrenceType,
   nextOccurrenceOfWeekday,
@@ -12,6 +13,8 @@ import {
 export type RecurringRuleRow = {
   id: string;
   wallet_id: string;
+  created_by: string | null;
+  income_received_by_user_id?: string | null;
   type: "income" | "expense" | "transfer";
   category_id: string;
   amount: number;
@@ -37,7 +40,7 @@ export async function getRecurringRule(
   const { data, error } = await supabase
     .from("recurring_rules")
     .select(
-      "id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, is_active, end_date, weekday, day_of_month"
+      "id, wallet_id, created_by, income_received_by_user_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, is_active, end_date, weekday, day_of_month"
     )
     .eq("id", id)
     .single();
@@ -45,6 +48,9 @@ export async function getRecurringRule(
   return {
     id: data.id,
     wallet_id: data.wallet_id,
+    created_by: (data as { created_by?: string | null }).created_by ?? null,
+    income_received_by_user_id:
+      (data as { income_received_by_user_id?: string | null }).income_received_by_user_id ?? null,
     type: data.type as "income" | "expense" | "transfer",
     category_id: data.category_id,
     amount: Number(data.amount),
@@ -257,6 +263,10 @@ export async function copyRecurringRule(id: string): Promise<{ error?: string }>
     account_from_id: rule.account_from_id,
     account_to_id: rule.account_to_id,
     description: rule.description,
+    received_by_member_id:
+      rule.type === "income"
+        ? rule.income_received_by_user_id ?? rule.created_by
+        : undefined,
     is_recurring: true,
     recurrence_type: rule.recurrence_type as RecurrenceType,
     interval_months:
@@ -286,6 +296,18 @@ export async function addNowRecurringRun(id: string): Promise<{ error?: string }
 
   const today = new Date().toISOString().slice(0, 10);
 
+  const { data: walletRow } = await supabase
+    .from("wallets")
+    .select("is_shared")
+    .eq("id", rule.wallet_id)
+    .single();
+  const walletShared = !!walletRow?.is_shared;
+  const createdBy = rule.created_by;
+  const incomeRecv = rule.income_received_by_user_id ?? createdBy;
+  const resolvedReceivedBy =
+    rule.type === "income" ? (!walletShared ? createdBy : incomeRecv) : null;
+  const incomeScope = rule.type === "income" ? incomeScopeForInsert("income", "user") : null;
+
   const { error } = await supabase.from("transactions").insert({
     wallet_id: rule.wallet_id,
     type: rule.type,
@@ -295,10 +317,12 @@ export async function addNowRecurringRun(id: string): Promise<{ error?: string }
     description: rule.description ?? "",
     account_from_id: rule.account_from_id,
     account_to_id: rule.account_to_id,
-    created_by: null,
+    created_by: createdBy,
     status: "pending",
     recurring_rule_id: id,
     hold_balance: true,
+    income_scope: incomeScope,
+    received_by_member_id: resolvedReceivedBy,
   });
 
   if (error) return { error: error.message };

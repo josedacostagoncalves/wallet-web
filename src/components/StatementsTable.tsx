@@ -8,7 +8,8 @@ import {
     type StatementsTableOrderKey,
 } from "@/app/actions/preferences";
 import { useTranslations } from "next-intl";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import {
     Bar,
@@ -128,6 +129,90 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
     );
 }
 
+function subscribeHtmlDarkClass(callback: () => void) {
+    const el = document.documentElement;
+    const obs = new MutationObserver(callback);
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+}
+
+function getHtmlHasDarkClass() {
+    return document.documentElement.classList.contains("dark");
+}
+
+/** Min/max of strictly positive month cells — used to scale heat within a row. */
+function positiveMonthRange(row: CategoryData, monthKeys: string[]): { min: number; max: number } {
+    const vals = monthKeys.map((k) => row.monthlyBreakdown?.[k] ?? 0).filter((v) => v > 0);
+    if (vals.length === 0) return { min: 0, max: 0 };
+    return { min: Math.min(...vals), max: Math.max(...vals) };
+}
+
+/**
+ * Table-aware heat scale:
+ * - income: light green -> stronger green
+ * - expense/transfer: light amber -> soft red
+ */
+function heatmapMonthCellStyle(
+    value: number,
+    minPos: number,
+    maxPos: number,
+    dark: boolean,
+    tableType: "income" | "expense" | "transfer"
+): CSSProperties {
+    if (value <= 0 || maxPos <= 0) return {};
+    const span = maxPos - minPos;
+    const t = span <= 0 ? 1 : (value - minPos) / span;
+    if (dark) {
+        const low = tableType === "income" ? { r: 58, g: 125, b: 95 } : { r: 180, g: 140, b: 60 };
+        const high = tableType === "income" ? { r: 30, g: 158, b: 100 } : { r: 190, g: 70, b: 75 };
+        const r = Math.round(low.r + (high.r - low.r) * t);
+        const g = Math.round(low.g + (high.g - low.g) * t);
+        const b = Math.round(low.b + (high.b - low.b) * t);
+        const a = tableType === "income" ? 0.15 + t * 0.2 : 0.14 + t * 0.2;
+        return {
+            backgroundColor: `rgba(${r}, ${g}, ${b}, ${a})`,
+            boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.04)",
+        };
+    }
+    const low = tableType === "income" ? { r: 220, g: 252, b: 231 } : { r: 254, g: 243, b: 199 };
+    const high = tableType === "income" ? { r: 167, g: 243, b: 208 } : { r: 254, g: 202, b: 202 };
+    const r = Math.round(low.r + (high.r - low.r) * t);
+    const g = Math.round(low.g + (high.g - low.g) * t);
+    const b = Math.round(low.b + (high.b - low.b) * t);
+    return {
+        backgroundColor: `rgb(${r}, ${g}, ${b})`,
+        boxShadow: "inset 0 1px 0 0 rgba(255,255,255,0.65)",
+    };
+}
+
+function monthCellAmountClass(
+    value: number,
+    heatMax: number,
+    isDark: boolean,
+    tableType: "income" | "expense" | "transfer",
+    valueColorClassFn: (v: number) => string
+): string {
+    const hasHeat = value > 0 && heatMax > 0;
+    if (!hasHeat) return valueColorClassFn(value);
+    if (isDark) {
+        if (tableType === "income") return "text-emerald-100/95 font-medium tabular-nums";
+        if (tableType === "expense") return "text-rose-100/95 font-medium tabular-nums";
+        return "text-sky-100/95 font-medium tabular-nums";
+    }
+    if (tableType === "income") return "text-emerald-900 font-medium tabular-nums";
+    if (tableType === "expense") return "text-red-900 font-medium tabular-nums";
+    return "text-sky-900 font-medium tabular-nums";
+}
+
+function statementsMonthCellTdClass(value: number, heatMax: number): string {
+    const hasNumericHeat = value > 0 && heatMax > 0;
+    return `px-2 py-2 text-right text-sm tabular-nums align-middle rounded-sm border transition-colors duration-150 ${
+        hasNumericHeat
+            ? "border-slate-200/40 dark:border-white/[0.06]"
+            : "border-transparent bg-slate-100/90 dark:bg-slate-800/55 dark:border-slate-700/25"
+    }`;
+}
+
 function SortDirectionIcon({ direction }: { direction: "desc" | "asc" }) {
     return (
         <svg
@@ -184,30 +269,30 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
     const [prefsLoaded, setPrefsLoaded] = useState(false);
     const rowHoverClass =
         type === "income"
-            ? "hover:bg-green-50 dark:hover:bg-green-900/10"
+            ? "hover:bg-emerald-500/[0.07] dark:hover:bg-emerald-400/[0.06]"
             : type === "expense"
-                ? "hover:bg-red-50 dark:hover:bg-red-900/10"
-                : "hover:bg-blue-50 dark:hover:bg-blue-900/10";
+                ? "hover:bg-rose-500/[0.07] dark:hover:bg-rose-400/[0.06]"
+                : "hover:bg-sky-500/[0.07] dark:hover:bg-sky-400/[0.06]";
     const valueColorClass = (value: number) =>
         value > 0
             ? type === "income"
-                ? "text-green-600 dark:text-green-400"
+                ? "text-green-600 dark:text-green-400 tabular-nums"
                 : type === "expense"
-                    ? "text-red-600 dark:text-red-400"
-                    : "text-blue-600 dark:text-blue-400"
-            : "text-slate-500 dark:text-slate-400";
+                    ? "text-red-600 dark:text-red-400 tabular-nums"
+                    : "text-blue-600 dark:text-blue-400 tabular-nums"
+            : "text-slate-500 dark:text-slate-400 tabular-nums";
     const summaryColorClass =
         type === "income"
-            ? "text-green-600 dark:text-green-400"
+            ? "text-green-600 dark:text-green-400 tabular-nums"
             : type === "expense"
-                ? "text-red-600 dark:text-red-400"
-                : "text-blue-600 dark:text-blue-400";
+                ? "text-red-600 dark:text-red-400 tabular-nums"
+                : "text-blue-600 dark:text-blue-400 tabular-nums";
     const summaryStrongColorClass =
         type === "income"
-            ? "text-green-700 dark:text-green-300"
+            ? "text-green-700 dark:text-green-300 tabular-nums"
             : type === "expense"
-                ? "text-red-700 dark:text-red-300"
-                : "text-blue-700 dark:text-blue-300";
+                ? "text-red-700 dark:text-red-300 tabular-nums"
+                : "text-blue-700 dark:text-blue-300 tabular-nums";
     const categoryPalette = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b", "#8b5cf6", "#0891b2", "#ef4444", "#22c55e"];
 
     const toggleCategory = (category: string) => {
@@ -601,10 +686,11 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         value: number,
         monthKey: string,
         monthLabel: string,
-        row: CategoryData
+        row: CategoryData,
+        amountTextClass?: string
     ) => {
         const transactions = sortMonthlyTransactionsForTooltip(row.monthlyTransactions?.[monthKey] ?? []);
-        const textClass = valueColorClass(value);
+        const textClass = amountTextClass ?? valueColorClass(value);
 
         if (value <= 0) {
             return <span className={textClass}>—</span>;
@@ -646,6 +732,37 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         }));
     }, [chartTarget, dateColumns]);
 
+    const monthlyTotals = useMemo(
+        () =>
+            dateColumns.reduce<Record<string, number>>((acc, col) => {
+                acc[col.key] = data.reduce((sum, row) => sum + (row.monthlyBreakdown?.[col.key] ?? 0), 0);
+                return acc;
+            }, {}),
+        [data, dateColumns]
+    );
+
+    const grandTotal = useMemo(() => data.reduce((sum, row) => sum + row.total, 0), [data]);
+
+    const categoryHeatRanges = useMemo(() => {
+        const keys = dateColumns.map((c) => c.key);
+        const map = new Map<string, { min: number; max: number }>();
+        for (const row of orderedData) {
+            map.set(row.category, positiveMonthRange(row, keys));
+            for (const sub of row.subcategories ?? []) {
+                map.set(`${row.category}\0${sub.subcategory ?? ""}`, positiveMonthRange(sub, keys));
+            }
+        }
+        return map;
+    }, [orderedData, dateColumns]);
+
+    const totalsMonthHeat = useMemo(() => {
+        const vals = dateColumns.map((c) => monthlyTotals[c.key] ?? 0).filter((v) => v > 0);
+        if (vals.length === 0) return { min: 0, max: 0 };
+        return { min: Math.min(...vals), max: Math.max(...vals) };
+    }, [monthlyTotals, dateColumns]);
+
+    const isDarkHeatmap = useSyncExternalStore(subscribeHtmlDarkClass, getHtmlHasDarkClass, () => false);
+
     if (!prefsLoaded) {
         return (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 h-56 flex items-center justify-center">
@@ -664,22 +781,19 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
         );
     }
 
-    const monthlyTotals = dateColumns.reduce<Record<string, number>>((acc, col) => {
-        acc[col.key] = data.reduce((sum, row) => sum + (row.monthlyBreakdown?.[col.key] ?? 0), 0);
-        return acc;
-    }, {});
-    const grandTotal = data.reduce((sum, row) => sum + row.total, 0);
-    const monthWeight = 1.5;
-    const summaryWeight = 2;
-    const widthUnit = 70 / (dateColumns.length * monthWeight + summaryWeight * 2);
+    const categoryPct = 20;
+    const monthWeight = 2.1;
+    const summaryWeight = 1.65;
+    const dataPct = 100 - categoryPct;
+    const widthUnit = dataPct / (dateColumns.length * monthWeight + summaryWeight * 2);
     const monthlyColumnWidth = `${widthUnit * monthWeight}%`;
     const summaryColumnWidth = `${widthUnit * summaryWeight}%`;
-    const categoryWidth = orderEditing ? "calc(30% - 40px)" : "30%";
+    const categoryWidth = orderEditing ? `calc(${categoryPct}% - 40px)` : `${categoryPct}%`;
 
     return (
         <div className="relative" onMouseLeave={() => setHoverPreview(null)}>
-            <div className="flex items-center justify-between gap-3 mb-3">
-                <h2 className="text-lg font-medium text-slate-900 dark:text-white">{title}</h2>
+            <div className="flex items-center justify-between gap-3 mb-4">
+                <h2 className="text-base font-semibold tracking-tight text-slate-900 dark:text-slate-50">{title}</h2>
                 <div className="flex items-center gap-2">
                     {orderEditing && (
                         <>
@@ -687,14 +801,14 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 type="button"
                                 onClick={saveOrderClick}
                                 disabled={savingOrder}
-                                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-green-300 bg-green-50 text-green-800 hover:bg-green-100 disabled:opacity-50"
+                                className="px-3 py-1.5 text-sm font-medium rounded-xl border border-emerald-200/80 bg-emerald-50/90 text-emerald-900 hover:bg-emerald-100/90 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/70 disabled:opacity-50"
                             >
                                 {savingOrder ? `${tCommon("save")}…` : tCommon("save")}
                             </button>
                             <button
                                 type="button"
                                 onClick={cancelReorder}
-                                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                className="px-3 py-1.5 text-sm font-medium rounded-xl border border-slate-200/90 bg-slate-50/90 text-slate-700 hover:bg-slate-100/90 dark:border-slate-700/80 dark:bg-slate-900/60 dark:text-slate-200 dark:hover:bg-slate-800/80"
                             >
                                 {tCommon("cancel")}
                             </button>
@@ -704,7 +818,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                         type="button"
                         onClick={toggleHide}
                         disabled={!currentWalletId}
-                        className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+                        className="p-2 rounded-xl border border-slate-200/90 bg-white/80 text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/50 dark:text-slate-300 dark:shadow-none dark:hover:bg-slate-800/70 dark:hover:text-white transition-colors disabled:opacity-50"
                         aria-label={hideBalances ? t("showValues") : t("hideValues")}
                         title={hideBalances ? t("showValues") : t("hideValues")}
                     >
@@ -715,7 +829,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             type="button"
                             onClick={startReorder}
                             disabled={!currentWalletId}
-                            className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
+                            className="p-2 rounded-xl border border-slate-200/90 bg-white/80 text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/50 dark:text-slate-300 dark:shadow-none dark:hover:bg-slate-800/70 dark:hover:text-white transition-colors disabled:opacity-50"
                             aria-label={t("reorder")}
                             title={t("reorder")}
                         >
@@ -739,7 +853,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                 <span className="truncate text-slate-600 dark:text-slate-300">
                                     {formatShortDate(tx.date)} · {tx.description || "(Sem descrição)"}
                                 </span>
-                                <span className={`shrink-0 font-mono ${summaryColorClass}`}>
+                                <span className={`shrink-0 tabular-nums ${summaryColorClass}`}>
                                     {hideBalances ? MASK : formatCurrency(tx.amount)}
                                 </span>
                             </div>
@@ -747,8 +861,9 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                     </div>
                 </div>
             )}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <table className="w-full table-fixed text-xs bg-white dark:bg-slate-950 border-collapse">
+            <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/90 shadow-sm dark:border-slate-800/70 dark:from-slate-950 dark:to-[#0a1020]/95 dark:shadow-[0_20px_50px_-28px_rgba(0,0,0,0.75)] overflow-hidden">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[960px] table-fixed text-sm bg-transparent border-separate border-spacing-x-1 border-spacing-y-px">
                     <colgroup>
                         {orderEditing && <col style={{ width: "40px" }} />}
                         <col style={{ width: categoryWidth }} />
@@ -758,24 +873,24 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                         <col style={{ width: summaryColumnWidth }} />
                         <col style={{ width: summaryColumnWidth }} />
                     </colgroup>
-                    <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 sticky top-0">
-                        <tr>
+                    <thead className="sticky top-0 z-10">
+                        <tr className="bg-slate-100/95 shadow-[inset_0_-1px_0_0_rgba(15,23,42,0.06)] dark:bg-slate-900/90 dark:shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.06)]">
                             {orderEditing && (
-                                <th className="px-3 py-3 w-10" />
+                                <th className="px-2 py-2.5 w-10 rounded-l-lg" />
                             )}
-                            <th className="px-3 py-3 text-left font-medium text-slate-600 dark:text-slate-300">
+                            <th className={`px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 ${orderEditing ? "" : "rounded-l-lg"}`}>
                                 {t("category")}
                             </th>
                             {dateColumns.map((col) => (
                                 <th
                                     key={col.key}
-                                    className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300 min-w-[65px]"
+                                    className="px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 min-w-[65px]"
                                 >
                                     <button
                                         type="button"
                                         onClick={() => setNextSort(col.key)}
                                         disabled={orderEditing}
-                                        className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                        className="inline-flex items-center justify-end gap-1 w-full font-semibold normal-case tracking-normal text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors disabled:no-underline disabled:cursor-default disabled:opacity-60"
                                     >
                                         {col.label}
                                         {sortState.key === col.key && sortState.direction && (
@@ -784,12 +899,12 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     </button>
                                 </th>
                             ))}
-                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                            <th className="px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                                 <button
                                     type="button"
                                     onClick={() => setNextSort("average")}
                                     disabled={orderEditing}
-                                    className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                    className="inline-flex items-center justify-end gap-1 w-full font-semibold normal-case tracking-normal text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors disabled:no-underline disabled:cursor-default disabled:opacity-60"
                                 >
                                     {t("averageMonthlyValue")}
                                     {sortState.key === "average" && sortState.direction && (
@@ -797,12 +912,12 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                     )}
                                 </button>
                             </th>
-                            <th className="px-3 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                            <th className="px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 rounded-r-lg">
                                 <button
                                     type="button"
                                     onClick={() => setNextSort("total")}
                                     disabled={orderEditing}
-                                    className="inline-flex items-center gap-1 font-medium hover:underline disabled:no-underline disabled:cursor-default"
+                                    className="inline-flex items-center justify-end gap-1 w-full font-semibold normal-case tracking-normal text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white transition-colors disabled:no-underline disabled:cursor-default disabled:opacity-60"
                                 >
                                     {t("total")}
                                     {sortState.key === "total" && sortState.direction && (
@@ -812,7 +927,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    <tbody>
                         {orderedData.map((row) => {
                             const isExpanded = expandedCategories.has(row.category);
                             const hasSubcategories =
@@ -906,24 +1021,36 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                         </td>
                                         {dateColumns.map((col) => {
                                             const value = row.monthlyBreakdown?.[col.key] ?? 0;
+                                            const heat = categoryHeatRanges.get(row.category) ?? {
+                                                min: 0,
+                                                max: 0,
+                                            };
+                                            const amountClass = monthCellAmountClass(
+                                                value,
+                                                heat.max,
+                                                isDarkHeatmap,
+                                                type,
+                                                valueColorClass
+                                            );
                                             return (
                                                 <td
                                                     key={col.key}
-                                                    className={`px-3 py-3 text-right font-mono ${valueColorClass(value)}`}
+                                                    className={statementsMonthCellTdClass(value, heat.max)}
+                                                    style={heatmapMonthCellStyle(value, heat.min, heat.max, isDarkHeatmap, type)}
                                                 >
-                                                    {renderValueCell(value, col.key, col.label, row)}
+                                                    {renderValueCell(value, col.key, col.label, row, amountClass)}
                                                 </td>
                                             );
                                         })}
                                         <td
-                                            className={`px-3 py-3 text-right font-mono font-semibold ${summaryColorClass}`}
+                                            className={`px-3 py-3 text-right tabular-nums font-semibold ${summaryColorClass}`}
                                         >
                                             {elapsedMonthCount > 0
                                                 ? (hideBalances ? MASK : formatCurrency(row.total / elapsedMonthCount))
                                                 : "—"}
                                         </td>
                                         <td
-                                            className={`px-3 py-3 text-right font-mono font-semibold ${summaryColorClass}`}
+                                            className={`px-3 py-3 text-right tabular-nums font-semibold ${summaryColorClass}`}
                                         >
                                             {hideBalances ? MASK : formatCurrency(row.total)}
                                         </td>
@@ -935,7 +1062,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                             return (
                                                 <tr
                                                     key={`${row.category}-${subcatName}`}
-                                                    className={`bg-slate-50 dark:bg-slate-900/30 hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors ${orderEditing
+                                                    className={`bg-slate-50/90 dark:bg-slate-900/35 hover:bg-slate-100/90 dark:hover:bg-slate-800/45 transition-colors ${orderEditing
                                                         ? dragOverItem?.type === "subcategory" &&
                                                             dragOverItem?.categoryName === row.category &&
                                                             dragOverItem?.subcategoryName === subcatName
@@ -996,24 +1123,48 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                                                     </td>
                                                     {dateColumns.map((col) => {
                                                         const value = subcategory.monthlyBreakdown?.[col.key] ?? 0;
+                                                        const heat =
+                                                            categoryHeatRanges.get(
+                                                                `${row.category}\0${subcatName}`
+                                                            ) ?? { min: 0, max: 0 };
+                                                        const amountClass = monthCellAmountClass(
+                                                            value,
+                                                            heat.max,
+                                                            isDarkHeatmap,
+                                                            type,
+                                                            valueColorClass
+                                                        );
                                                         return (
                                                             <td
                                                                 key={col.key}
-                                                                className={`px-3 py-2 text-right font-mono text-xs ${valueColorClass(value)}`}
+                                                                className={statementsMonthCellTdClass(value, heat.max)}
+                                                                style={heatmapMonthCellStyle(
+                                                                    value,
+                                                                    heat.min,
+                                                                    heat.max,
+                                                                    isDarkHeatmap,
+                                                                    type
+                                                                )}
                                                             >
-                                                                {renderValueCell(value, col.key, col.label, subcategory)}
+                                                                {renderValueCell(
+                                                                    value,
+                                                                    col.key,
+                                                                    col.label,
+                                                                    subcategory,
+                                                                    amountClass
+                                                                )}
                                                             </td>
                                                         );
                                                     })}
                                                     <td
-                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${summaryColorClass}`}
+                                                        className={`px-3 py-2 text-right tabular-nums text-sm font-semibold ${summaryColorClass}`}
                                                     >
                                                         {elapsedMonthCount > 0
                                                             ? (hideBalances ? MASK : formatCurrency(subcategory.total / elapsedMonthCount))
                                                             : "—"}
                                                     </td>
                                                     <td
-                                                        className={`px-3 py-2 text-right font-mono text-xs font-semibold ${summaryColorClass}`}
+                                                        className={`px-3 py-2 text-right tabular-nums text-sm font-semibold ${summaryColorClass}`}
                                                     >
                                                         {hideBalances ? MASK : formatCurrency(subcategory.total)}
                                                     </td>
@@ -1024,8 +1175,8 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             );
                         })}
                     </tbody>
-                    <tfoot className="border-t border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-                        <tr>
+                    <tfoot>
+                        <tr className="border-t border-slate-200/90 bg-slate-100/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.5)] dark:border-slate-700/60 dark:bg-slate-900/85 dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)]">
                             {orderEditing && <td className="px-3 py-3" />}
                             <td className="px-3 py-3 text-left font-semibold text-slate-900 dark:text-slate-100">
                                 <div className="flex items-center justify-between gap-2">
@@ -1060,30 +1211,51 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             </td>
                             {dateColumns.map((col) => {
                                 const value = monthlyTotals[col.key] ?? 0;
+                                const footAmountClass = monthCellAmountClass(
+                                    value,
+                                    totalsMonthHeat.max,
+                                    isDarkHeatmap,
+                                    type,
+                                    valueColorClass
+                                );
                                 return (
                                     <td
                                         key={col.key}
-                                        className={`px-3 py-3 text-right font-mono font-semibold ${valueColorClass(value)}`}
+                                        className={`${statementsMonthCellTdClass(value, totalsMonthHeat.max)} font-semibold`}
+                                        style={heatmapMonthCellStyle(
+                                            value,
+                                            totalsMonthHeat.min,
+                                            totalsMonthHeat.max,
+                                            isDarkHeatmap,
+                                            type
+                                        )}
                                     >
-                                        {value > 0 ? (hideBalances ? MASK : formatCurrency(value)) : "—"}
+                                        {value > 0 ? (
+                                            <span className={footAmountClass}>
+                                                {hideBalances ? MASK : formatCurrency(value)}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-500 dark:text-slate-500 font-medium">—</span>
+                                        )}
                                     </td>
                                 );
                             })}
                             <td
-                                className={`px-3 py-3 text-right font-mono font-bold ${summaryStrongColorClass}`}
+                                className={`px-3 py-3 text-right tabular-nums font-bold ${summaryStrongColorClass}`}
                             >
                                 {elapsedMonthCount > 0
                                     ? (hideBalances ? MASK : formatCurrency(grandTotal / elapsedMonthCount))
                                     : "—"}
                             </td>
                             <td
-                                className={`px-3 py-3 text-right font-mono font-bold ${summaryStrongColorClass}`}
+                                className={`px-3 py-3 text-right tabular-nums font-bold ${summaryStrongColorClass}`}
                             >
                                 {hideBalances ? MASK : formatCurrency(grandTotal)}
                             </td>
                         </tr>
                     </tfoot>
                 </table>
+                </div>
             </div>
             {chartTarget &&
                 createPortal(

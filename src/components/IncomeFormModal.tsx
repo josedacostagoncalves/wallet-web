@@ -42,6 +42,7 @@ import {
   formatMoneyAmountTwoDecimals,
   normalizeMoneyInputString,
 } from "@/lib/money-format";
+import { incomeScopeForInsert, normalizeIncomeScope } from "@/lib/income-scope";
 
 type Props = {
   open: boolean;
@@ -91,6 +92,7 @@ export function IncomeFormModal({
   const [walletSharedOption, setWalletSharedOption] = useState<string | null>(null);
   const [walletSplitType, setWalletSplitType] = useState<string | null>(null);
   const [walletTrackingMode, setWalletTrackingMode] = useState<string | null>(null);
+  const [walletIsShared, setWalletIsShared] = useState(false);
   const [walletMembers, setWalletMembers] = useState<
     {
       id: string;
@@ -103,6 +105,8 @@ export function IncomeFormModal({
   >([]);
   const [saveAsPending, setSaveAsPending] = useState(false);
   const [holdBalance, setHoldBalance] = useState(true);
+  /** When true, income counts only toward this wallet's totals (DB `income_scope` = wallet). */
+  const [incomeScopeWalletOnly, setIncomeScopeWalletOnly] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("monthly");
   const [intervalMonths, setIntervalMonths] = useState("");
@@ -195,6 +199,9 @@ export function IncomeFormModal({
         setAttachmentFileError(null);
         setAccountToId(m.account_to_id ?? "");
         setPaidByMemberId(m.received_by_member_id ?? null);
+        setIncomeScopeWalletOnly(
+          normalizeIncomeScope(m.type, (m as { income_scope?: string | null }).income_scope) === "wallet"
+        );
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
@@ -220,6 +227,9 @@ export function IncomeFormModal({
         setAttachmentFileError(null);
         setAccountToId(m.account_to_id ?? "");
         setPaidByMemberId(m.received_by_member_id ?? null);
+        setIncomeScopeWalletOnly(
+          normalizeIncomeScope(m.type, (m as { income_scope?: string | null }).income_scope) === "wallet"
+        );
         setCategoryId(catId);
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
@@ -271,6 +281,7 @@ export function IncomeFormModal({
             ? String(r.work_day_index)
             : ""
         );
+        setIncomeScopeWalletOnly(false);
         skipNextSubcategoryReset.current = true;
         const subs = await getSubcategories(catId);
         setSubcategories(subs);
@@ -334,6 +345,9 @@ export function IncomeFormModal({
     setPendingFiles([]);
     setAttachmentFileError(null);
     setAccountToId(m.account_to_id ?? "");
+    setIncomeScopeWalletOnly(
+      normalizeIncomeScope(m.type, (m as { income_scope?: string | null }).income_scope) === "wallet"
+    );
     setCategoryId(catId);
     setSubcategoryId(subId);
     getSubcategories(catId).then(setSubcategories);
@@ -359,6 +373,7 @@ export function IncomeFormModal({
     setIntervalMonths("");
     setIntervalDays("");
     setWorkDayIndex("");
+    setIncomeScopeWalletOnly(false);
     setError(null);
     editOriginal.current = null;
   }, []);
@@ -389,13 +404,14 @@ export function IncomeFormModal({
       setWalletSharedOption(sharedOption);
       setWalletSplitType(result.split_type ?? null);
       setWalletTrackingMode(result.tracking_mode ?? null);
+      setWalletIsShared(!!result.is_shared);
       setWalletMembers(members);
 
       if (
         !isEdit &&
         !isCopy &&
         !autoSelectedMember.current &&
-        (sharedOption === "split" || sharedOption === "track_and_split") &&
+        !!result.is_shared &&
         members.length > 0
       ) {
         autoSelectedMember.current = true;
@@ -426,8 +442,7 @@ export function IncomeFormModal({
     // Account required for 'track' and 'track_and_split' wallets, not for 'split'
     if (requiresAccounts && !accountToId) return t("validation.accountToRequired");
 
-    // Member required for 'split' and 'track_and_split' wallets
-    if (isSplitWallet && !paidByMemberId) return t("validation.memberReceivedRequired");
+    if (walletIsShared && !paidByMemberId) return t("validation.memberReceivedRequired");
 
     if (isRecurring && recurrenceType === "interval_months") {
       const x = parseInt(intervalMonths, 10);
@@ -491,6 +506,7 @@ export function IncomeFormModal({
         paid_by_member_id: null,
         split_method_override: null,
         manual_splits: [],
+        income_scope: incomeScopeForInsert("income", incomeScopeWalletOnly ? "wallet" : "user"),
       });
       setLoading(false);
       if (res.error) {
@@ -533,6 +549,7 @@ export function IncomeFormModal({
       manual_splits: [],
       status: saveAsPending ? "pending" : "confirmed",
       hold_balance: saveAsPending ? holdBalance : false,
+      income_scope: incomeScopeForInsert("income", incomeScopeWalletOnly ? "wallet" : "user"),
     });
     setLoading(false);
     if (res.error) {
@@ -582,6 +599,7 @@ export function IncomeFormModal({
       paid_by_member_id: null,
       split_method_override: null,
       manual_splits: [],
+      income_scope: incomeScopeForInsert("income", incomeScopeWalletOnly ? "wallet" : "user"),
     });
     if (up.error) {
       setError(up.error);
@@ -815,6 +833,23 @@ export function IncomeFormModal({
                   className={inputClass}
                 />
               </div>
+              <div className="rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-800/40 px-2.5 py-2 space-y-1">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="income-scope-wallet-only"
+                    checked={incomeScopeWalletOnly}
+                    onChange={(e) => setIncomeScopeWalletOnly(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                    {t("fields.incomeScopeWalletOnly")}
+                  </span>
+                </label>
+                <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 pl-6">
+                  {t("fields.incomeScopeHint")}
+                </p>
+              </div>
               {requiresAccounts && (
                 <div>
                   <label className="block text-xs font-medium mb-1">{t("fields.accountTo")}</label>
@@ -872,18 +907,18 @@ export function IncomeFormModal({
                   })()}
                 </div>
               )}
-              {isSplitWallet && (
+              {walletIsShared && (
                 <div>
                   <label className="block text-xs font-medium mb-2">
-                    {walletSharedOption !== null ? t("fields.receivedByMemberRequired") : t("fields.receivedByMember")}
+                    {t("fields.receivedByMemberRequired")}
                   </label>
                   <select
                     value={paidByMemberId ?? ""}
                     onChange={(e) => setPaidByMemberId(e.target.value || null)}
-                    required={isSplitWallet}
+                    required={walletIsShared}
                     className={inputClass}
                   >
-                    <option value="">Select user</option>
+                    <option value="">{t("fields.selectIncomeReceiver")}</option>
                     {walletMembers.map((m) => (
                       <option key={m.id} value={m.user_id}>
                         {m.display_name}

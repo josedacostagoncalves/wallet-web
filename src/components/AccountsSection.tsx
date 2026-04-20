@@ -7,6 +7,7 @@ import {
   type TransactionByAccountRow,
 } from "@/app/actions/transactions";
 import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { TransactionListIndicators } from "@/components/TransactionListIndicators";
 import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
   accountTypeIcon,
@@ -702,6 +703,9 @@ export function AccountsSection({
                                     <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("date")}</th>
                                     <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("description")}</th>
                                     <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("categorySubcategory")}</th>
+                                    <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
+                                      <span className="sr-only">{t("symbolsColumn")}</span>
+                                    </th>
                                     <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("amount")}</th>
                                     <th className="px-3 py-2 w-20" />
                                   </tr>
@@ -725,6 +729,14 @@ export function AccountsSection({
                                       </td>
                                       <td className="px-3 py-2 text-slate-600 dark:text-slate-400 max-w-[180px] truncate">
                                         {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 align-middle">
+                                        <TransactionListIndicators
+                                          hasAttachment={m.hasAttachment}
+                                          isEssential={m.isEssential}
+                                          ariaAttachment={t("hasAttachment")}
+                                          ariaEssential={t("essentialExpense")}
+                                        />
                                       </td>
                                       <td
                                         className={`px-3 py-2 text-right font-mono ${m.type === "income"
@@ -1024,6 +1036,9 @@ export function AccountsSection({
                             <th className="px-4 py-2 text-left font-medium text-slate-600">{t("date")}</th>
                             <th className="px-4 py-2 text-left font-medium text-slate-600">{t("description")}</th>
                             <th className="px-4 py-2 text-left font-medium text-slate-600">{t("categorySubcategory")}</th>
+                            <th className="px-4 py-2 text-center font-medium text-slate-600 w-16">
+                              <span className="sr-only">{t("symbolsColumn")}</span>
+                            </th>
                             <th className="px-4 py-2 text-right font-medium text-slate-600">{t("amount")}</th>
                           </tr>
                         </thead>
@@ -1046,6 +1061,14 @@ export function AccountsSection({
                               </td>
                               <td className="px-4 py-2 text-slate-600 max-w-[220px] truncate">
                                 {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
+                              </td>
+                              <td className="px-4 py-2 text-slate-600 align-middle">
+                                <TransactionListIndicators
+                                  hasAttachment={m.hasAttachment}
+                                  isEssential={m.isEssential}
+                                  ariaAttachment={t("hasAttachment")}
+                                  ariaEssential={t("essentialExpense")}
+                                />
                               </td>
                               <td
                                 className={`px-4 py-2 text-right font-mono ${m.type === "income"

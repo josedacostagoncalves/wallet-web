@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
+import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
+import { incomeScopeForInsert, type IncomeScope } from "@/lib/income-scope";
 import {
   nextRunDate,
   type RecurrenceType,
@@ -16,10 +18,11 @@ async function getWalletShareFlags(
   isBasicTracking: boolean;
   isSplitWallet: boolean;
   defaultSplitMethod: "equally" | "by_income" | "manual";
+  isShared: boolean;
 }> {
   const { data: wallet } = await supabase
     .from("wallets")
-    .select("shared_option, split_type, tracking_mode, split_mode, default_split_method")
+    .select("shared_option, split_type, tracking_mode, split_mode, default_split_method, is_shared")
     .eq("id", walletId)
     .single();
 
@@ -43,7 +46,37 @@ async function getWalletShareFlags(
   const defaultSplitMethod =
     (wallet?.default_split_method as "equally" | "by_income" | "manual" | null) ??
     (wallet?.split_type === "by_income" ? "by_income" : "equally");
-  return { isSplitOnly, isBasicTracking, isSplitWallet, defaultSplitMethod };
+  return { isSplitOnly, isBasicTracking, isSplitWallet, defaultSplitMethod, isShared: !!wallet?.is_shared };
+}
+
+async function fetchWalletMemberUserIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  walletId: string
+): Promise<string[]> {
+  const { data } = await supabase.from("wallet_members").select("user_id").eq("wallet_id", walletId);
+  return (data ?? []).map((m: { user_id: string }) => m.user_id);
+}
+
+/** Income: personal wallet → current user; shared → client must pick a wallet member (auth user id). */
+async function resolveIncomeReceivedByUserId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  walletId: string,
+  isWalletShared: boolean,
+  clientReceiverUserId: string | null | undefined,
+  currentUserId: string
+): Promise<{ userId: string; error?: string }> {
+  if (!isWalletShared) {
+    return { userId: currentUserId };
+  }
+  const rid = clientReceiverUserId && String(clientReceiverUserId).trim() ? String(clientReceiverUserId).trim() : "";
+  if (!rid) {
+    return { userId: "", error: "Choose who received this income (wallet member)" };
+  }
+  const members = await fetchWalletMemberUserIds(supabase, walletId);
+  if (!members.includes(rid)) {
+    return { userId: "", error: "Receiver must be a wallet member" };
+  }
+  return { userId: rid };
 }
 
 type SplitMethod = "equally" | "by_income" | "manual";
@@ -247,6 +280,8 @@ export type TransactionByAccountRow = {
   balanceAfter: number;
   status: "confirmed" | "pending";
   holdBalance?: boolean;
+  hasAttachment: boolean;
+  isEssential: boolean;
 };
 
 export type AccountBalancePoint = {
@@ -269,8 +304,8 @@ export async function getTransactionsByAccount(
   let q = supabase
     .from("transactions")
     .select(
-      "id, date, created_at, type, amount, description, account_from_id, account_to_id, status, hold_balance, " +
-      "category:categories(name, parent_id)"
+      "id, date, created_at, type, amount, description, is_essential, account_from_id, account_to_id, status, hold_balance, " +
+      "category:categories(name, parent_id, is_essential)"
     )
     .eq("wallet_id", walletId)
     .or(`account_from_id.eq.${accountId},account_to_id.eq.${accountId}`)
@@ -298,7 +333,7 @@ export async function getTransactionsByAccount(
   const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
   const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
 
-  type CatRow = { name: string; parent_id: string | null };
+  type CatRow = { name: string; parent_id: string | null; is_essential?: boolean | null };
   type TxRow = {
     id: string;
     date: string;
@@ -306,6 +341,7 @@ export async function getTransactionsByAccount(
     type: string;
     amount: number;
     description: string | null;
+    is_essential?: boolean | null;
     account_from_id: string | null;
     account_to_id: string | null;
     status?: string | null;
@@ -313,6 +349,17 @@ export async function getTransactionsByAccount(
     category: CatRow | null;
   };
   const rows = (tx ?? []) as unknown as TxRow[];
+  const rowIds = rows.map((r) => r.id);
+  let txIdsWithAttachment = new Set<string>();
+  if (rowIds.length) {
+    const { data: attachRows } = await supabase
+      .from("transaction_attachments")
+      .select("transaction_id")
+      .in("transaction_id", rowIds);
+    txIdsWithAttachment = new Set(
+      (attachRows ?? []).map((x: { transaction_id: string }) => x.transaction_id)
+    );
+  }
 
   const balanceQuery = supabase
     .from("transactions")
@@ -380,6 +427,8 @@ export async function getTransactionsByAccount(
       balanceAfter: balanceAfterById.get(t.id) ?? runningBalance,
       status: (t.status === "pending" ? "pending" : "confirmed") as "confirmed" | "pending",
       holdBalance: !!t.hold_balance,
+      hasAttachment: txIdsWithAttachment.has(t.id),
+      isEssential: expenseIsEffectivelyEssential(t.type, t.is_essential, c),
     };
   });
 }
@@ -559,6 +608,8 @@ export async function createTransaction(params: {
   observations?: string | null;
   /** Expense only: null = inherit category default; true/false = override. Ignored for income/transfer. */
   is_essential?: boolean | null;
+  /** Income only: user = counted across all your wallets; wallet = only this wallet. Defaults to user when omitted. */
+  income_scope?: IncomeScope | null;
 }): Promise<{ error?: string; id?: string }> {
   const supabase = await createClient();
   const {
@@ -591,6 +642,7 @@ export async function createTransaction(params: {
     manual_splits = [],
     observations = null,
     is_essential: isEssentialParam = null,
+    income_scope: incomeScopeParam = null,
   } = params;
 
   const obs =
@@ -599,7 +651,10 @@ export async function createTransaction(params: {
   const normalizedAccountFromId = account_from_id && account_from_id.trim() ? account_from_id : null;
   const normalizedAccountToId = account_to_id && account_to_id.trim() ? account_to_id : null;
 
-  const { isBasicTracking, isSplitWallet, defaultSplitMethod } = await getWalletShareFlags(supabase, wallet_id);
+  const { isBasicTracking, isSplitWallet, defaultSplitMethod, isShared } = await getWalletShareFlags(
+    supabase,
+    wallet_id
+  );
   const requiresAccounts = !isBasicTracking;
   if (requiresAccounts && type === "income" && !normalizedAccountToId)
     return { error: "Account to receive is required for income" };
@@ -622,14 +677,24 @@ export async function createTransaction(params: {
 
   const effectiveSplitMethod = normalizeSplitMethod(split_method_override) ?? defaultSplitMethod;
   const normalizedPaidByMemberId =
-    !isSplitWallet || type === "income" ? null : paid_by_member_id;
-  const normalizedReceivedByMemberId =
-    !isSplitWallet || type === "expense" ? null : received_by_member_id;
+    !isSplitWallet || type === "income" ? null : paid_by_member_id?.trim() || null;
+  let normalizedReceivedByMemberId: string | null = null;
+  if (type === "income") {
+    const recv = await resolveIncomeReceivedByUserId(
+      supabase,
+      wallet_id,
+      isShared,
+      received_by_member_id,
+      user.id
+    );
+    if (recv.error) return { error: recv.error };
+    normalizedReceivedByMemberId = recv.userId;
+  } else {
+    normalizedReceivedByMemberId =
+      !isSplitWallet || type === "expense" ? null : received_by_member_id?.trim() || null;
+  }
   if (isSplitWallet && type === "expense" && !normalizedPaidByMemberId) {
     return { error: "From user is required in split wallets" };
-  }
-  if (isSplitWallet && type === "income" && !normalizedReceivedByMemberId) {
-    return { error: "To user is required in split wallets" };
   }
   if (isSplitWallet && type === "transfer" && (!normalizedPaidByMemberId || !normalizedReceivedByMemberId)) {
     return { error: "From and to users are required in split wallets" };
@@ -678,6 +743,7 @@ export async function createTransaction(params: {
         end_date: end_date || null,
         weekday: weekday ?? null,
         day_of_month: day_of_month ?? null,
+        ...(type === "income" ? { income_received_by_user_id: normalizedReceivedByMemberId } : {}),
       })
       .select("id")
       .single();
@@ -717,6 +783,7 @@ export async function createTransaction(params: {
       split_method_override: type !== "expense" || !isSplitWallet ? null : effectiveSplitMethod,
       observations: obs,
       is_essential: resolvedIsEssential,
+      income_scope: incomeScopeForInsert(type, incomeScopeParam ?? undefined),
     })
     .select("id")
     .single();
@@ -843,6 +910,10 @@ export async function getTransaction(id: string) {
       (data as { is_essential?: boolean | null }).is_essential === false
         ? (data as { is_essential: boolean }).is_essential
         : null,
+    income_scope:
+      data.type === "income"
+        ? ((data as { income_scope?: string | null }).income_scope === "wallet" ? "wallet" : "user")
+        : null,
   };
 }
 
@@ -868,6 +939,8 @@ export async function updateTransaction(
     observations?: string | null;
     /** Expense only. Omit to leave DB unchanged; null = inherit from category; true/false = override. */
     is_essential?: boolean | null;
+    /** Income only. Omit to leave unchanged. */
+    income_scope?: IncomeScope | null;
   }
 ): Promise<{ error?: string }> {
   const supabase = await createClient();
@@ -878,7 +951,7 @@ export async function updateTransaction(
 
   const { data: old } = await supabase
     .from("transactions")
-    .select("wallet_id, type, amount, account_from_id, account_to_id, status, recurring_rule_id")
+    .select("wallet_id, type, amount, account_from_id, account_to_id, status, recurring_rule_id, income_scope")
     .eq("id", id)
     .single();
   if (!old) return { error: "Transaction not found" };
@@ -902,6 +975,7 @@ export async function updateTransaction(
     manual_splits = [],
     observations = null,
     is_essential: isEssentialUpdate = undefined,
+    income_scope: incomeScopeUpdate = undefined,
   } = params;
 
   const obs =
@@ -921,6 +995,7 @@ export async function updateTransaction(
     isBasicTracking: isBasicTrackingForUpdate,
     isSplitWallet,
     defaultSplitMethod,
+    isShared: isWalletSharedForUpdate,
   } = await getWalletShareFlags(
     supabase,
     old.wallet_id
@@ -938,14 +1013,24 @@ export async function updateTransaction(
 
   const effectiveSplitMethod = normalizeSplitMethod(split_method_override) ?? defaultSplitMethod;
   const normalizedPaidByMemberId =
-    !isSplitWallet || type === "income" ? null : paid_by_member_id;
-  const normalizedReceivedByMemberId =
-    !isSplitWallet || type === "expense" ? null : received_by_member_id;
+    !isSplitWallet || type === "income" ? null : paid_by_member_id?.trim() || null;
+  let normalizedReceivedByMemberId: string | null = null;
+  if (type === "income") {
+    const recv = await resolveIncomeReceivedByUserId(
+      supabase,
+      old.wallet_id,
+      isWalletSharedForUpdate,
+      received_by_member_id,
+      user.id
+    );
+    if (recv.error) return { error: recv.error };
+    normalizedReceivedByMemberId = recv.userId;
+  } else {
+    normalizedReceivedByMemberId =
+      !isSplitWallet || type === "expense" ? null : received_by_member_id?.trim() || null;
+  }
   if (isSplitWallet && type === "expense" && !normalizedPaidByMemberId) {
     return { error: "From user is required in split wallets" };
-  }
-  if (isSplitWallet && type === "income" && !normalizedReceivedByMemberId) {
-    return { error: "To user is required in split wallets" };
   }
   if (isSplitWallet && type === "transfer" && (!normalizedPaidByMemberId || !normalizedReceivedByMemberId)) {
     return { error: "From and to users are required in split wallets" };
@@ -981,6 +1066,18 @@ export async function updateTransaction(
     };
     if (expenseEssentialForDb !== undefined) {
       updatePayload.is_essential = expenseEssentialForDb;
+    }
+    if (type === "income") {
+      const prevScope = (old as { income_scope?: string | null }).income_scope;
+      const resolvedScope: IncomeScope =
+        incomeScopeUpdate !== undefined && incomeScopeUpdate !== null
+          ? incomeScopeUpdate
+          : prevScope === "wallet"
+            ? "wallet"
+            : "user";
+      updatePayload.income_scope = incomeScopeForInsert(type, resolvedScope);
+    } else {
+      updatePayload.income_scope = null;
     }
     const { error: upErr } = await supabase
       .from("transactions")
@@ -1046,6 +1143,7 @@ export async function updateTransaction(
         anchor_date: date,
         next_run_date: next,
         is_active: true,
+        ...(type === "income" ? { income_received_by_user_id: normalizedReceivedByMemberId } : {}),
       })
       .select("id")
       .single();
@@ -1087,6 +1185,7 @@ export async function updateTransaction(
     received_by_member_id: string | null;
     split_method_override: string | null;
     is_essential?: boolean | null;
+    income_scope?: IncomeScope | null;
   } = {
     type,
     category_id,
@@ -1103,6 +1202,18 @@ export async function updateTransaction(
   if (ruleId != null) updatePayload.recurring_rule_id = ruleId;
   if (expenseEssentialForDb !== undefined) {
     updatePayload.is_essential = expenseEssentialForDb;
+  }
+  if (type === "income") {
+    const prevScope = (old as { income_scope?: string | null }).income_scope;
+    const resolvedScope: IncomeScope =
+      incomeScopeUpdate !== undefined && incomeScopeUpdate !== null
+        ? incomeScopeUpdate
+        : prevScope === "wallet"
+          ? "wallet"
+          : "user";
+    updatePayload.income_scope = incomeScopeForInsert(type, resolvedScope);
+  } else {
+    updatePayload.income_scope = null;
   }
 
   const { error: upErr } = await supabase
@@ -1243,11 +1354,16 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
   // Fetch all active rules whose next_run_date is due (one pass, no infinite loop)
   const { data: rules } = await supabase
     .from("recurring_rules")
-    .select("id, wallet_id, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, end_date, weekday, day_of_month")
+    .select(
+      "id, wallet_id, created_by, type, category_id, amount, description, account_from_id, account_to_id, recurrence_type, interval_months, interval_days, work_day_index, anchor_date, next_run_date, end_date, weekday, day_of_month, income_received_by_user_id"
+    )
     .eq("wallet_id", walletId)
     .eq("is_active", true)
     .lte("next_run_date", today);
   if (!rules || rules.length === 0) return;
+
+  const { data: walletRow } = await supabase.from("wallets").select("is_shared").eq("id", walletId).single();
+  const walletIsShared = !!walletRow?.is_shared;
 
   for (const r of rules) {
     const isWorkDay =
@@ -1283,6 +1399,20 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
       continue;
     }
 
+    const ruleCreatedBy = (r as { created_by?: string | null }).created_by ?? null;
+    const incomeReceiver =
+      r.type === "income"
+        ? ((r as { income_received_by_user_id?: string | null }).income_received_by_user_id ??
+            ruleCreatedBy ??
+            null)
+        : null;
+    const resolvedIncomeReceiver =
+      r.type === "income"
+        ? !walletIsShared
+          ? ruleCreatedBy
+          : incomeReceiver
+        : null;
+
     // Create exactly ONE pending transaction for this recurring rule
     const { error: insErr } = await supabase.from("transactions").insert({
       wallet_id: r.wallet_id,
@@ -1293,10 +1423,12 @@ export async function ensureRecurringGenerated(walletId: string): Promise<void> 
       description: r.description ?? "",
       account_from_id: r.account_from_id,
       account_to_id: r.account_to_id,
-      created_by: null,
+      created_by: ruleCreatedBy,
       status: "pending",
       recurring_rule_id: r.id,
       hold_balance: true,
+      income_scope: r.type === "income" ? incomeScopeForInsert("income", "user") : null,
+      received_by_member_id: r.type === "income" ? resolvedIncomeReceiver : null,
     });
     if (insErr) continue;
 
