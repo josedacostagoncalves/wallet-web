@@ -172,10 +172,11 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
   const dayRecurring = selected ? (recurringByDay.get(selected) ?? []) : [];
   const selDate = selected ? new Date(selected + "T12:00:00Z") : null;
   const hasDayContent = dayTransactions.length > 0 || dayRecurring.length > 0;
+  const isDetailsOpen = Boolean(selected);
 
   return (
-    <div className="flex flex-col gap-4 w-[360px] shrink-0">
-      <div className="flex flex-col rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-950 w-[360px] h-[360px] shadow-sm dark:shadow-none">
+    <div className="w-[360px] h-[360px] shrink-0">
+      <div className="relative h-full w-full flex flex-col rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-950 shadow-sm dark:shadow-none">
         <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 font-medium">
           <button
             type="button"
@@ -197,138 +198,161 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
             ▶
           </button>
         </div>
-        <div className="flex-1 min-h-0 flex flex-col p-2">
-          <div className="shrink-0 grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-            {DOW.map((d) => (
-              <div key={d}>{d}</div>
-            ))}
+
+        <div className="relative flex-1 min-h-0 overflow-hidden [perspective:1200px]">
+          <div
+            className={`absolute inset-0 p-2 transition-all duration-500 ease-out ${isDetailsOpen
+              ? "opacity-0 pointer-events-none [transform:rotateY(-90deg)_scale(0.97)]"
+              : "opacity-100 [transform:rotateY(0deg)_scale(1)]"
+              }`}
+          >
+            <div className="h-full min-h-0 flex flex-col">
+              <div className="shrink-0 grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                {DOW.map((d) => (
+                  <div key={d}>{d}</div>
+                ))}
+              </div>
+              <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
+                {days.map(({ date, day, isCurrent }) => {
+                  const dayList = byDate.get(date) ?? [];
+                  const dayRecurring = recurringByDay.get(date) ?? [];
+                  const ind = indicatorsForDay(dayList, dayRecurring.length);
+                  const isSel = selected === date;
+                  const bg = isSel
+                    ? "ring-2 ring-slate-800 dark:ring-slate-200 bg-slate-100 dark:bg-slate-800"
+                    : "hover:bg-slate-100 dark:hover:bg-slate-800/80";
+                  const fg = !isCurrent ? "text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100";
+                  return (
+                    <button
+                      key={date}
+                      type="button"
+                      onClick={() => setSelected(date)}
+                      className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium transition-colors ${fg} ${bg}`}
+                    >
+                      <span>{day}</span>
+                      <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
+                        {ind.income && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                        {ind.expense && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+                        {ind.transfer && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+                        {ind.pending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
-            {days.map(({ date, day, isCurrent }) => {
-              const dayList = byDate.get(date) ?? [];
-              const dayRecurring = recurringByDay.get(date) ?? [];
-              const ind = indicatorsForDay(dayList, dayRecurring.length);
-              const isSel = selected === date;
-              const bg = isSel
-                ? "ring-2 ring-slate-800 dark:ring-slate-200 bg-slate-100 dark:bg-slate-800"
-                : "hover:bg-slate-100 dark:hover:bg-slate-800/80";
-              const fg = !isCurrent ? "text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100";
-              return (
+
+          <div
+            className={`absolute inset-0 transition-all duration-500 ease-out ${isDetailsOpen
+              ? "opacity-100 [transform:rotateY(0deg)_scale(1)]"
+              : "opacity-0 pointer-events-none [transform:rotateY(90deg)_scale(0.97)]"
+              }`}
+          >
+            <div className="h-full min-h-0 flex flex-col">
+              <div className="shrink-0 px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 font-medium flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {selDate?.toLocaleDateString("pt-PT", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </h3>
                 <button
-                  key={date}
                   type="button"
-                  onClick={() => setSelected(isSel ? null : date)}
-                  className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium transition-colors ${fg} ${bg}`}
+                  onClick={() => setSelected(null)}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  aria-label="Close day details"
                 >
-                  <span>{day}</span>
-                  <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
-                    {ind.income && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
-                    {ind.expense && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
-                    {ind.transfer && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-                    {ind.pending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
-                  </span>
+                  ✕
                 </button>
-              );
-            })}
+              </div>
+              <div className="p-3 flex-1 min-h-0 overflow-y-auto">
+                {!hasDayContent ? (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">No transactions or recurring next runs on this day.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {dayTransactions.map((t) => (
+                      <li key={`t-${t.id}`} className="text-xs">
+                        <button
+                          type="button"
+                          onClick={() => openEditTransaction(t.id)}
+                          className={`w-full text-left flex items-start gap-2 rounded-lg p-2 border transition-colors ${t.status === "pending"
+                            ? "border-yellow-200 dark:border-yellow-800/80 bg-yellow-50 dark:bg-yellow-950/35 hover:bg-yellow-100 dark:hover:bg-yellow-950/55 hover:border-yellow-300 dark:hover:border-yellow-700"
+                            : "border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-slate-200 dark:hover:border-slate-600"
+                            }`}
+                        >
+                          <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="font-medium text-slate-800 dark:text-slate-100 truncate">
+                              {t.description || "—"}
+                            </span>
+                            <span className="flex justify-between items-center gap-2">
+                              <span className="text-slate-500 dark:text-slate-400">
+                                {t.status === "pending" ? "Pending" : null}
+                              </span>
+                              <span
+                                className={`tabular-nums shrink-0 ${t.type === "income"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : t.type === "expense"
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-slate-600 dark:text-slate-300"
+                                  }`}
+                              >
+                                {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
+                                {t.amount.toLocaleString("pt-PT", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                €
+                              </span>
+                            </span>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                    {dayRecurring.map((r) => (
+                      <li key={`r-${r.id}`} className="text-xs">
+                        <button
+                          type="button"
+                          onClick={() => openEditRecurring(r.id)}
+                          className="w-full text-left flex items-start gap-2 rounded-lg p-2 border border-yellow-200 dark:border-yellow-800/80 bg-yellow-50 dark:bg-yellow-950/35 hover:bg-yellow-100 dark:hover:bg-yellow-950/55 hover:border-yellow-300 dark:hover:border-yellow-700 transition-colors"
+                        >
+                          <TransactionTypeIcon type={r.type as "income" | "expense" | "transfer"} className="mt-0.5" />
+                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                            <span className="font-medium text-slate-800 dark:text-slate-100 truncate">
+                              {r.description || "—"}
+                            </span>
+                            <span className="flex justify-between items-center gap-2">
+                              <span className="text-slate-500 dark:text-slate-400">Next run</span>
+                              <span
+                                className={`tabular-nums shrink-0 ${r.type === "income"
+                                  ? "text-green-600 dark:text-green-400"
+                                  : r.type === "expense"
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-slate-600 dark:text-slate-300"
+                                  }`}
+                              >
+                                {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
+                                {r.amount.toLocaleString("pt-PT", {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                €
+                              </span>
+                            </span>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {selected && (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-950 shadow-sm dark:shadow-none">
-          <div className="px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 font-medium">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {selDate?.toLocaleDateString("pt-PT", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </h3>
-          </div>
-          <div className="p-3 max-h-[280px] overflow-y-auto">
-            {!hasDayContent ? (
-              <p className="text-xs text-slate-500 dark:text-slate-400">No transactions or recurring next runs on this day.</p>
-            ) : (
-              <ul className="space-y-2">
-                {dayTransactions.map((t) => (
-                  <li key={`t-${t.id}`} className="text-xs">
-                    <button
-                      type="button"
-                      onClick={() => openEditTransaction(t.id)}
-                      className={`w-full text-left flex items-start gap-2 rounded-lg p-2 border transition-colors ${t.status === "pending"
-                        ? "border-yellow-200 dark:border-yellow-800/80 bg-yellow-50 dark:bg-yellow-950/35 hover:bg-yellow-100 dark:hover:bg-yellow-950/55 hover:border-yellow-300 dark:hover:border-yellow-700"
-                        : "border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:border-slate-200 dark:hover:border-slate-600"
-                        }`}
-                    >
-                      <TransactionTypeIcon type={t.type as "income" | "expense" | "transfer"} className="mt-0.5" />
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="font-medium text-slate-800 dark:text-slate-100 truncate">
-                          {t.description || "—"}
-                        </span>
-                        <span className="flex justify-between items-center gap-2">
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {t.status === "pending" ? "Pending" : null}
-                          </span>
-                          <span
-                            className={`tabular-nums shrink-0 ${t.type === "income"
-                              ? "text-green-600 dark:text-green-400"
-                              : t.type === "expense"
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-slate-600 dark:text-slate-300"
-                              }`}
-                          >
-                            {t.type === "income" ? "+" : t.type === "expense" ? "−" : ""}
-                            {t.amount.toLocaleString("pt-PT", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            €
-                          </span>
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-                {dayRecurring.map((r) => (
-                  <li key={`r-${r.id}`} className="text-xs">
-                    <button
-                      type="button"
-                      onClick={() => openEditRecurring(r.id)}
-                      className="w-full text-left flex items-start gap-2 rounded-lg p-2 border border-yellow-200 dark:border-yellow-800/80 bg-yellow-50 dark:bg-yellow-950/35 hover:bg-yellow-100 dark:hover:bg-yellow-950/55 hover:border-yellow-300 dark:hover:border-yellow-700 transition-colors"
-                    >
-                      <TransactionTypeIcon type={r.type as "income" | "expense" | "transfer"} className="mt-0.5" />
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="font-medium text-slate-800 dark:text-slate-100 truncate">
-                          {r.description || "—"}
-                        </span>
-                        <span className="flex justify-between items-center gap-2">
-                          <span className="text-slate-500 dark:text-slate-400">Next run</span>
-                          <span
-                            className={`tabular-nums shrink-0 ${r.type === "income"
-                              ? "text-green-600 dark:text-green-400"
-                              : r.type === "expense"
-                                ? "text-red-600 dark:text-red-400"
-                                : "text-slate-600 dark:text-slate-300"
-                              }`}
-                          >
-                            {r.type === "income" ? "+" : r.type === "expense" ? "−" : ""}
-                            {r.amount.toLocaleString("pt-PT", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            €
-                          </span>
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

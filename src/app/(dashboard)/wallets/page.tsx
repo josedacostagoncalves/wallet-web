@@ -349,7 +349,7 @@ export default function WalletsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
         {wallets.length === 0 ? (
           <div className="p-6 text-slate-500">
             {tWallets("noWallets")}.{" "}
@@ -358,19 +358,19 @@ export default function WalletsPage() {
             </Link>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-left p-3 font-medium text-slate-600">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 dark:bg-slate-900">
+              <tr className="border-b border-slate-200 dark:border-slate-800">
+                <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
                   {tWallets("walletName")}
                 </th>
-                <th className="text-left p-3 font-medium text-slate-600">
+                <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
                   {tWallets("page.table.type")}
                 </th>
-                <th className="text-left p-3 font-medium text-slate-600">
+                <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
                   {tWallets("page.table.status")}
                 </th>
-                <th className="text-left p-3 font-medium text-slate-600 w-28">
+                <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300 w-28">
                   {tWallets("page.table.actions")}
                 </th>
               </tr>
@@ -381,12 +381,13 @@ export default function WalletsPage() {
               return (
                 <tbody key={w.id}>
                   <tr
-                    className={`border-b border-slate-100 ${isSoftDeleted
-                      ? "opacity-50 bg-red-50 dark:bg-red-950/20"
-                      : !w.is_active
-                        ? "opacity-60"
-                        : ""
-                      }`}
+                    className={`border-b border-slate-100 dark:border-slate-800 transition-colors ${
+                      isSoftDeleted
+                        ? "opacity-50 bg-red-50 dark:bg-red-950/20"
+                        : !w.is_active
+                          ? "opacity-60 hover:bg-slate-50/50 dark:hover:bg-slate-900/50"
+                          : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50"
+                    }`}
                   >
                     <td className="p-3 font-medium">{w.name}</td>
                     <td className="p-3">

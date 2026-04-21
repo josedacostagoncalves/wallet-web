@@ -3,6 +3,7 @@
 import type { CalendarTransaction } from "@/components/DashboardCalendar";
 import { ReportDonutBarsToggle } from "@/components/reports/ReportDonutBarsToggle";
 import { formatReportsMonthTitle } from "@/lib/reports-month-title";
+import { statementsElapsedMonthCountForRange } from "@/lib/statements-style-average";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import {
@@ -53,15 +54,26 @@ function formatCurrency(value: number, locale: string) {
 /** 360×360 like radar cards. Toggle: donut (spent % of income) vs horizontal bars. */
 export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMonth }: Props) {
   const t = useTranslations("reports.comparison");
+  const tRadar = useTranslations("reports.radar");
   const tCal = useTranslations("calendar");
   const locale = useLocale();
   const [view, setView] = useState<ViewMode>("donut");
 
-  const { chartData, net, monthTitle, hasAny, income, expense, donutData, centerPercent, showCenterPercent } =
+  const {
+    chartData,
+    net,
+    monthTitle,
+    hasAny,
+    income,
+    expense,
+    donutData,
+    centerPercent,
+    showCenterPercent,
+  } =
     useMemo(() => {
       if (!selectedMonth) {
         return {
-          chartData: [] as { name: string; value: number; fill: string }[],
+          chartData: [] as { name: string; value: number; average: number; fill: string; avgFill: string }[],
           net: 0,
           monthTitle: "",
           hasAny: false,
@@ -76,9 +88,24 @@ export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMont
       const { income, expense, net } = monthIncomeExpenseNet(transactions, year, month);
       const monthTitle = formatReportsMonthTitle(month, year, (key) => tCal(key));
       const hasAny = income > 0 || expense > 0;
+      const rangeStart = `${year}-01-01`;
+      const rangeEnd = `${year}-12-31`;
+      const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
+      let yearIncome = 0;
+      let yearExpense = 0;
+      for (const tx of transactions) {
+        if (tx.status !== "confirmed") continue;
+        const d = tx.date.slice(0, 10);
+        if (d < rangeStart || d > rangeEnd) continue;
+        const amt = Math.abs(Number(tx.amount));
+        if (tx.type === "income") yearIncome += amt;
+        else if (tx.type === "expense") yearExpense += amt;
+      }
+      const avgIncome = yearIncome / elapsed;
+      const avgExpense = yearExpense / elapsed;
       const chartData = [
-        { name: t("income"), value: income, fill: "#16a34a" },
-        { name: t("expenses"), value: expense, fill: "#dc2626" },
+        { name: t("income"), value: income, average: avgIncome, fill: "#16a34a", avgFill: "#86efac" },
+        { name: t("expenses"), value: expense, average: avgExpense, fill: "#dc2626", avgFill: "#fca5a5" },
       ];
 
       let donutData: { name: string; value: number; fill: string }[] = [];
@@ -156,6 +183,8 @@ export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMont
                   layout="vertical"
                   data={chartData}
                   margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+                  barCategoryGap={12}
+                  barGap={2}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -181,21 +210,32 @@ export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMont
                     cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
-                      const v = Number(payload[0].value ?? 0);
                       const label = String(payload[0].payload?.name ?? "");
+                      const vMonth = Number(
+                        payload.find((p) => String(p.dataKey) === "value")?.value ?? 0
+                      );
+                      const vAvg = Number(
+                        payload.find((p) => String(p.dataKey) === "average")?.value ?? 0
+                      );
                       return (
                         <div className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs shadow-lg">
                           <p className="font-medium text-slate-800 dark:text-slate-100">{label}</p>
-                          <p className="tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatCurrency(v, locale)} €
-                          </p>
+                          <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
+                            <p>{tRadar("thisMonth")}: {formatCurrency(vMonth, locale)} €</p>
+                            <p>{tRadar("statementsAverage")}: {formatCurrency(vAvg, locale)} €</p>
+                          </div>
                         </div>
                       );
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={36}>
+                  <Bar dataKey="value" name={tRadar("thisMonth")} radius={[0, 6, 6, 0]} barSize={18}>
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="average" name={tRadar("statementsAverage")} radius={[0, 4, 4, 0]} barSize={8}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`avg-cell-${index}`} fill={entry.avgFill} />
                     ))}
                   </Bar>
                 </BarChart>

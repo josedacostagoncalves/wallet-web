@@ -26,7 +26,7 @@ export function BarsIcon({ active }: { active: boolean }) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="shrink-0">
       <path
-        d="M4 19h3v-8H4v8zm6 0h3V5h-3v14zm6 0h3v-6h-3v6z"
+        d="M4 7h16v3H4V7zm0 5h12v3H4v-3zm0 5h9v3H4v-3z"
         className={active ? "text-slate-900 dark:text-white" : "text-slate-500"}
       />
     </svg>

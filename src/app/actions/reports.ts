@@ -26,6 +26,8 @@ export async function getReportsData() {
     let avgDailySpend = { current: 0, previous: 0 };
     let pendingVsConfirmed = { pending: 0, confirmed: 0 };
     let monthlySeries: any[] = [];
+    let portfolioDailySeries: { date: string; year: number; month: number; day: number; label: string; totalBalance: number }[] = [];
+    let currentPortfolioBalance = 0;
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
         .toISOString()
@@ -117,7 +119,7 @@ export async function getReportsData() {
             { data: tx },
             { data: rules },
         ] = await Promise.all([
-            supabase.from("accounts").select("id, name").eq("wallet_id", currentWalletId),
+            supabase.from("accounts").select("id, name, current_balance").eq("wallet_id", currentWalletId),
             supabase.from("categories").select("id, name, parent_id").eq("wallet_id", currentWalletId),
             txQuery,
             supabase
@@ -128,6 +130,11 @@ export async function getReportsData() {
         ]);
 
         const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
+        currentPortfolioBalance = (accs ?? []).reduce(
+            (sum, a: { current_balance?: number | string | null }) =>
+                sum + Number(a.current_balance ?? 0),
+            0
+        );
         const catIdToName = new Map((cats ?? []).map((c) => [c.id, c.name]));
         const txRows = (tx ?? []) as unknown as TxRow[];
 
@@ -285,6 +292,48 @@ export async function getReportsData() {
             ...m,
             net: m.income - m.expense,
         }));
+        // Rebuild daily total-balance history from current total and daily net deltas.
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const dailyNetByDate = new Map<string, number>();
+        for (const t of txRows) {
+            const statusConfirmed = t.status === "confirmed" || !t.status;
+            if (!statusConfirmed) continue;
+            if (t.wallet_id !== currentWalletId) continue;
+            if (t.date < seriesStartStr) continue;
+
+            let delta = 0;
+            if (t.type === "income") {
+                delta = Number(t.amount);
+            } else if (t.type === "expense") {
+                delta = -Math.abs(Number(t.amount));
+            } else {
+                continue;
+            }
+            dailyNetByDate.set(t.date, (dailyNetByDate.get(t.date) ?? 0) + delta);
+        }
+
+        let runningBalance = currentPortfolioBalance;
+        const reverseDaily: { date: string; year: number; month: number; day: number; label: string; totalBalance: number }[] = [];
+        for (
+            let d = new Date(today);
+            d >= seriesStart;
+            d = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1)
+        ) {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, "0");
+            const dd = String(d.getDate()).padStart(2, "0");
+            const key = `${yyyy}-${mm}-${dd}`;
+            reverseDaily.push({
+                date: key,
+                year: yyyy,
+                month: d.getMonth(),
+                day: d.getDate(),
+                label: `${dd}.${mm}`,
+                totalBalance: runningBalance,
+            });
+            runningBalance -= dailyNetByDate.get(key) ?? 0;
+        }
+        portfolioDailySeries = reverseDaily.reverse();
         pendingVsConfirmed = { pending: pendingTotal, confirmed: confirmedTotal };
         avgDailySpend = {
             current: daysInCurrentMonth ? currentMonthExpense / daysInCurrentMonth : 0,
@@ -322,6 +371,8 @@ export async function getReportsData() {
         avgDailySpend,
         pendingVsConfirmed,
         chartData,
+        portfolioDailySeries,
+        currentPortfolioBalance,
         defaultPeriodMonths,
     };
 }

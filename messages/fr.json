@@ -1218,6 +1218,13 @@
             "donutCenterHint": "non essentielles",
             "footerMonthTotal": "Total du mois"
         },
+        "portfolio": {
+            "title": "Portefeuille",
+            "totalBalance": "Solde total",
+            "beginBalance": "Solde initial",
+            "endBalance": "Solde final",
+            "currentBalance": "Solde actuel"
+        },
         "placeholder": {
             "title": "Bientôt",
             "description": "Cet emplacement est réservé pour un futur graphique."

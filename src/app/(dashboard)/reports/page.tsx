@@ -5,8 +5,8 @@ import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { ReportsDailySeriesChart } from "@/components/ReportsDailySeriesChart";
 import { ReportsMonthEssentialExpenseDonut } from "@/components/ReportsMonthEssentialExpenseDonut";
 import { ReportsMonthIncomeExpenseComparison } from "@/components/ReportsMonthIncomeExpenseComparison";
+import { ReportsMonthlyPortfolioChart } from "@/components/ReportsMonthlyPortfolioChart";
 import { ReportsMonthRadarChart } from "@/components/ReportsMonthRadarChart";
-import { ReportsPlaceholderCard } from "@/components/ReportsPlaceholderCard";
 import { getReportsData } from "@/app/actions/reports";
 import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { useTranslations } from "next-intl";
@@ -71,13 +71,6 @@ export default function ReportsPage() {
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
           />
-          <ReportsMonthEssentialExpenseDonut
-            transactions={data.calendarTransactions}
-            selectedMonth={selectedMonth}
-          />
-          <ReportsPlaceholderCard />
-        </div>
-        <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
           <ReportsMonthRadarChart
             variant="income"
             transactions={data.calendarTransactions}
@@ -85,6 +78,17 @@ export default function ReportsPage() {
           />
           <ReportsMonthRadarChart
             variant="expense"
+            transactions={data.calendarTransactions}
+            selectedMonth={selectedMonth}
+          />
+        </div>
+        <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
+          <ReportsMonthlyPortfolioChart
+            dailySeries={data.portfolioDailySeries ?? []}
+            currentTotalBalance={Number(data.currentPortfolioBalance ?? 0)}
+            selectedMonth={selectedMonth}
+          />
+          <ReportsMonthEssentialExpenseDonut
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
           />

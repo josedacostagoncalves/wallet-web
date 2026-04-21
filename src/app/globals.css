@@ -140,3 +140,28 @@ body {
 .dark .friendly-scroll::-webkit-scrollbar-thumb {
   background-color: rgb(82 82 82);
 }
+
+/* 3D flip helpers for calendar day details card */
+.calendar-flip-scene {
+  perspective: 1200px;
+}
+
+.calendar-flip-card {
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.calendar-flip-card-open {
+  transform: rotateY(180deg);
+}
+
+.calendar-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.calendar-flip-face-back {
+  transform: rotateY(180deg) translateZ(0);
+}

@@ -30,15 +30,15 @@ export type RecurringRow = {
   isStopped: boolean;
 };
 
-type Props = { recurring: RecurringRow[] };
+type Props = { recurring: RecurringRow[]; initialExpanded?: boolean };
 
-export function RecurringSection({ recurring }: Props) {
+export function RecurringSection({ recurring, initialExpanded = false }: Props) {
   const router = useRouter();
   const t = useTranslations("transactions.recurring");
   const tType = useTranslations("transactions");
   const { showToast } = useToast();
   const { openEditRecurring } = useTransactionModals();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(initialExpanded);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   const [addRunDialogId, setAddRunDialogId] = useState<string | null>(null);

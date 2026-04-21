@@ -7,6 +7,7 @@ import {
   CATEGORY_ESSENTIAL_CHART_HEX_LIGHT,
 } from "@/lib/category-essential-colors";
 import { formatReportsMonthTitle } from "@/lib/reports-month-title";
+import { statementsElapsedMonthCountForRange } from "@/lib/statements-style-average";
 import { useLocale, useTranslations } from "next-intl";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -45,6 +46,7 @@ function formatCurrency(value: number, locale: string) {
 export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth }: Props) {
   const t = useTranslations("reports.essentialSplit");
   const tToggle = useTranslations("reports.comparison");
+  const tRadar = useTranslations("reports.radar");
   const tCal = useTranslations("calendar");
   const locale = useLocale();
   const [view, setView] = useState<ViewMode>("donut");
@@ -59,6 +61,8 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
         nonEssential: 0,
         total: 0,
         pctNonEssential: 0,
+        avgEssential: 0,
+        avgNonEssential: 0,
       };
     }
     const { year, month } = selectedMonth;
@@ -78,8 +82,29 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
     const total = essential + nonEssential;
     const pctNonEssential = total > 0 ? Math.round((nonEssential / total) * 100) : 0;
     const monthTitle = formatReportsMonthTitle(month, year, (key) => tCal(key));
+    const rangeStart = `${year}-01-01`;
+    const rangeEnd = `${year}-12-31`;
+    const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
+    let yearEssential = 0;
+    let yearNonEssential = 0;
+    for (const tx of transactions) {
+      if (tx.status !== "confirmed" || tx.type !== "expense") continue;
+      const d = tx.date.slice(0, 10);
+      if (d < rangeStart || d > rangeEnd) continue;
+      const amt = Math.abs(Number(tx.amount));
+      if (tx.isExpenseEssential === true) yearEssential += amt;
+      else yearNonEssential += amt;
+    }
 
-    return { monthTitle, essential, nonEssential, total, pctNonEssential };
+    return {
+      monthTitle,
+      essential,
+      nonEssential,
+      total,
+      pctNonEssential,
+      avgEssential: yearEssential / elapsed,
+      avgNonEssential: yearNonEssential / elapsed,
+    };
   }, [transactions, selectedMonth, tCal]);
 
   const legEss = t("legendEssential");
@@ -99,10 +124,31 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
   const barChartData = useMemo(() => {
     if (metrics.total <= 0) return [];
     return [
-      { name: legEss, value: metrics.essential, fill: fillEssential },
-      { name: legNon, value: metrics.nonEssential, fill: FILL_NON },
+      {
+        name: legEss,
+        value: metrics.essential,
+        average: metrics.avgEssential,
+        fill: fillEssential,
+        avgFill: "#fde68a",
+      },
+      {
+        name: legNon,
+        value: metrics.nonEssential,
+        average: metrics.avgNonEssential,
+        fill: FILL_NON,
+        avgFill: "#fecdd3",
+      },
     ];
-  }, [metrics.total, metrics.essential, metrics.nonEssential, fillEssential, legEss, legNon]);
+  }, [
+    metrics.total,
+    metrics.essential,
+    metrics.nonEssential,
+    metrics.avgEssential,
+    metrics.avgNonEssential,
+    fillEssential,
+    legEss,
+    legNon,
+  ]);
 
   if (!selectedMonth) {
     return null;
@@ -144,6 +190,8 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
                   layout="vertical"
                   data={barChartData}
                   margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+                  barCategoryGap={12}
+                  barGap={2}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -169,21 +217,32 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
                     cursor={{ fill: "rgba(148, 163, 184, 0.12)" }}
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
-                      const v = Number(payload[0].value ?? 0);
                       const label = String(payload[0].payload?.name ?? "");
+                      const vMonth = Number(
+                        payload.find((p) => String(p.dataKey) === "value")?.value ?? 0
+                      );
+                      const vAvg = Number(
+                        payload.find((p) => String(p.dataKey) === "average")?.value ?? 0
+                      );
                       return (
                         <div className="rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs shadow-lg">
                           <p className="font-medium text-slate-800 dark:text-slate-100">{label}</p>
-                          <p className="tabular-nums text-slate-600 dark:text-slate-300">
-                            {formatCurrency(v, locale)} €
-                          </p>
+                          <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
+                            <p>{tRadar("thisMonth")}: {formatCurrency(vMonth, locale)} €</p>
+                            <p>{tRadar("statementsAverage")}: {formatCurrency(vAvg, locale)} €</p>
+                          </div>
                         </div>
                       );
                     }}
                   />
-                  <Bar dataKey="value" radius={[0, 6, 6, 0]} maxBarSize={36}>
+                  <Bar dataKey="value" name={tRadar("thisMonth")} radius={[0, 6, 6, 0]} barSize={18}>
                     {barChartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="average" name={tRadar("statementsAverage")} radius={[0, 4, 4, 0]} barSize={8}>
+                    {barChartData.map((entry, index) => (
+                      <Cell key={`avg-cell-${index}`} fill={entry.avgFill} />
                     ))}
                   </Bar>
                 </BarChart>

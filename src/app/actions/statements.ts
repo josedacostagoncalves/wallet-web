@@ -84,6 +84,25 @@ function normalizeCategoryName(name: string | null | undefined): string {
         .replace(/[\u0300-\u036f]/g, "");
 }
 
+function getSavingsInvestmentCategoryIds(
+    categories: { id: string; name: string; parent_id: string | null }[]
+): Set<string> {
+    const categoryMap = buildCategoryMap(categories);
+    const matchingIds = new Set<string>();
+    for (const category of categories) {
+        const normalizedCategory = normalizeCategoryName(category.name);
+        const parentName = category.parent_id ? categoryMap.get(category.parent_id)?.name : null;
+        const normalizedParent = normalizeCategoryName(parentName);
+        if (
+            SAVINGS_INVESTMENTS_CATEGORY_ALIASES.has(normalizedCategory) ||
+            SAVINGS_INVESTMENTS_CATEGORY_ALIASES.has(normalizedParent)
+        ) {
+            matchingIds.add(category.id);
+        }
+    }
+    return matchingIds;
+}
+
 function buildCategoryMap(categories: { id: string; name: string; parent_id: string | null }[]) {
     const categoryMap = new Map<string, { name: string; parent_id: string | null }>();
     categories.forEach((cat) => {
@@ -215,8 +234,7 @@ export async function getStatementsByCategory(
         .in("type", ["income", "expense"])
         .gte("date", startDate)
         .lte("date", endDate)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("date", { ascending: false });
     if (user?.id) {
         const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
         txQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
@@ -228,11 +246,6 @@ export async function getStatementsByCategory(
     if (error) {
         console.error("Error fetching transactions:", error);
         return { income: [], expenses: [] };
-    }
-
-    console.log(`[Statements] Fetched ${transactions?.length || 0} transactions for wallet ${walletId} from ${startDate} to ${endDate}`);
-    if (transactions && transactions.length > 0) {
-        console.log("[Statements] Sample transaction:", transactions[0]);
     }
 
     const incomeMap = new Map<string, StatementRow>();
@@ -304,33 +317,38 @@ export async function getSavingsInvestmentStatements(
     endDate: string
 ): Promise<StatementRow[]> {
     const supabase = await createClient();
+    const { data: allCategories, error: catError } = await supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .eq("wallet_id", walletId);
+    if (catError) {
+        console.error("Error fetching categories for savings/investments:", catError);
+        return [];
+    }
+    const categoryRows = (allCategories || []) as { id: string; name: string; parent_id: string | null }[];
+    const matchingCategoryIds = Array.from(getSavingsInvestmentCategoryIds(categoryRows));
+    if (matchingCategoryIds.length === 0) {
+        return [];
+    }
+    const categoryMap = buildCategoryMap(categoryRows);
     const { data: transactions, error } = await supabase
         .from("transactions")
         .select("id, date, type, amount, description, category_id, category:categories(id, name, parent_id)")
         .eq("wallet_id", walletId)
         .eq("status", "confirmed")
         .eq("type", "transfer")
+        .in("category_id", matchingCategoryIds)
         .gte("date", startDate)
         .lte("date", endDate)
-        .order("date", { ascending: false })
-        .order("created_at", { ascending: false });
+        .order("date", { ascending: false });
 
     if (error) {
         console.error("Error fetching savings/investments transactions:", error);
         return [];
     }
 
-    const { data: allCategories } = await supabase
-        .from("categories")
-        .select("id, name, parent_id")
-        .eq("wallet_id", walletId);
-    const categoryMap = buildCategoryMap(allCategories || []);
-    const filtered = (transactions as unknown as TransactionWithCategory[]).filter((transaction) =>
-        isSavingsOrInvestmentsCategory(transaction, categoryMap)
-    );
-
     const transferMap = new Map<string, StatementRow>();
-    filtered.forEach((transaction) => {
+    (transactions as unknown as TransactionWithCategory[]).forEach((transaction) => {
         const { categoryName, parentCategoryName, isSubcategory } = getCategoryContext(transaction, categoryMap);
         const monthKey = transaction.date.slice(0, 7);
         const key = isSubcategory ? `${parentCategoryName}|${categoryName}` : categoryName;
@@ -375,56 +393,76 @@ export async function getAvailableYears(
     let error: { message: string } | null = null;
 
     if (mode === "incomeExpenses") {
-        const txQuery = supabase
+        const txMinQuery = supabase
             .from("transactions")
             .select("date")
             .eq("status", "confirmed")
             .in("type", ["income", "expense"])
             .order("date", { ascending: true })
-            .order("created_at", { ascending: true });
+            .limit(1);
+        const txMaxQuery = supabase
+            .from("transactions")
+            .select("date")
+            .eq("status", "confirmed")
+            .in("type", ["income", "expense"])
+            .order("date", { ascending: false })
+            .limit(1);
         if (user?.id) {
             const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
-            txQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
+            txMinQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
+            txMaxQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
         } else {
-            txQuery.eq("wallet_id", walletId);
+            txMinQuery.eq("wallet_id", walletId);
+            txMaxQuery.eq("wallet_id", walletId);
         }
-        const res = await txQuery;
-        transactions = (res.data as { date: string }[] | null) || [];
-        error = res.error;
+        const [minRes, maxRes] = await Promise.all([txMinQuery, txMaxQuery]);
+        error = minRes.error || maxRes.error;
+        transactions = [
+            ...((minRes.data as { date: string }[] | null) || []),
+            ...((maxRes.data as { date: string }[] | null) || []),
+        ];
     } else {
-        const [txRes, catRes] = await Promise.all([
-            supabase
-                .from("transactions")
-                .select("date, category_id")
-                .eq("wallet_id", walletId)
-                .eq("status", "confirmed")
-                .eq("type", "transfer")
-                .order("date", { ascending: true })
-                .order("created_at", { ascending: true }),
-            supabase
-                .from("categories")
-                .select("id, name, parent_id")
-                .eq("wallet_id", walletId),
-        ]);
-
-        error = txRes.error || catRes.error;
-        if (!error) {
-            const categoryMap = buildCategoryMap((catRes.data || []) as { id: string; name: string; parent_id: string | null }[]);
-            transactions = ((txRes.data || []) as { date: string; category_id: string | null }[])
-                .filter((transaction) =>
-                    isSavingsOrInvestmentsCategory(
-                        {
-                            id: "",
-                            date: transaction.date,
-                            type: "transfer",
-                            amount: 0,
-                            description: null,
-                            category_id: transaction.category_id,
-                        },
-                        categoryMap
-                    )
+        const { data: catData, error: catError } = await supabase
+            .from("categories")
+            .select("id, name, parent_id")
+            .eq("wallet_id", walletId);
+        if (catError) {
+            error = catError;
+        } else {
+            const matchingCategoryIds = Array.from(
+                getSavingsInvestmentCategoryIds(
+                    (catData || []) as { id: string; name: string; parent_id: string | null }[]
                 )
-                .map((transaction) => ({ date: transaction.date }));
+            );
+            if (matchingCategoryIds.length === 0) {
+                transactions = [];
+            } else {
+                const [minRes, maxRes] = await Promise.all([
+                    supabase
+                        .from("transactions")
+                        .select("date")
+                        .eq("wallet_id", walletId)
+                        .eq("status", "confirmed")
+                        .eq("type", "transfer")
+                        .in("category_id", matchingCategoryIds)
+                        .order("date", { ascending: true })
+                        .limit(1),
+                    supabase
+                        .from("transactions")
+                        .select("date")
+                        .eq("wallet_id", walletId)
+                        .eq("status", "confirmed")
+                        .eq("type", "transfer")
+                        .in("category_id", matchingCategoryIds)
+                        .order("date", { ascending: false })
+                        .limit(1),
+                ]);
+                error = minRes.error || maxRes.error;
+                transactions = [
+                    ...((minRes.data as { date: string }[] | null) || []),
+                    ...((maxRes.data as { date: string }[] | null) || []),
+                ];
+            }
         }
     }
 
@@ -433,17 +471,19 @@ export async function getAvailableYears(
         return [new Date().getFullYear()];
     }
 
-    // Extract unique years from transactions
-    const yearsSet = new Set<number>();
-    transactions.forEach((transaction) => {
-        const year = Number(transaction.date.slice(0, 4));
-        yearsSet.add(year);
-    });
-
-    if (yearsSet.size === 0) {
+    if (transactions.length === 0) {
         return [new Date().getFullYear()];
     }
 
-    // Return sorted years in descending order
-    return Array.from(yearsSet).sort((a, b) => b - a);
+    const years = transactions
+        .map((t) => Number(t.date.slice(0, 4)))
+        .filter((y) => Number.isFinite(y));
+    const minYear = Math.min(...years);
+    const maxYear = Math.max(...years);
+    if (!Number.isFinite(minYear) || !Number.isFinite(maxYear)) {
+        return [new Date().getFullYear()];
+    }
+    const out: number[] = [];
+    for (let y = maxYear; y >= minYear; y -= 1) out.push(y);
+    return out;
 }

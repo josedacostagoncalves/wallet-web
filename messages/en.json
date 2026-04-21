@@ -1218,6 +1218,13 @@
             "donutCenterHint": "non-essential",
             "footerMonthTotal": "Month total"
         },
+        "portfolio": {
+            "title": "Portfolio",
+            "totalBalance": "Total balance",
+            "beginBalance": "Begin balance",
+            "endBalance": "End balance",
+            "currentBalance": "Current balance"
+        },
         "placeholder": {
             "title": "Coming soon",
             "description": "This space is reserved for a future chart."

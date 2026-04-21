@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
-import { AllTransactionsSection } from "@/components/AllTransactionsSection";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
+import { TransactionsTabs } from "@/components/TransactionsTabs";
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
 import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
 import { workDayDateInMonth } from "@/lib/recurrence";
@@ -426,15 +426,12 @@ export default async function TransactionsPage() {
             ) : (
                 <div className="space-y-8">
                     <DashboardPageHeader title={t("title")} description={t("subtitle")} />
-                    <section>
-                        <RecurringSection recurring={recurring} />
-                    </section>
-                    <section>
-                        <PendingSection pending={pending} />
-                    </section>
-                    <section>
-                        <AllTransactionsSection confirmed={confirmed} isSplitOnly={isSplitWallet} />
-                    </section>
+                    <TransactionsTabs
+                        confirmed={confirmed}
+                        pending={pending}
+                        recurring={recurring}
+                        isSplitOnly={isSplitWallet}
+                    />
                 </div>
             )}
         </div>
