@@ -1225,6 +1225,12 @@
             "endBalance": "End balance",
             "currentBalance": "Current balance"
         },
+        "expensesByUser": {
+            "title": "Expenses by user",
+            "empty": "No confirmed expenses by user in this month.",
+            "users": "Users",
+            "total": "Total expenses"
+        },
         "placeholder": {
             "title": "Coming soon",
             "description": "This space is reserved for a future chart."

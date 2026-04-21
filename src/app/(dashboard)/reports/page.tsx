@@ -5,6 +5,7 @@ import { DashboardCalendar } from "@/components/DashboardCalendar";
 import { ReportsDailySeriesChart } from "@/components/ReportsDailySeriesChart";
 import { ReportsMonthEssentialExpenseDonut } from "@/components/ReportsMonthEssentialExpenseDonut";
 import { ReportsMonthIncomeExpenseComparison } from "@/components/ReportsMonthIncomeExpenseComparison";
+import { ReportsExpensesByUserEvolutionChart } from "@/components/ReportsExpensesByUserEvolutionChart";
 import { ReportsMonthlyPortfolioChart } from "@/components/ReportsMonthlyPortfolioChart";
 import { ReportsMonthRadarChart } from "@/components/ReportsMonthRadarChart";
 import { getReportsData } from "@/app/actions/reports";
@@ -83,11 +84,19 @@ export default function ReportsPage() {
           />
         </div>
         <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
-          <ReportsMonthlyPortfolioChart
-            dailySeries={data.portfolioDailySeries ?? []}
-            currentTotalBalance={Number(data.currentPortfolioBalance ?? 0)}
-            selectedMonth={selectedMonth}
-          />
+          {data.walletTracksBalances ? (
+            <ReportsMonthlyPortfolioChart
+              dailySeries={data.portfolioDailySeries ?? []}
+              currentTotalBalance={Number(data.currentPortfolioBalance ?? 0)}
+              selectedMonth={selectedMonth}
+            />
+          ) : (
+            <ReportsExpensesByUserEvolutionChart
+              points={data.expenseByUserDaily ?? []}
+              users={data.expenseUsers ?? []}
+              selectedMonth={selectedMonth}
+            />
+          )}
           <ReportsMonthEssentialExpenseDonut
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}

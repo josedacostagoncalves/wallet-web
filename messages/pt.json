@@ -1225,6 +1225,12 @@
             "endBalance": "Saldo final",
             "currentBalance": "Saldo atual"
         },
+        "expensesByUser": {
+            "title": "Despesas por utilizador",
+            "empty": "Sem despesas confirmadas por utilizador neste mês.",
+            "users": "Utilizadores",
+            "total": "Total de despesas"
+        },
         "placeholder": {
             "title": "Em breve",
             "description": "Este espaço está reservado para um gráfico futuro."

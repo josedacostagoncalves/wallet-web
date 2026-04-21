@@ -12,12 +12,14 @@ export async function getReportsData() {
 
     const { data: wallets } = await supabase
         .from("wallets")
-        .select("id")
+        .select("id, tracking_mode")
         .eq("is_active", true)
         .is("deleted_at", null);
     const walletIds = (wallets ?? []).map((w) => w.id);
     const currentWalletId =
         cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
+    const currentWallet = (wallets ?? []).find((w) => w.id === currentWalletId);
+    const walletTracksBalances = currentWallet?.tracking_mode !== "basic";
 
     let chartData: { name: string; value: number }[] = [];
     let totalIncome = 0;
@@ -28,6 +30,8 @@ export async function getReportsData() {
     let monthlySeries: any[] = [];
     let portfolioDailySeries: { date: string; year: number; month: number; day: number; label: string; totalBalance: number }[] = [];
     let currentPortfolioBalance = 0;
+    let expenseUsers: { userId: string; userName: string }[] = [];
+    let expenseByUserDaily: { date: string; year: number; month: number; day: number; label: string; userId: string; userName: string; amount: number }[] = [];
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
         .toISOString()
@@ -90,6 +94,7 @@ export async function getReportsData() {
             type: string;
             amount: number;
             description: string | null;
+            created_by?: string | null;
             account_from_id: string | null;
             account_to_id: string | null;
             category: CategoryRow | null;
@@ -101,6 +106,7 @@ export async function getReportsData() {
             .from("transactions")
             .select(
                 "id, wallet_id, date, type, amount, description, account_from_id, account_to_id, status, is_essential, " +
+                "created_by, " +
                 "category:categories(id, name, parent_id, is_essential)"
             )
             .gte("date", seriesStartStr)
@@ -128,6 +134,33 @@ export async function getReportsData() {
                 .eq("wallet_id", currentWalletId)
                 .order("next_run_date", { ascending: true }),
         ]);
+        const { data: walletMembers } = await supabase
+            .from("wallet_members")
+            .select("user_id, member_name")
+            .eq("wallet_id", currentWalletId);
+        const memberIds = Array.from(new Set((walletMembers ?? []).map((m) => m.user_id).filter(Boolean)));
+        const { data: profiles } = memberIds.length
+            ? await supabase.from("profiles").select("id, first_name, last_name, email").in("id", memberIds)
+            : { data: [] as { id: string; first_name: string | null; last_name: string | null; email: string | null }[] };
+        const memberNameByWallet = new Map(
+            (walletMembers ?? []).map((m) => [m.user_id, (m.member_name ?? "").trim()])
+        );
+        const memberNameById = new Map(
+            (profiles ?? []).map((p) => [
+                p.id,
+                memberNameByWallet.get(p.id) ||
+                    `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
+                    (p.email?.split("@")[0] ?? "") ||
+                    p.id.slice(0, 8),
+            ])
+        );
+        expenseUsers = memberIds.map((id) => ({
+            userId: id,
+            userName:
+                memberNameById.get(id) ||
+                memberNameByWallet.get(id) ||
+                id.slice(0, 8),
+        }));
 
         const accountsMap = new Map((accs ?? []).map((a) => [a.id, a.name]));
         currentPortfolioBalance = (accs ?? []).reduce(
@@ -334,6 +367,33 @@ export async function getReportsData() {
             runningBalance -= dailyNetByDate.get(key) ?? 0;
         }
         portfolioDailySeries = reverseDaily.reverse();
+        const expenseByUserMap = new Map<string, number>();
+        for (const t of txRows) {
+            const statusConfirmed = t.status === "confirmed" || !t.status;
+            if (!statusConfirmed || t.type !== "expense" || t.wallet_id !== currentWalletId) continue;
+            const uid = t.created_by ?? "unknown";
+            const key = `${t.date}|${uid}`;
+            expenseByUserMap.set(key, (expenseByUserMap.get(key) ?? 0) + Math.abs(Number(t.amount)));
+        }
+        expenseByUserDaily = Array.from(expenseByUserMap.entries()).map(([key, amount]) => {
+            const [date, userId] = key.split("|");
+            const yyyy = Number(date.slice(0, 4));
+            const mm = Number(date.slice(5, 7)) - 1;
+            const dd = Number(date.slice(8, 10));
+            return {
+                date,
+                year: yyyy,
+                month: mm,
+                day: dd,
+                label: `${String(dd).padStart(2, "0")}.${String(mm + 1).padStart(2, "0")}`,
+                userId,
+                userName:
+                    memberNameById.get(userId) ||
+                    memberNameByWallet.get(userId) ||
+                    userId.slice(0, 8),
+                amount,
+            };
+        });
         pendingVsConfirmed = { pending: pendingTotal, confirmed: confirmedTotal };
         avgDailySpend = {
             current: daysInCurrentMonth ? currentMonthExpense / daysInCurrentMonth : 0,
@@ -371,8 +431,11 @@ export async function getReportsData() {
         avgDailySpend,
         pendingVsConfirmed,
         chartData,
+        walletTracksBalances,
         portfolioDailySeries,
         currentPortfolioBalance,
+        expenseUsers,
+        expenseByUserDaily,
         defaultPeriodMonths,
     };
 }
