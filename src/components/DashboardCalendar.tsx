@@ -268,7 +268,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
                   ✕
                 </button>
               </div>
-              <div className="p-3 flex-1 min-h-0 overflow-y-auto">
+              <div className="friendly-scroll p-3 flex-1 min-h-0 overflow-y-auto">
                 {!hasDayContent ? (
                   <p className="text-xs text-slate-500 dark:text-slate-400">No transactions or recurring next runs on this day.</p>
                 ) : (

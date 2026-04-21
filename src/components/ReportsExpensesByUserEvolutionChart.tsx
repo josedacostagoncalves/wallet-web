@@ -41,6 +41,11 @@ type ViewMode = "donut" | "bars";
 function formatCurrency(value: number, locale: string) {
   return value.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+function firstName(name: string) {
+  const n = (name || "").trim();
+  if (!n) return "";
+  return n.split(/\s+/)[0] || n;
+}
 
 export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMonth }: Props) {
   const t = useTranslations("reports.expensesByUser");
@@ -73,7 +78,7 @@ export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMon
     const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
     const monthRows = users.map((u, i) => ({
       id: u.userId,
-      name: u.userName,
+      name: firstName(u.userName),
       value: monthByUser.get(u.userId) ?? 0,
       average: (yearByUser.get(u.userId) ?? 0) / elapsed,
       fill: COLORS[i % COLORS.length],

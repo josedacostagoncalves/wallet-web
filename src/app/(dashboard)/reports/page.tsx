@@ -10,18 +10,22 @@ import { ReportsMonthlyPortfolioChart } from "@/components/ReportsMonthlyPortfol
 import { ReportsMonthRadarChart } from "@/components/ReportsMonthRadarChart";
 import { getReportsData } from "@/app/actions/reports";
 import { DashboardPageHeader } from "@/components/DashboardPageHeader";
+import { useWallet } from "@/contexts/WalletContext";
 import { useTranslations } from "next-intl";
 
 export default function ReportsPage() {
   const t = useTranslations("reports");
+  const { currentWalletId } = useWallet();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | undefined>(undefined);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadData() {
       setIsLoading(true);
       const result = await getReportsData();
+      if (cancelled) return;
       setData(result);
       setIsLoading(false);
 
@@ -31,7 +35,10 @@ export default function ReportsPage() {
     }
 
     loadData();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [currentWalletId]);
 
   const handleMonthChange = (year: number, month: number) => {
     setSelectedMonth({ year, month });

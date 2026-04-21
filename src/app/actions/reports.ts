@@ -3,10 +3,19 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
+import { getWalletSplitInfo } from "@/app/actions/wallets";
 import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
+import { unstable_noStore as noStore } from "next/cache";
+
+function firstName(value: string | null | undefined): string {
+    const v = (value ?? "").trim();
+    if (!v) return "";
+    return v.split(/\s+/)[0] ?? "";
+}
 
 export async function getReportsData() {
+    noStore();
     const supabase = await createClient();
     const cookie = await getWalletCookie();
 
@@ -95,6 +104,7 @@ export async function getReportsData() {
             amount: number;
             description: string | null;
             created_by?: string | null;
+            paid_by_member_id?: string | null;
             account_from_id: string | null;
             account_to_id: string | null;
             category: CategoryRow | null;
@@ -106,7 +116,7 @@ export async function getReportsData() {
             .from("transactions")
             .select(
                 "id, wallet_id, date, type, amount, description, account_from_id, account_to_id, status, is_essential, " +
-                "created_by, " +
+                "created_by, paid_by_member_id, " +
                 "category:categories(id, name, parent_id, is_essential)"
             )
             .gte("date", seriesStartStr)
@@ -145,20 +155,35 @@ export async function getReportsData() {
         const memberNameByWallet = new Map(
             (walletMembers ?? []).map((m) => [m.user_id, (m.member_name ?? "").trim()])
         );
+        const selfMetaFirstName =
+            typeof user?.user_metadata?.first_name === "string" ? String(user.user_metadata.first_name).trim() : "";
+        const selfMetaLastName =
+            typeof user?.user_metadata?.last_name === "string" ? String(user.user_metadata.last_name).trim() : "";
+        const selfMetaFullName = `${selfMetaFirstName} ${selfMetaLastName}`.trim();
         const memberNameById = new Map(
-            (profiles ?? []).map((p) => [
-                p.id,
-                memberNameByWallet.get(p.id) ||
-                    `${p.first_name ?? ""} ${p.last_name ?? ""}`.trim() ||
-                    (p.email?.split("@")[0] ?? "") ||
-                    p.id.slice(0, 8),
-            ])
+            (memberIds ?? []).map((memberId) => {
+                const p = (profiles ?? []).find((row) => row.id === memberId);
+                const fullName = `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+                const resolved =
+                    firstName(fullName) ||
+                    firstName(memberNameByWallet.get(memberId)) ||
+                    (memberId === user?.id ? firstName(selfMetaFullName) : "") ||
+                    firstName(p?.email?.split("@")[0] ?? "") ||
+                    "Member";
+                return [memberId, resolved];
+            })
         );
+        // Align with wallet split/users naming logic used in other screens.
+        const splitInfo = await getWalletSplitInfo(currentWalletId);
+        for (const m of splitInfo.members ?? []) {
+            const n = firstName(m.display_name);
+            if (n) memberNameById.set(m.user_id, n);
+        }
         expenseUsers = memberIds.map((id) => ({
             userId: id,
             userName:
                 memberNameById.get(id) ||
-                memberNameByWallet.get(id) ||
+                firstName(memberNameByWallet.get(id)) ||
                 id.slice(0, 8),
         }));
 
@@ -371,7 +396,9 @@ export async function getReportsData() {
         for (const t of txRows) {
             const statusConfirmed = t.status === "confirmed" || !t.status;
             if (!statusConfirmed || t.type !== "expense" || t.wallet_id !== currentWalletId) continue;
-            const uid = t.created_by ?? "unknown";
+            const uidCandidate = t.paid_by_member_id ?? t.created_by ?? null;
+            if (!uidCandidate || !memberNameById.has(uidCandidate)) continue;
+            const uid = uidCandidate;
             const key = `${t.date}|${uid}`;
             expenseByUserMap.set(key, (expenseByUserMap.get(key) ?? 0) + Math.abs(Number(t.amount)));
         }
@@ -389,8 +416,8 @@ export async function getReportsData() {
                 userId,
                 userName:
                     memberNameById.get(userId) ||
-                    memberNameByWallet.get(userId) ||
-                    userId.slice(0, 8),
+                    firstName(memberNameByWallet.get(userId)) ||
+                    "Member",
                 amount,
             };
         });
