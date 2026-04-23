@@ -1206,9 +1206,12 @@
         "daily": {
             "titleIncome": "Revenus quotidiens",
             "titleExpense": "Dépenses quotidiennes",
+            "titleIncomeMonthly": "Revenus mensuels",
+            "titleExpenseMonthly": "Dépenses mensuelles",
             "emptyIncome": "Aucun revenu confirmé ce mois-ci.",
             "emptyExpense": "Aucune dépense confirmée ce mois-ci.",
-            "footerDaysLabel": "Jours"
+            "footerDaysLabel": "Jours",
+            "footerMonthsLabel": "Mois"
         },
         "essentialSplit": {
             "title": "Dépenses essentielles",
@@ -1216,7 +1219,8 @@
             "legendEssential": "Essentielles",
             "legendNonEssential": "Non essentielles",
             "donutCenterHint": "non essentielles",
-            "footerMonthTotal": "Total du mois"
+            "footerMonthTotal": "Total du mois",
+            "footerYearTotal": "Total annuel"
         },
         "portfolio": {
             "title": "Portefeuille",

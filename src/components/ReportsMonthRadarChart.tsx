@@ -36,11 +36,16 @@ function buildCategoryRadarRows(
   year: number,
   month: number,
   txType: "income" | "expense",
-  maxCategories: number
+  maxCategories: number,
+  periodMode: "month" | "year",
+  monthLimit: number
 ): Row[] {
   const rangeStart = `${year}-01-01`;
   const rangeEnd = `${year}-12-31`;
-  const elapsed = statementsElapsedMonthCountForRange(rangeStart, rangeEnd);
+  const elapsed =
+    periodMode === "year"
+      ? monthLimit + 1
+      : statementsElapsedMonthCountForRange(rangeStart, rangeEnd);
   const denom = Math.max(elapsed, 1);
 
   const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -51,10 +56,12 @@ function buildCategoryRadarRows(
     if (tx.status !== "confirmed" || tx.type !== txType) continue;
     const d = tx.date.slice(0, 10);
     if (d < rangeStart || d > rangeEnd) continue;
+    const txMonth = Number.parseInt(tx.date.slice(5, 7), 10) - 1;
+    if (periodMode === "year" && txMonth > monthLimit) continue;
     const cat = normalizeCategoryLabel(tx.categoryLabel);
     const amount = Math.abs(Number(tx.amount));
     rangeTotalBy[cat] = (rangeTotalBy[cat] ?? 0) + amount;
-    if (tx.date.slice(0, 7) === monthPrefix) {
+    if (periodMode === "year" || tx.date.slice(0, 7) === monthPrefix) {
       monthBy[cat] = (monthBy[cat] ?? 0) + amount;
     }
   }
@@ -91,12 +98,13 @@ type Props = {
   transactions: CalendarTransaction[];
   selectedMonth: { year: number; month: number } | undefined;
   variant: ReportsRadarVariant;
+  periodMode?: "month" | "year";
 };
 
 type ViewMode = "donut" | "bars";
 
 /** 360×360 to match calendar. Average series uses same formula as Statements "Média" (range total ÷ elapsed months in year). */
-export function ReportsMonthRadarChart({ transactions, selectedMonth, variant }: Props) {
+export function ReportsMonthRadarChart({ transactions, selectedMonth, variant, periodMode = "month" }: Props) {
   const t = useTranslations("reports.radar");
   const tComp = useTranslations("reports.comparison");
   const tCal = useTranslations("calendar");
@@ -119,16 +127,21 @@ export function ReportsMonthRadarChart({ transactions, selectedMonth, variant }:
     }
     const y = selectedMonth.year;
     const m = selectedMonth.month;
+    const now = new Date();
+    const monthLimit = periodMode === "year" && y === now.getFullYear() ? now.getMonth() : 11;
     const monthPrefix = `${y}-${String(m + 1).padStart(2, "0")}`;
     let monthTypeTotal = 0;
     for (const tx of transactions) {
       if (tx.status !== "confirmed" || tx.type !== txType) continue;
-      if (tx.date.slice(0, 7) !== monthPrefix) continue;
+      if (periodMode === "month" && tx.date.slice(0, 7) !== monthPrefix) continue;
+      if (periodMode === "year" && Number(tx.date.slice(0, 4)) !== y) continue;
+      if (periodMode === "year" && Number.parseInt(tx.date.slice(5, 7), 10) - 1 > monthLimit) continue;
       monthTypeTotal += Math.abs(Number(tx.amount));
     }
 
-    const r = buildCategoryRadarRows(transactions, y, m, txType, maxCategories);
-    const monthTitle = formatReportsMonthTitle(m, y, (key) => tCal(key));
+    const r = buildCategoryRadarRows(transactions, y, m, txType, maxCategories, periodMode, monthLimit);
+    const monthTitle =
+      periodMode === "year" ? String(y) : formatReportsMonthTitle(m, y, (key) => tCal(key));
     let max = 1;
     let peakMonth = 0;
     for (const x of r) {
@@ -142,7 +155,7 @@ export function ReportsMonthRadarChart({ transactions, selectedMonth, variant }:
       peakMonth,
       categoryCount: r.length,
     };
-  }, [transactions, selectedMonth, tCal, txType, maxCategories]);
+  }, [transactions, selectedMonth, tCal, txType, maxCategories, periodMode]);
 
   if (!selectedMonth) {
     return null;

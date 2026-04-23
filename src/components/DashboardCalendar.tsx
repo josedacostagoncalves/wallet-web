@@ -36,6 +36,7 @@ type Props = {
   transactions: CalendarTransaction[];
   recurringNextRuns?: CalendarRecurringNextRun[];
   onMonthChange?: (year: number, month: number) => void;
+  onPeriodModeChange?: (mode: "month" | "year", year: number, month: number) => void;
 };
 
 type DayIndicators = { income: boolean; expense: boolean; transfer: boolean; pending: boolean };
@@ -90,7 +91,7 @@ function recurringByDate(
   return m;
 }
 
-export function DashboardCalendar({ transactions, recurringNextRuns = [], onMonthChange }: Props) {
+export function DashboardCalendar({ transactions, recurringNextRuns = [], onMonthChange, onPeriodModeChange }: Props) {
   const t = useTranslations("calendar");
   const { openEditTransaction, openEditRecurring } = useTransactionModals();
   const [view, setView] = useState(() => {
@@ -98,6 +99,7 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
     return { year: n.getFullYear(), month: n.getMonth() };
   });
   const [selected, setSelected] = useState<string | null>(null);
+  const [pickerMode, setPickerMode] = useState<"month" | "year">("month");
 
   // Build month and day names from translations
   const MONTHS = useMemo(() => [
@@ -154,18 +156,28 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
   }, [view.year, view.month]);
 
   const prev = () => {
-    const newView = view.month === 0
-      ? { year: view.year - 1, month: 11 }
-      : { year: view.year, month: view.month - 1 };
+    const newView =
+      pickerMode === "year"
+        ? { year: view.year - 1, month: view.month }
+        : view.month === 0
+          ? { year: view.year - 1, month: 11 }
+          : { year: view.year, month: view.month - 1 };
     setView(newView);
-    onMonthChange?.(newView.year, newView.month);
+    if (pickerMode === "month") onMonthChange?.(newView.year, newView.month);
+    onPeriodModeChange?.(pickerMode, newView.year, newView.month);
+    setSelected(null);
   };
   const next = () => {
-    const newView = view.month === 11
-      ? { year: view.year + 1, month: 0 }
-      : { year: view.year, month: view.month + 1 };
+    const newView =
+      pickerMode === "year"
+        ? { year: view.year + 1, month: view.month }
+        : view.month === 11
+          ? { year: view.year + 1, month: 0 }
+          : { year: view.year, month: view.month + 1 };
     setView(newView);
-    onMonthChange?.(newView.year, newView.month);
+    if (pickerMode === "month") onMonthChange?.(newView.year, newView.month);
+    onPeriodModeChange?.(pickerMode, newView.year, newView.month);
+    setSelected(null);
   };
 
   const dayTransactions = selected ? (byDate.get(selected) ?? []) : [];
@@ -186,9 +198,19 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
           >
             ◀
           </button>
-          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-            {MONTHS[view.month]} {view.year}
-          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setPickerMode((m) => {
+                const nextMode = m === "month" ? "year" : "month";
+                onPeriodModeChange?.(nextMode, view.year, view.month);
+                return nextMode;
+              })
+            }
+            className="text-sm font-semibold text-slate-900 dark:text-slate-100 hover:underline underline-offset-4"
+          >
+            {pickerMode === "month" ? `${MONTHS[view.month]} ${view.year}` : String(view.year)}
+          </button>
           <button
             type="button"
             onClick={next}
@@ -206,41 +228,70 @@ export function DashboardCalendar({ transactions, recurringNextRuns = [], onMont
               : "opacity-100 [transform:rotateY(0deg)_scale(1)]"
               }`}
           >
-            <div className="h-full min-h-0 flex flex-col">
-              <div className="shrink-0 grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
-                {DOW.map((d) => (
-                  <div key={d}>{d}</div>
-                ))}
+            {pickerMode === "month" ? (
+              <div className="h-full min-h-0 flex flex-col">
+                <div className="shrink-0 grid grid-cols-7 gap-0.5 text-center text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  {DOW.map((d) => (
+                    <div key={d}>{d}</div>
+                  ))}
+                </div>
+                <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
+                  {days.map(({ date, day, isCurrent }) => {
+                    const dayList = byDate.get(date) ?? [];
+                    const dayRecurring = recurringByDay.get(date) ?? [];
+                    const ind = indicatorsForDay(dayList, dayRecurring.length);
+                    const isSel = selected === date;
+                    const bg = isSel
+                      ? "ring-2 ring-slate-800 dark:ring-slate-200 bg-slate-100 dark:bg-slate-800"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-800/80";
+                    const fg = !isCurrent ? "text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100";
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => setSelected(date)}
+                        className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium transition-colors ${fg} ${bg}`}
+                      >
+                        <span>{day}</span>
+                        <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
+                          {ind.income && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
+                          {ind.expense && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
+                          {ind.transfer && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+                          {ind.pending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex-1 min-h-0 grid grid-cols-7 gap-0.5 [grid-auto-rows:1fr]">
-                {days.map(({ date, day, isCurrent }) => {
-                  const dayList = byDate.get(date) ?? [];
-                  const dayRecurring = recurringByDay.get(date) ?? [];
-                  const ind = indicatorsForDay(dayList, dayRecurring.length);
-                  const isSel = selected === date;
-                  const bg = isSel
-                    ? "ring-2 ring-slate-800 dark:ring-slate-200 bg-slate-100 dark:bg-slate-800"
-                    : "hover:bg-slate-100 dark:hover:bg-slate-800/80";
-                  const fg = !isCurrent ? "text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100";
+            ) : (
+              <div className="h-full grid grid-cols-3 gap-1.5 p-1">
+                {MONTHS.map((monthName, monthIdx) => {
+                  const isActive = monthIdx === view.month;
                   return (
                     <button
-                      key={date}
+                      key={`${view.year}-${monthIdx}`}
                       type="button"
-                      onClick={() => setSelected(date)}
-                      className={`min-h-0 flex flex-col items-center justify-center gap-0.5 rounded-md text-xs font-medium transition-colors ${fg} ${bg}`}
+                      onClick={() => {
+                        const newView = { year: view.year, month: monthIdx };
+                        setView(newView);
+                        setPickerMode("month");
+                        setSelected(null);
+                        onMonthChange?.(newView.year, newView.month);
+                        onPeriodModeChange?.("month", newView.year, newView.month);
+                      }}
+                      className={`rounded-md px-2 py-2 text-xs font-medium transition-colors ${
+                        isActive
+                          ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 text-slate-900 dark:text-slate-100"
+                          : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80"
+                      }`}
                     >
-                      <span>{day}</span>
-                      <span className="flex items-center justify-center gap-0.5 flex-wrap" aria-hidden>
-                        {ind.income && <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />}
-                        {ind.expense && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />}
-                        {ind.transfer && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-                        {ind.pending && <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shrink-0" />}
-                      </span>
+                      {monthName.slice(0, 3)}
                     </button>
                   );
                 })}
               </div>
-            </div>
+            )}
           </div>
 
           <div

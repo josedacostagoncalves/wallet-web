@@ -19,6 +19,7 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [selectedMonth, setSelectedMonth] = useState<{ year: number; month: number } | undefined>(undefined);
+  const [periodMode, setPeriodMode] = useState<"month" | "year">("month");
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +33,7 @@ export default function ReportsPage() {
       // Set initial month to current month
       const now = new Date();
       setSelectedMonth({ year: now.getFullYear(), month: now.getMonth() });
+      setPeriodMode("month");
     }
 
     loadData();
@@ -41,6 +43,11 @@ export default function ReportsPage() {
   }, [currentWalletId]);
 
   const handleMonthChange = (year: number, month: number) => {
+    setSelectedMonth({ year, month });
+    setPeriodMode("month");
+  };
+  const handlePeriodModeChange = (mode: "month" | "year", year: number, month: number) => {
+    setPeriodMode(mode);
     setSelectedMonth({ year, month });
   };
 
@@ -74,20 +81,24 @@ export default function ReportsPage() {
             transactions={data.calendarTransactions}
             recurringNextRuns={data.recurringNextRuns}
             onMonthChange={handleMonthChange}
+            onPeriodModeChange={handlePeriodModeChange}
           />
           <ReportsMonthIncomeExpenseComparison
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
           <ReportsMonthRadarChart
             variant="income"
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
           <ReportsMonthRadarChart
             variant="expense"
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
         </div>
         <div className="flex flex-col 2xl:flex-row flex-wrap gap-6 items-start">
@@ -96,27 +107,32 @@ export default function ReportsPage() {
               dailySeries={data.portfolioDailySeries ?? []}
               currentTotalBalance={Number(data.currentPortfolioBalance ?? 0)}
               selectedMonth={selectedMonth}
+              periodMode={periodMode}
             />
           ) : (
             <ReportsExpensesByUserEvolutionChart
               points={data.expenseByUserDaily ?? []}
               users={data.expenseUsers ?? []}
               selectedMonth={selectedMonth}
+              periodMode={periodMode}
             />
           )}
           <ReportsMonthEssentialExpenseDonut
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
           <ReportsDailySeriesChart
             variant="income"
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
           <ReportsDailySeriesChart
             variant="expense"
             transactions={data.calendarTransactions}
             selectedMonth={selectedMonth}
+            periodMode={periodMode}
           />
         </div>
       </section>

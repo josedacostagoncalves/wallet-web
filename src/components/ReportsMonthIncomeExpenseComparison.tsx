@@ -22,6 +22,7 @@ import {
 type Props = {
   transactions: CalendarTransaction[];
   selectedMonth: { year: number; month: number } | undefined;
+  periodMode?: "month" | "year";
 };
 
 type ViewMode = "donut" | "bars";
@@ -52,7 +53,7 @@ function formatCurrency(value: number, locale: string) {
 }
 
 /** 360×360 like radar cards. Toggle: donut (spent % of income) vs horizontal bars. */
-export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMonth }: Props) {
+export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMonth, periodMode = "month" }: Props) {
   const t = useTranslations("reports.comparison");
   const tRadar = useTranslations("reports.radar");
   const tCal = useTranslations("calendar");
@@ -85,18 +86,43 @@ export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMont
         };
       }
       const { year, month } = selectedMonth;
-      const { income, expense, net } = monthIncomeExpenseNet(transactions, year, month);
-      const monthTitle = formatReportsMonthTitle(month, year, (key) => tCal(key));
+      const now = new Date();
+      const monthLimit =
+        periodMode === "year" && year === now.getFullYear() ? now.getMonth() : 11;
+      const monthMetrics =
+        periodMode === "year"
+          ? monthIncomeExpenseNet(transactions, year, 0)
+          : monthIncomeExpenseNet(transactions, year, month);
+      let income = monthMetrics.income;
+      let expense = monthMetrics.expense;
+      if (periodMode === "year") {
+        income = 0;
+        expense = 0;
+        for (const tx of transactions) {
+          if (tx.status !== "confirmed") continue;
+          if (Number(tx.date.slice(0, 4)) !== year) continue;
+          const txMonth = Number.parseInt(tx.date.slice(5, 7), 10) - 1;
+          if (txMonth > monthLimit) continue;
+          const amt = Math.abs(Number(tx.amount));
+          if (tx.type === "income") income += amt;
+          else if (tx.type === "expense") expense += amt;
+        }
+      }
+      const net = income - expense;
+      const monthTitle =
+        periodMode === "year" ? String(year) : formatReportsMonthTitle(month, year, (key) => tCal(key));
       const hasAny = income > 0 || expense > 0;
-      const rangeStart = `${year}-01-01`;
-      const rangeEnd = `${year}-12-31`;
-      const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
+      const elapsed =
+        periodMode === "year"
+          ? monthLimit + 1
+          : Math.max(1, statementsElapsedMonthCountForRange(`${year}-01-01`, `${year}-12-31`));
       let yearIncome = 0;
       let yearExpense = 0;
       for (const tx of transactions) {
         if (tx.status !== "confirmed") continue;
-        const d = tx.date.slice(0, 10);
-        if (d < rangeStart || d > rangeEnd) continue;
+        if (Number(tx.date.slice(0, 4)) !== year) continue;
+        const txMonth = Number.parseInt(tx.date.slice(5, 7), 10) - 1;
+        if (txMonth > monthLimit) continue;
         const amt = Math.abs(Number(tx.amount));
         if (tx.type === "income") yearIncome += amt;
         else if (tx.type === "expense") yearExpense += amt;
@@ -143,7 +169,7 @@ export function ReportsMonthIncomeExpenseComparison({ transactions, selectedMont
         centerPercent,
         showCenterPercent,
       };
-    }, [transactions, selectedMonth, t, tCal]);
+    }, [transactions, selectedMonth, t, tCal, periodMode]);
 
   if (!selectedMonth) {
     return null;

@@ -33,6 +33,7 @@ type Props = {
   points: UserExpensePoint[];
   users: { userId: string; userName: string }[];
   selectedMonth: { year: number; month: number } | undefined;
+  periodMode?: "month" | "year";
 };
 
 const COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#a855f7", "#ec4899"];
@@ -47,7 +48,12 @@ function firstName(name: string) {
   return n.split(/\s+/)[0] || n;
 }
 
-export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMonth }: Props) {
+export function ReportsExpensesByUserEvolutionChart({
+  points,
+  users,
+  selectedMonth,
+  periodMode = "month",
+}: Props) {
   const t = useTranslations("reports.expensesByUser");
   const tComp = useTranslations("reports.comparison");
   const tRadar = useTranslations("reports.radar");
@@ -66,16 +72,27 @@ export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMon
         daysWithExpenses: 0,
       };
     }
-    const monthPoints = points.filter((p) => p.year === selectedMonth.year && p.month === selectedMonth.month);
+    const now = new Date();
+    const monthLimit =
+      periodMode === "year" && selectedMonth.year === now.getFullYear() ? now.getMonth() : 11;
+    const monthPoints =
+      periodMode === "year"
+        ? points.filter((p) => p.year === selectedMonth.year && p.month <= monthLimit)
+        : points.filter((p) => p.year === selectedMonth.year && p.month === selectedMonth.month);
     const monthByUser = new Map<string, number>();
     for (const p of monthPoints) monthByUser.set(p.userId, (monthByUser.get(p.userId) ?? 0) + p.amount);
     const daysWithExpenses = new Set(monthPoints.map((p) => p.date)).size;
     const yearPoints = points.filter((p) => p.year === selectedMonth.year);
+    const scopedYearPoints = yearPoints.filter((p) => p.month <= monthLimit);
     const yearByUser = new Map<string, number>();
-    for (const p of yearPoints) yearByUser.set(p.userId, (yearByUser.get(p.userId) ?? 0) + p.amount);
-    const rangeStart = `${selectedMonth.year}-01-01`;
-    const rangeEnd = `${selectedMonth.year}-12-31`;
-    const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
+    for (const p of scopedYearPoints) yearByUser.set(p.userId, (yearByUser.get(p.userId) ?? 0) + p.amount);
+    const elapsed =
+      periodMode === "year"
+        ? monthLimit + 1
+        : Math.max(
+            1,
+            statementsElapsedMonthCountForRange(`${selectedMonth.year}-01-01`, `${selectedMonth.year}-12-31`)
+          );
     const monthRows = users.map((u, i) => ({
       id: u.userId,
       name: firstName(u.userName),
@@ -93,9 +110,12 @@ export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMon
         pct: total > 0 ? Math.round((r.value / total) * 100) : 0,
         fill: r.fill,
       }));
-    const monthTitle = formatReportsMonthTitle(selectedMonth.month, selectedMonth.year, (key) => tCal(key));
+    const monthTitle =
+      periodMode === "year"
+        ? String(selectedMonth.year)
+        : formatReportsMonthTitle(selectedMonth.month, selectedMonth.year, (key) => tCal(key));
     return { monthTitle, monthRows, donutData, total, daysWithExpenses };
-  }, [points, users, selectedMonth, tCal]);
+  }, [points, users, selectedMonth, tCal, periodMode]);
 
   if (!selectedMonth) return null;
 
@@ -253,7 +273,9 @@ export function ReportsExpensesByUserEvolutionChart({ points, users, selectedMon
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-100 truncate">{tDaily("footerDaysLabel")}</p>
+                <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  {periodMode === "year" ? tDaily("footerMonthsLabel") : tDaily("footerDaysLabel")}
+                </p>
                 <p className="text-xs font-bold tabular-nums text-slate-800 dark:text-slate-100 mt-0.5">{daysWithExpenses}</p>
               </div>
             </div>

@@ -19,10 +19,11 @@ type Props = {
   transactions: CalendarTransaction[];
   selectedMonth: { year: number; month: number } | undefined;
   variant: "income" | "expense";
+  periodMode?: "month" | "year";
 };
 
 type DayRow = {
-  day: number;
+  day: number | string;
   label: string;
   value: number;
   avg: number;
@@ -36,9 +37,11 @@ function buildDailySeries(
   transactions: CalendarTransaction[],
   year: number,
   month: number,
-  variant: "income" | "expense"
+  variant: "income" | "expense",
+  dayLimit?: number
 ): { rows: DayRow[]; total: number; dim: number; avgDaily: number } {
   const dim = monthDayCount(year, month);
+  const dayCount = Math.max(1, Math.min(dim, dayLimit ?? dim));
   const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
   const byDay = new Array<number>(dim + 1).fill(0);
   let total = 0;
@@ -49,16 +52,16 @@ function buildDailySeries(
     if (tx.date.slice(0, 7) !== prefix) continue;
     if (tx.type !== txType) continue;
     const day = Number.parseInt(tx.date.slice(8, 10), 10);
-    if (!Number.isFinite(day) || day < 1 || day > dim) continue;
+    if (!Number.isFinite(day) || day < 1 || day > dayCount) continue;
     const amt = Math.abs(Number(tx.amount));
     byDay[day] += amt;
     total += amt;
   }
 
-  const avgDaily = dim > 0 ? total / dim : 0;
+  const avgDaily = total / dayCount;
   const mm = String(month + 1).padStart(2, "0");
   const rows: DayRow[] = [];
-  for (let d = 1; d <= dim; d++) {
+  for (let d = 1; d <= dayCount; d++) {
     rows.push({
       day: d,
       label: `${String(d).padStart(2, "0")}.${mm}`,
@@ -66,7 +69,35 @@ function buildDailySeries(
       avg: avgDaily,
     });
   }
-  return { rows, total, dim, avgDaily };
+  return { rows, total, dim: dayCount, avgDaily };
+}
+
+function buildMonthlySeries(
+  transactions: CalendarTransaction[],
+  year: number,
+  variant: "income" | "expense",
+  monthCount: number
+): { rows: DayRow[]; total: number; dim: number; avgDaily: number } {
+  const txType = variant === "income" ? "income" : "expense";
+  const byMonth = new Array<number>(12).fill(0);
+  let total = 0;
+  for (const tx of transactions) {
+    if (tx.status !== "confirmed" || tx.type !== txType) continue;
+    if (Number(tx.date.slice(0, 4)) !== year) continue;
+    const month = Number.parseInt(tx.date.slice(5, 7), 10) - 1;
+    if (!Number.isFinite(month) || month < 0 || month > 11) continue;
+    if (month >= monthCount) continue;
+    const amt = Math.abs(Number(tx.amount));
+    byMonth[month] += amt;
+    total += amt;
+  }
+  const rows: DayRow[] = byMonth.slice(0, monthCount).map((value, month) => ({
+    day: month + 1,
+    label: String(month + 1).padStart(2, "0"),
+    value,
+    avg: total / Math.max(1, monthCount),
+  }));
+  return { rows, total, dim: monthCount, avgDaily: total / Math.max(1, monthCount) };
 }
 
 function formatCurrency(value: number, locale: string) {
@@ -77,7 +108,7 @@ function formatCurrency(value: number, locale: string) {
 }
 
 /** 360×360 — daily amounts vs flat daily average for the month (income or expenses only). */
-export function ReportsDailySeriesChart({ transactions, selectedMonth, variant }: Props) {
+export function ReportsDailySeriesChart({ transactions, selectedMonth, variant, periodMode = "month" }: Props) {
   const t = useTranslations("reports.daily");
   const tComp = useTranslations("reports.comparison");
   const tAvg = useTranslations("reports.radar");
@@ -97,17 +128,33 @@ export function ReportsDailySeriesChart({ transactions, selectedMonth, variant }
       return { rows: [] as DayRow[], monthTitle: "", total: 0, dim: 0, avgDaily: 0, hasAny: false };
     }
     const { year, month } = selectedMonth;
-    const { rows, total, dim, avgDaily } = buildDailySeries(transactions, year, month, variant);
-    const monthTitle = formatReportsMonthTitle(month, year, (key) => tCal(key));
+    const now = new Date();
+    const monthCount =
+      periodMode === "year" && year === now.getFullYear() ? now.getMonth() + 1 : 12;
+    const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+    const dayLimit = periodMode === "month" && isCurrentMonth ? now.getDate() : undefined;
+    const { rows, total, dim, avgDaily } =
+      periodMode === "year"
+        ? buildMonthlySeries(transactions, year, variant, monthCount)
+        : buildDailySeries(transactions, year, month, variant, dayLimit);
+    const monthTitle =
+      periodMode === "year" ? String(year) : formatReportsMonthTitle(month, year, (key) => tCal(key));
     return { rows, monthTitle, total, dim, avgDaily, hasAny: total > 0 };
-  }, [transactions, selectedMonth, variant, tCal]);
+  }, [transactions, selectedMonth, variant, tCal, periodMode]);
 
   if (!selectedMonth) {
     return null;
   }
 
   const seriesLabel = isIncome ? tComp("income") : tComp("expenses");
-  const title = isIncome ? t("titleIncome") : t("titleExpense");
+  const title =
+    periodMode === "year"
+      ? isIncome
+        ? t("titleIncomeMonthly")
+        : t("titleExpenseMonthly")
+      : isIncome
+        ? t("titleIncome")
+        : t("titleExpense");
   const empty = isIncome ? t("emptyIncome") : t("emptyExpense");
 
   return (
@@ -219,7 +266,7 @@ export function ReportsDailySeriesChart({ transactions, selectedMonth, variant }
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-100 truncate">
-                  {t("footerDaysLabel")}
+                  {periodMode === "year" ? t("footerMonthsLabel") : t("footerDaysLabel")}
                 </p>
                 <p className="text-xs font-bold tabular-nums text-slate-800 dark:text-slate-100 mt-0.5">
                   {dim}

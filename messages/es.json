@@ -1206,9 +1206,12 @@
         "daily": {
             "titleIncome": "Ingresos diarios",
             "titleExpense": "Gastos diarios",
+            "titleIncomeMonthly": "Ingresos mensuales",
+            "titleExpenseMonthly": "Gastos mensuales",
             "emptyIncome": "No hay ingresos confirmados este mes.",
             "emptyExpense": "No hay gastos confirmados este mes.",
-            "footerDaysLabel": "Días"
+            "footerDaysLabel": "Días",
+            "footerMonthsLabel": "Meses"
         },
         "essentialSplit": {
             "title": "Gastos esenciales",
@@ -1216,7 +1219,8 @@
             "legendEssential": "Esenciales",
             "legendNonEssential": "No esenciales",
             "donutCenterHint": "no esenciales",
-            "footerMonthTotal": "Total del mes"
+            "footerMonthTotal": "Total del mes",
+            "footerYearTotal": "Total anual"
         },
         "portfolio": {
             "title": "Portafolio",

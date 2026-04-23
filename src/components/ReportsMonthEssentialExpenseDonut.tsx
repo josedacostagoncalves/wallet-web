@@ -15,6 +15,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 type Props = {
   transactions: CalendarTransaction[];
   selectedMonth: { year: number; month: number } | undefined;
+  periodMode?: "month" | "year";
 };
 
 type ViewMode = "donut" | "bars";
@@ -43,7 +44,7 @@ function formatCurrency(value: number, locale: string) {
 }
 
 /** 360×360 — monthly essential vs non-essential; donut or bars. */
-export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth }: Props) {
+export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth, periodMode = "month" }: Props) {
   const t = useTranslations("reports.essentialSplit");
   const tToggle = useTranslations("reports.comparison");
   const tRadar = useTranslations("reports.radar");
@@ -66,13 +67,22 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
       };
     }
     const { year, month } = selectedMonth;
+    const now = new Date();
+    const monthLimit =
+      periodMode === "year" && year === now.getFullYear() ? now.getMonth() : 11;
+    const elapsed =
+      periodMode === "year"
+        ? monthLimit + 1
+        : Math.max(1, statementsElapsedMonthCountForRange(`${year}-01-01`, `${year}-12-31`));
     const prefix = `${year}-${String(month + 1).padStart(2, "0")}`;
     let essential = 0;
     let nonEssential = 0;
 
     for (const tx of transactions) {
       if (tx.status !== "confirmed" || tx.type !== "expense") continue;
-      if (tx.date.slice(0, 7) !== prefix) continue;
+      if (periodMode === "month" && tx.date.slice(0, 7) !== prefix) continue;
+      if (periodMode === "year" && Number(tx.date.slice(0, 4)) !== year) continue;
+      if (periodMode === "year" && Number.parseInt(tx.date.slice(5, 7), 10) - 1 > monthLimit) continue;
       const amt = Math.abs(Number(tx.amount));
       const isEss = tx.isExpenseEssential === true;
       if (isEss) essential += amt;
@@ -81,16 +91,15 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
 
     const total = essential + nonEssential;
     const pctNonEssential = total > 0 ? Math.round((nonEssential / total) * 100) : 0;
-    const monthTitle = formatReportsMonthTitle(month, year, (key) => tCal(key));
-    const rangeStart = `${year}-01-01`;
-    const rangeEnd = `${year}-12-31`;
-    const elapsed = Math.max(1, statementsElapsedMonthCountForRange(rangeStart, rangeEnd));
+    const monthTitle =
+      periodMode === "year" ? String(year) : formatReportsMonthTitle(month, year, (key) => tCal(key));
     let yearEssential = 0;
     let yearNonEssential = 0;
     for (const tx of transactions) {
       if (tx.status !== "confirmed" || tx.type !== "expense") continue;
-      const d = tx.date.slice(0, 10);
-      if (d < rangeStart || d > rangeEnd) continue;
+      if (Number(tx.date.slice(0, 4)) !== year) continue;
+      const txMonth = Number.parseInt(tx.date.slice(5, 7), 10) - 1;
+      if (txMonth > monthLimit) continue;
       const amt = Math.abs(Number(tx.amount));
       if (tx.isExpenseEssential === true) yearEssential += amt;
       else yearNonEssential += amt;
@@ -105,7 +114,7 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
       avgEssential: yearEssential / elapsed,
       avgNonEssential: yearNonEssential / elapsed,
     };
-  }, [transactions, selectedMonth, tCal]);
+  }, [transactions, selectedMonth, tCal, periodMode]);
 
   const legEss = t("legendEssential");
   const legNon = t("legendNonEssential");
@@ -315,7 +324,7 @@ export function ReportsMonthEssentialExpenseDonut({ transactions, selectedMonth 
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-100 truncate">
-                  {t("footerMonthTotal")}
+                  {periodMode === "year" ? t("footerYearTotal") : t("footerMonthTotal")}
                 </p>
                 <p className="text-xs font-bold tabular-nums text-red-600 dark:text-red-400 mt-0.5">
                   −{formatCurrency(metrics.total, locale)} €

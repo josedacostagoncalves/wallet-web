@@ -27,6 +27,7 @@ type Props = {
   dailySeries: DailyPoint[];
   selectedMonth: { year: number; month: number } | undefined;
   currentTotalBalance: number;
+  periodMode?: "month" | "year";
 };
 
 function formatCurrency(value: number, locale: string) {
@@ -40,6 +41,7 @@ export function ReportsMonthlyPortfolioChart({
   dailySeries,
   selectedMonth,
   currentTotalBalance,
+  periodMode = "month",
 }: Props) {
   const tPortfolio = useTranslations("reports.portfolio");
   const tDaily = useTranslations("reports.daily");
@@ -57,17 +59,38 @@ export function ReportsMonthlyPortfolioChart({
         isCurrentMonth: false,
       };
     }
-    const chartRows = dailySeries.filter(
+    const monthRows = dailySeries.filter(
       (row) => row.year === selectedMonth.year && row.month === selectedMonth.month
     );
-    const monthTitle = formatReportsMonthTitle(selectedMonth.month, selectedMonth.year, (key) => tCal(key));
+    const now = new Date();
+    const monthCount =
+      periodMode === "year" && selectedMonth.year === now.getFullYear() ? now.getMonth() + 1 : 12;
+    const chartRows =
+      periodMode === "year"
+        ? Array.from({ length: monthCount }, (_, month) => {
+            const rows = dailySeries.filter((row) => row.year === selectedMonth.year && row.month === month);
+            const last = rows[rows.length - 1];
+            return {
+              date: `${selectedMonth.year}-${String(month + 1).padStart(2, "0")}-01`,
+              year: selectedMonth.year,
+              month,
+              day: 1,
+              label: String(month + 1).padStart(2, "0"),
+              totalBalance: Number(last?.totalBalance ?? 0),
+            };
+          })
+        : monthRows;
+    const monthTitle =
+      periodMode === "year"
+        ? String(selectedMonth.year)
+        : formatReportsMonthTitle(selectedMonth.month, selectedMonth.year, (key) => tCal(key));
     const beginBalance = chartRows[0]?.totalBalance ?? 0;
     const endBalance = chartRows[chartRows.length - 1]?.totalBalance ?? 0;
-    const now = new Date();
     const isCurrentMonth =
+      periodMode === "month" &&
       selectedMonth.year === now.getFullYear() && selectedMonth.month === now.getMonth();
     return { chartRows, monthTitle, beginBalance, endBalance, isCurrentMonth };
-  }, [dailySeries, selectedMonth, tCal]);
+  }, [dailySeries, selectedMonth, tCal, periodMode]);
 
   if (!selectedMonth) return null;
 
@@ -170,7 +193,7 @@ export function ReportsMonthlyPortfolioChart({
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-slate-900 dark:text-slate-100 truncate">
-                  {tDaily("footerDaysLabel")}
+                  {periodMode === "year" ? tDaily("footerMonthsLabel") : tDaily("footerDaysLabel")}
                 </p>
                 <p className="text-xs font-bold tabular-nums text-slate-800 dark:text-slate-100 mt-0.5">
                   {chartRows.length}
