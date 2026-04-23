@@ -15,14 +15,14 @@ function DeviceIcon({ ua }: { ua: string | null }) {
   const isMobile = ua ? /Android|iPhone|iPad|iPod|Mobile/i.test(ua) : false;
   if (isMobile) {
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 shrink-0" aria-hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 dark:text-slate-400 shrink-0" aria-hidden>
         <rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
         <path d="M12 18h.01" />
       </svg>
     );
   }
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 shrink-0" aria-hidden>
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 dark:text-slate-400 shrink-0" aria-hidden>
       <rect width="20" height="14" x="2" y="3" rx="2" />
       <line x1="8" x2="16" y1="21" y2="21" />
       <line x1="12" x2="12" y1="17" y2="21" />
@@ -146,7 +146,7 @@ export function DevicesSection() {
             type="button"
             onClick={() => setConfirmRevokeAll(true)}
             disabled={revokingAll}
-            className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+            className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60 disabled:opacity-50"
           >
             {revokingAll ? t("sessions.revokingAll") : t("sessions.revokeAll")}
           </button>
@@ -173,16 +173,16 @@ export function DevicesSection() {
               <div
                 key={s.session_id}
                 className={`flex items-center gap-3 rounded-lg border p-3 ${isCurrent
-                    ? "border-green-200 bg-green-50"
-                    : "border-slate-200 bg-white"
+                    ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/30"
+                    : "border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0f0f0f]"
                   }`}
               >
                 <DeviceIcon ua={s.user_agent} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
                     {device} · {browser}
                     {isCurrent && (
-                      <span className="ml-2 text-xs font-semibold text-green-700 bg-green-100 rounded px-1.5 py-0.5">
+                      <span className="ml-2 text-xs font-semibold text-green-700 bg-green-100 rounded px-1.5 py-0.5 dark:text-green-300 dark:bg-green-900/40">
                         {t("sessions.thisDevice")}
                       </span>
                     )}
@@ -197,7 +197,7 @@ export function DevicesSection() {
                     type="button"
                     onClick={() => setConfirmRevokeId(s.session_id)}
                     disabled={revokingId === s.session_id}
-                    className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-slate-900 dark:text-red-300 dark:hover:bg-red-950/40 disabled:opacity-50"
                   >
                     {revokingId === s.session_id ? t("sessions.revoking") : t("sessions.logout")}
                   </button>

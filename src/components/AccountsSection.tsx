@@ -567,8 +567,8 @@ export function AccountsSection({
                     onClick={() => !orderEditing && toggleExpand(a.id)}
                     className={
                       orderEditing
-                        ? `hover:bg-slate-50/50 dark:hover:bg-slate-900/50 ${dragOverId === a.id ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 ring-inset" : ""}`
-                        : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50 cursor-pointer"
+                        ? `hover:bg-slate-50/50 dark:hover:bg-white/[0.06] ${dragOverId === a.id ? "bg-slate-100 dark:bg-slate-800 ring-1 ring-slate-300 dark:ring-slate-600 ring-inset" : ""}`
+                        : "hover:bg-slate-50/50 dark:hover:bg-white/[0.06] cursor-pointer"
                     }
                     onDragOver={orderEditing ? (e) => handleDragOver(e, a.id) : undefined}
                     onDragLeave={orderEditing ? handleDragLeave : undefined}
@@ -857,15 +857,15 @@ export function AccountsSection({
             aria-modal="true"
             onClick={() => setChartAccountId(null)}
           >
-            <div className="absolute inset-0 bg-slate-900/50" />
+            <div className="absolute inset-0 bg-black/40" />
             <div
-              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-[#0b0b0b] border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div>
                   <h3 className="text-lg font-semibold">{chartAccount?.name ?? t("accountEvolution")}</h3>
-                  <p className="text-sm text-slate-500">{t("accountEvolutionSubtitle")}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">{t("accountEvolutionSubtitle")}</p>
                 </div>
                 <button
                   type="button"
@@ -885,8 +885,8 @@ export function AccountsSection({
                     className={
                       "rounded-lg px-3 py-1.5 text-[11px] border " +
                       (chartRange === opt.key
-                        ? "border-slate-700 bg-slate-900 text-white"
-                        : "border-slate-200 dark:border-slate-700 text-slate-600")
+                        ? "border-slate-700 bg-slate-900 text-white dark:border-slate-600 dark:bg-slate-800"
+                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 dark:bg-[#111111]")
                     }
                   >
                     {t(`ranges.${opt.labelKey}`)}
@@ -898,26 +898,26 @@ export function AccountsSection({
                       type="date"
                       value={customFrom}
                       onChange={(e) => setCustomFrom(e.target.value)}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] bg-white dark:bg-[#111111] text-slate-800 dark:text-slate-200"
                     />
-                    <span className="text-[11px] text-slate-500">{t("to")}</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">{t("to")}</span>
                     <input
                       type="date"
                       value={customTo}
                       onChange={(e) => setCustomTo(e.target.value)}
-                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px]"
+                      className="rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] bg-white dark:bg-[#111111] text-slate-800 dark:text-slate-200"
                     />
                   </div>
                 )}
               </div>
 
-              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4">
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-4 bg-white dark:bg-[#0f0f0f]">
                 {balanceLoading ? (
-                  <div className="h-64 flex items-center justify-center text-slate-500">
+                  <div className="h-64 flex items-center justify-center text-slate-500 dark:text-slate-400">
                     {t("loadingEvolution")}
                   </div>
                 ) : displaySeries.length === 0 ? (
-                  <div className="h-64 flex items-center justify-center text-slate-500">
+                  <div className="h-64 flex items-center justify-center text-slate-500 dark:text-slate-400">
                     {t("noBalanceData")}
                   </div>
                 ) : (
@@ -989,33 +989,33 @@ export function AccountsSection({
               <div className="mt-6 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h4 className="text-xs font-semibold text-slate-700">{t("transactions")}</h4>
+                    <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t("transactions")}</h4>
                     {modalFilter === "day" && selectedDay && (
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("day", { date: new Date(selectedDay).toLocaleDateString("pt-PT") })}
                       </p>
                     )}
                     {modalFilter === "period" && showModalTransactions && activePeriod && (
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("period", { from: activePeriod.from ?? "—", to: activePeriod.to ?? "—" })}
                       </p>
                     )}
                     {modalFilter === "all" && showModalTransactions && (
-                      <p className="text-xs text-slate-500">{t("allTransactions")}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{t("allTransactions")}</p>
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => applyModalFilter("period", undefined, true)}
-                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:bg-[#111111] dark:hover:bg-white/[0.06]"
                     >
                       {t("showPeriod")}
                     </button>
                     <button
                       type="button"
                       onClick={() => applyModalFilter("all", undefined, true)}
-                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100"
+                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:bg-[#111111] dark:hover:bg-white/[0.06]"
                     >
                       {t("showAll")}
                     </button>
@@ -1023,46 +1023,46 @@ export function AccountsSection({
                 </div>
 
                 {modalTransactionsLoading ? (
-                  <p className="text-xs text-slate-500">{t("loading")}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t("loading")}</p>
                 ) : modalTransactions.length === 0 ? (
-                  <p className="text-xs text-slate-500">{t("noTransactionsForAccount")}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t("noTransactionsForAccount")}</p>
                 ) : (
                   <>
-                    <div className="rounded-lg border border-slate-200 overflow-x-auto">
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-[#0f0f0f]">
                       <table className="w-full text-[11px] min-w-[640px]">
-                        <thead className="bg-slate-100">
+                        <thead className="bg-slate-100 dark:bg-slate-900">
                           <tr>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600 w-10">{t("type")}</th>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("date")}</th>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("description")}</th>
-                            <th className="px-4 py-2 text-left font-medium text-slate-600">{t("categorySubcategory")}</th>
-                            <th className="px-4 py-2 text-center font-medium text-slate-600 w-16">
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("type")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("date")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("description")}</th>
+                            <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("categorySubcategory")}</th>
+                            <th className="px-4 py-2 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
                               <span className="sr-only">{t("symbolsColumn")}</span>
                             </th>
-                            <th className="px-4 py-2 text-right font-medium text-slate-600">{t("amount")}</th>
+                            <th className="px-4 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("amount")}</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                           {modalTransactions.map((m) => (
                             <tr key={m.id} className={transactionRowBgClass(m.type)}>
                               <td className="px-4 py-2">
                                 <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} />
                               </td>
                               <td className="px-4 py-2">{m.date}</td>
-                              <td className="px-4 py-2 text-slate-700 max-w-[260px] truncate">
+                              <td className="px-4 py-2 text-slate-700 dark:text-slate-300 max-w-[260px] truncate">
                                 <span className="block truncate">{m.description || "—"}</span>
                                 {m.type === "transfer" && (
-                                  <span className="block text-[11px] text-slate-500 truncate">
+                                  <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
                                     {m.accountFromId === chartAccountId
                                       ? t("transferredTo", { account: m.accountToName })
                                       : t("transferredFrom", { account: m.accountFromName })}
                                   </span>
                                 )}
                               </td>
-                              <td className="px-4 py-2 text-slate-600 max-w-[220px] truncate">
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400 max-w-[220px] truncate">
                                 {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
                               </td>
-                              <td className="px-4 py-2 text-slate-600 align-middle">
+                              <td className="px-4 py-2 text-slate-600 dark:text-slate-400 align-middle">
                                 <TransactionListIndicators
                                   hasAttachment={m.hasAttachment}
                                   isEssential={m.isEssential}
@@ -1098,7 +1098,7 @@ export function AccountsSection({
                                         : ""
                                   }${formatCurrency(m.amount)}`} {" "}
                                 €
-                                <span className="block text-[11px] text-slate-500 font-sans mt-0.5">
+                                <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-sans mt-0.5">
                                   {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
                                 </span>
                               </td>
@@ -1127,7 +1127,7 @@ export function AccountsSection({
               setChartAllData([]);
             }}
           >
-            <div className="absolute inset-0 bg-slate-900/50" />
+            <div className="absolute inset-0 bg-black/40" />
             <div
               className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
               onClick={(e) => e.stopPropagation()}
