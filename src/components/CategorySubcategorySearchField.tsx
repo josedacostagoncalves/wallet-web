@@ -83,9 +83,29 @@ export function CategorySubcategorySearchField({
   const t = useTranslations("transactions.form.fields");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const rootRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const options = useMemo(() => buildSearchOptions(flat, query), [flat, query]);
+
+  useEffect(() => {
+    if (!open || options.length === 0) {
+      setHighlightedIndex(-1);
+      return;
+    }
+    setHighlightedIndex((prev) => {
+      if (prev >= 0 && prev < options.length) return prev;
+      return 0;
+    });
+  }, [open, options.length]);
+
+  useEffect(() => {
+    if (!showPanel) return;
+    if (highlightedIndex < 0 || highlightedIndex >= options.length) return;
+    const el = optionRefs.current[highlightedIndex];
+    el?.scrollIntoView({ block: "nearest" });
+  }, [highlightedIndex, options.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -102,6 +122,7 @@ export function CategorySubcategorySearchField({
       onPick(pick.parentCategoryId, pick.subcategoryId);
       setQuery("");
       setOpen(false);
+      setHighlightedIndex(-1);
     },
     [onPick]
   );
@@ -126,10 +147,36 @@ export function CategorySubcategorySearchField({
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
+          setHighlightedIndex(0);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true);
+          setHighlightedIndex(options.length > 0 ? 0 : -1);
+        }}
         onKeyDown={(e) => {
-          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Escape") {
+            setOpen(false);
+            setHighlightedIndex(-1);
+            return;
+          }
+          if (!showPanel || options.length === 0) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlightedIndex((prev) => (prev < 0 ? 0 : Math.min(prev + 1, options.length - 1)));
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlightedIndex((prev) => (prev < 0 ? 0 : Math.max(prev - 1, 0)));
+            return;
+          }
+          if (e.key === "Enter" || e.key === "Tab") {
+            const idx = highlightedIndex >= 0 ? highlightedIndex : 0;
+            const pick = options[idx];
+            if (!pick) return;
+            e.preventDefault();
+            apply(pick);
+          }
         }}
         placeholder={t("searchCategoryPlaceholder")}
         className={inputClass}
@@ -139,11 +186,18 @@ export function CategorySubcategorySearchField({
           {options.length === 0 ? (
             <li className="px-2 py-1.5 text-slate-500 dark:text-slate-400">{t("searchCategoryNoMatches")}</li>
           ) : (
-            options.map((o) => (
+            options.map((o, idx) => (
               <li key={`${o.parentCategoryId}|${o.subcategoryId}`}>
                 <button
+                  ref={(el) => {
+                    optionRefs.current[idx] = el;
+                  }}
                   type="button"
-                  className="w-full px-2 py-1.5 text-left text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                  className={`w-full px-2 py-1.5 text-left text-slate-800 dark:text-slate-200 ${
+                    highlightedIndex === idx
+                      ? "bg-slate-100 dark:bg-slate-800"
+                      : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                  }`}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => apply(o)}
                 >
