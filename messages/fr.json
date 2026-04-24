@@ -174,7 +174,9 @@
             "reorderAccounts": "Réorganiser les comptes",
             "displayOptions": "Options d'affichage",
             "showInitialBalance": "Solde initial",
-            "showPlafondInfo": "Informations de plafond"
+            "showPlafondInfo": "Informations de plafond",
+            "viewAsTable": "Vue tableau",
+            "viewAsCards": "Vue cartes"
         },
         "accountsTable": {
             "noAccounts": "Aucun compte pour le moment. Créez-en un depuis",
@@ -190,6 +192,7 @@
             "collapse": "Réduire",
             "expand": "Développer",
             "recentTransactions": "Transactions récentes",
+            "last30Days": "30 derniers jours",
             "loading": "Chargement...",
             "noTransactionsForAccount": "Aucune transaction pour ce compte.",
             "type": "Type",
@@ -342,6 +345,7 @@
     },
     "settings": {
         "title": "Paramètres",
+        "subtitle": "Profil, apparence, langue et sessions actives.",
         "profile": "Profil",
         "theme": "Thème",
         "language": "Langue",
@@ -442,6 +446,7 @@
     },
     "accounts": {
         "title": "Comptes",
+        "subtitle": "Comptes bancaires et cartes du portefeuille actuel.",
         "addAccount": "Ajouter un compte",
         "accountName": "Nom du compte",
         "accountType": "Type de compte",
@@ -477,6 +482,8 @@
         "modal": {
             "titleEdit": "Modifier le compte",
             "titleAdd": "Ajouter un compte",
+            "subtitleAdd": "Enregistrez un compte pour les transactions et les soldes.",
+            "subtitleEdit": "Mettez à jour les détails et la visibilité dans le formulaire de transaction.",
             "noWallet": "Sélectionnez ou créez d'abord un portefeuille.",
             "notFound": "Introuvable",
             "invalidInitialBalance": "Solde initial invalide",
@@ -494,6 +501,7 @@
     },
     "users": {
         "title": "Utilisateurs",
+        "subtitle": "Gérez les membres des portefeuilles partagés avec répartition.",
         "addUser": "Ajouter un utilisateur",
         "noUsers": "Aucun utilisateur pour le moment.",
         "roles": {
@@ -839,12 +847,15 @@
                 "backToTransactions": "Retour aux Transactions",
                 "changeType": "Changer le type",
                 "pendingHint": "Les soldes ne changeront pas tant que vous ne confirmez pas. Confirmez ou annulez depuis Dashboard ou Home.",
-                "recurringHint": "Les occurrences futures seront créées à la date sélectionnée et affichées comme En attente jusqu'à confirmation ou annulation."
+                "recurringHint": "Les occurrences futures seront créées à la date sélectionnée et affichées comme En attente jusqu'à confirmation ou annulation.",
+                "newTransactionSubtitle": "Choisissez un type, puis saisissez le montant, la catégorie et les comptes.",
+                "editTransactionSubtitle": "Modifiez les champs et enregistrez. Les transactions en attente ne changent pas les soldes avant confirmation."
             }
         }
     },
     "activity": {
         "title": "Journal d'activité",
+        "subtitle": "Modifications récentes sur vos portefeuilles et données.",
         "table": {
             "date": "Date",
             "activity": "Activité",
@@ -913,6 +924,7 @@
     },
     "wallets": {
         "title": "Portefeuilles",
+        "subtitle": "Créez, rejoignez et gérez vos portefeuilles.",
         "addWallet": "Ajouter un portefeuille",
         "walletName": "Nom du portefeuille",
         "shared": "Partagé",
@@ -924,6 +936,7 @@
             "createOne": "En créer un",
             "joinPage": {
                 "title": "Rejoindre un portefeuille",
+                "subtitle": "Saisissez le code fourni par le propriétaire du portefeuille.",
                 "validation": {
                     "shareCodeRequired": "Veuillez saisir un code de partage"
                 },
@@ -937,6 +950,7 @@
             },
             "edit": {
                 "title": "Modifier le portefeuille",
+                "subtitle": "Modifiez le nom, le partage, la répartition et les membres.",
                 "notFound": "Portefeuille introuvable ou accès refusé",
                 "saving": "Enregistrement…",
                 "sharingType": "Type de partage *",
@@ -977,6 +991,7 @@
                 }
             },
             "new": {
+                "subtitle": "Configurez un nouveau portefeuille personnel ou partagé.",
                 "nameLabel": "Nom *",
                 "namePlaceholder": "ex.: Famille, Personnel",
                 "walletOwnership": "Type de portefeuille",
@@ -1067,6 +1082,7 @@
     },
     "categories": {
         "title": "Catégories",
+        "subtitle": "Organisez les catégories de revenus, dépenses et transferts de ce portefeuille.",
         "addCategory": "Ajouter une catégorie",
         "categoryName": "Nom de la catégorie",
         "noCategories": "Pas encore de catégories",
@@ -1083,6 +1099,9 @@
         "modal": {
             "titleEdit": "Modifier la catégorie",
             "titleAdd": "Ajouter une catégorie",
+            "subtitleAdd": "Créez une catégorie principale pour le type sélectionné.",
+            "subtitleAddOrSub": "Ajoutez une catégorie ou une sous-catégorie sous une existante.",
+            "subtitleEdit": "Renommez, déplacez, désactivez ou ajustez l'indicateur essentiel.",
             "titleAddOrSub": "Ajouter une catégorie ou sous-catégorie",
             "titleAddSubcategory": "Ajouter une sous-catégorie à \"{parentName}\"",
             "titleAddType": "Ajouter une catégorie de {type}",

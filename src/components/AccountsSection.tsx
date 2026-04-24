@@ -7,6 +7,7 @@ import {
   type TransactionByAccountRow,
 } from "@/app/actions/transactions";
 import { TransactionTypeIcon } from "@/components/ActionIcons";
+import { PortfolioAccountCard } from "@/components/PortfolioAccountCard";
 import { TransactionListIndicators } from "@/components/TransactionListIndicators";
 import { TransactionRowActions } from "@/components/TransactionRowActions";
 import {
@@ -46,6 +47,17 @@ type Account = {
 
 const MASK = "••••••";
 
+function buildFlatSparkline(from: string, to: string, balance: number): AccountBalancePoint[] {
+  const result: AccountBalancePoint[] = [];
+  const cursor = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  while (cursor <= end) {
+    result.push({ date: cursor.toISOString().slice(0, 10), balance });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
+}
+
 type RangeKey = "thisMonth" | "thisYear" | "custom";
 
 const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
@@ -53,6 +65,20 @@ const RANGE_OPTIONS: { key: RangeKey; labelKey: string }[] = [
   { key: "thisMonth", labelKey: "thisMonth" },
   { key: "custom", labelKey: "custom" },
 ];
+
+const evolutionFocusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/50 dark:focus-visible:ring-slate-500/50";
+
+function evolutionSegmentToggleClass(selected: boolean) {
+  return (
+    "rounded-lg px-3 py-1.5 text-[11px] border " +
+    evolutionFocusRing +
+    " " +
+    (selected
+      ? "border-slate-700 bg-slate-900 text-white dark:border-slate-600 dark:bg-slate-800"
+      : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 dark:bg-[#111111] hover:bg-slate-50 dark:hover:bg-white/[0.06]")
+  );
+}
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-PT", {
@@ -73,6 +99,8 @@ type Props = {
   showPlafond?: boolean;
   /** Net pending amount per account (only for pending transactions that already updated balances, i.e. hold_balance=false) */
   pendingAmounts?: Record<string, number>;
+  /** Portfolio: table (default) or card grid */
+  layout?: "table" | "cards";
 };
 
 type TransactionsState = {
@@ -122,9 +150,28 @@ export function AccountsSection({
   showInitialBalance = true,
   showPlafond = true,
   pendingAmounts = {},
+  layout = "table",
 }: Props) {
   const t = useTranslations("home.accountsTable");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const portfolioCardLabels = useMemo(
+    () => ({
+      currentBalance: t("currentBalance"),
+      initialBalance: t("initialBalance"),
+      lastUpdate: t("lastUpdate"),
+      pending: t("pending"),
+      plafondInfo: (p: { available: string; total: string }) => t("plafondInfo", p),
+      viewBalanceEvolution: t("viewBalanceEvolution"),
+      expand: t("expand"),
+      collapse: t("collapse"),
+      dragToReorder: t("dragToReorder"),
+      last30Days: t("last30Days"),
+    }),
+    [t]
+  );
+  /** Table layout: at most one expanded row (accordion). */
+  const [expandedTableAccountId, setExpandedTableAccountId] = useState<string | null>(null);
+  /** Card layout: any number of accounts may be expanded at once. */
+  const [expandedCardAccountIds, setExpandedCardAccountIds] = useState<Set<string>>(() => new Set());
   const [transactionsByAccount, setTransactionsByAccount] = useState<Record<string, TransactionsState>>({});
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [chartAccountId, setChartAccountId] = useState<string | null>(null);
@@ -142,6 +189,9 @@ export function AccountsSection({
   const [chartAllLoading, setChartAllLoading] = useState(false);
   const [chartAllData, setChartAllData] = useState<Array<Record<string, number | string>>>([]);
   const [chartAllVisibleAccountIds, setChartAllVisibleAccountIds] = useState<Set<string>>(new Set());
+  const [cardSparklines, setCardSparklines] = useState<
+    Record<string, AccountBalancePoint[] | "loading">
+  >({});
 
   const chartAccount = useMemo(
     () => accounts.find((a) => a.id === chartAccountId) ?? null,
@@ -258,7 +308,10 @@ export function AccountsSection({
   }, [displaySeries]);
 
   useEffect(() => {
-    if (orderEditing) setExpandedId(null);
+    if (orderEditing) {
+      setExpandedTableAccountId(null);
+      setExpandedCardAccountIds(new Set());
+    }
   }, [orderEditing]);
 
   const loadModalTransactions = useCallback(
@@ -429,6 +482,41 @@ export function AccountsSection({
   }, [chartAccountId, currentWalletId, resolveRangeDates]);
 
   useEffect(() => {
+    if (layout !== "cards") {
+      setCardSparklines({});
+      return;
+    }
+    if (!currentWalletId || accounts.length === 0) return;
+
+    let cancelled = false;
+    const to = new Date();
+    const from = new Date(to);
+    from.setDate(from.getDate() - 29);
+    const fromStr = from.toISOString().slice(0, 10);
+    const toStr = to.toISOString().slice(0, 10);
+
+    setCardSparklines(Object.fromEntries(accounts.map((a) => [a.id, "loading" as const])));
+
+    Promise.all(
+      accounts.map(async (a) => {
+        const res = await getAccountBalanceSeries(currentWalletId, a.id, fromStr, toStr);
+        let series = res.series;
+        if (!series.length) {
+          series = buildFlatSparkline(fromStr, toStr, a.current_balance);
+        }
+        return { id: a.id, series } as const;
+      })
+    ).then((rows) => {
+      if (cancelled) return;
+      setCardSparklines(Object.fromEntries(rows.map((r) => [r.id, r.series])));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [layout, currentWalletId, accounts]);
+
+  useEffect(() => {
     if (!chartAccountId || !showModalTransactions || modalFilter !== "all") return;
     applyModalFilter("all", undefined, true);
   }, [chartAccountId, showModalTransactions, modalFilter, applyModalFilter]);
@@ -458,14 +546,30 @@ export function AccountsSection({
   }
 
   function toggleExpand(accountId: string) {
-    if (expandedId === accountId) {
-      setExpandedId(null);
+    if (layout === "cards") {
+      const closing = expandedCardAccountIds.has(accountId);
+      setExpandedCardAccountIds((prev) => {
+        const next = new Set(prev);
+        if (closing) next.delete(accountId);
+        else next.add(accountId);
+        return next;
+      });
+      if (!closing) {
+        const state = transactionsByAccount[accountId];
+        if (!state?.transactions?.length && !state?.loading) {
+          void loadTransactions(accountId, 5);
+        }
+      }
       return;
     }
-    setExpandedId(accountId);
+    if (expandedTableAccountId === accountId) {
+      setExpandedTableAccountId(null);
+      return;
+    }
+    setExpandedTableAccountId(accountId);
     const state = transactionsByAccount[accountId];
     if (!state?.transactions?.length && !state?.loading) {
-      loadTransactions(accountId, 5);
+      void loadTransactions(accountId, 5);
     }
   }
 
@@ -525,6 +629,236 @@ export function AccountsSection({
     setDragOverId(null);
   }, []);
 
+  function renderAccountExpandedSection(a: Account, variant: "table" | "card") {
+    const state = transactionsByAccount[a.id];
+    const loading = state?.loading ?? false;
+    const transactions = state?.transactions ?? [];
+    const full = state?.full ?? false;
+    const isCard = variant === "card";
+    const wrapClass = variant === "table" ? "pl-6 space-y-2" : "space-y-2";
+    const tableText = isCard ? "text-[10px] leading-tight" : "text-xs";
+    const thPad = isCard ? "px-2 py-1.5" : "px-3 py-2";
+    const tdPad = isCard ? "px-2 py-1" : "px-3 py-2";
+    const transferNote = isCard ? "text-[9px]" : "text-[11px]";
+    const balanceAfterNote = isCard ? "text-[9px]" : "text-[11px]";
+    const thWeight = isCard ? "font-semibold" : "font-medium";
+
+    return (
+      <div className={wrapClass}>
+        <h3
+          className={
+            isCard
+              ? "mb-1.5 text-[10px] font-medium text-slate-500 dark:text-slate-400"
+              : "mb-2 text-xs font-medium text-slate-700 dark:text-slate-300"
+          }
+        >
+          {t("recentTransactions")}
+        </h3>
+        {loading && !transactions.length ? (
+          <p className={`${isCard ? "text-[10px]" : "text-xs"} text-slate-500 dark:text-slate-400`}>{t("loading")}</p>
+        ) : transactions.length === 0 ? (
+          <p className={`${isCard ? "text-[10px]" : "text-xs"} text-slate-500 dark:text-slate-400`}>{t("noTransactionsForAccount")}</p>
+        ) : isCard ? (
+          <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
+            <table className={`w-full ${tableText} table-fixed`}>
+              <colgroup>
+                <col className="w-[10%]" />
+                <col className="w-[20%]" />
+                <col className="w-[50%]" />
+                <col className="w-[20%]" />
+              </colgroup>
+              <thead className="bg-slate-100 dark:bg-slate-800">
+                <tr>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300`}>{t("type")}</th>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300 whitespace-nowrap`}>{t("date")}</th>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300`}>{t("description")}</th>
+                  <th className={`${thPad} text-right ${thWeight} text-slate-600 dark:text-slate-300 whitespace-nowrap`}>{t("amount")}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {transactions.map((m) => {
+                  const transferLeg =
+                    m.type === "transfer"
+                      ? m.accountFromId === a.id
+                        ? t("transferredTo", { account: m.accountToName })
+                        : t("transferredFrom", { account: m.accountFromName })
+                      : "";
+                  const catLine =
+                    m.type === "transfer"
+                      ? `${formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)} — ${transferLeg}`
+                      : formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel);
+                  return (
+                    <tr key={m.id} className={transactionRowBgClass(m.type)}>
+                      <td className={`${tdPad} align-top`}>
+                        <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} className="[&_svg]:h-3 [&_svg]:w-3" />
+                      </td>
+                      <td className={`${tdPad} align-top whitespace-nowrap text-slate-700 dark:text-slate-300`}>{m.date}</td>
+                      <td className={`${tdPad} align-top min-w-0 text-slate-700 dark:text-slate-300`}>
+                        <div className="flex items-start gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <span className="block break-words">{m.description || "—"}</span>
+                            <span className={`mt-0.5 block break-words ${transferNote} text-slate-500 dark:text-slate-400`}>{catLine}</span>
+                          </div>
+                          {m.hasAttachment ? (
+                            <div className="shrink-0 text-slate-600 dark:text-slate-400">
+                              <TransactionListIndicators
+                                hasAttachment
+                                isEssential={m.isEssential}
+                                ariaAttachment={t("hasAttachment")}
+                                ariaEssential={t("essentialExpense")}
+                                showEssential={false}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td
+                        className={`${tdPad} align-top text-right tabular-nums whitespace-nowrap ${m.type === "income"
+                          ? "text-green-600 dark:text-green-400"
+                          : m.type === "expense"
+                            ? "text-red-600 dark:text-red-400"
+                            : m.type === "transfer"
+                              ? m.accountFromId === a.id
+                                ? "text-red-600 dark:text-red-400"
+                                : m.accountToId === a.id
+                                  ? "text-green-600 dark:text-green-400"
+                                  : ""
+                              : ""
+                          }`}
+                      >
+                        <span className="block whitespace-nowrap">
+                          {hideBalances
+                            ? MASK
+                            : `${m.type === "income"
+                              ? "+"
+                              : m.type === "expense"
+                                ? "−"
+                                : m.type === "transfer"
+                                  ? m.accountFromId === a.id
+                                    ? "−"
+                                    : m.accountToId === a.id
+                                      ? "+"
+                                      : ""
+                                  : ""
+                              }${formatCurrency(m.amount)}`}{" "}
+                          €
+                        </span>
+                        <span className={`mt-0.5 block whitespace-nowrap ${balanceAfterNote} text-slate-500 dark:text-slate-400 font-sans`}>
+                          {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
+            <table className={`w-full ${tableText}`}>
+              <thead className="bg-slate-100 dark:bg-slate-800">
+                <tr>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300 w-8`}>{t("type")}</th>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300`}>{t("date")}</th>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300`}>{t("description")}</th>
+                  <th className={`${thPad} text-left ${thWeight} text-slate-600 dark:text-slate-300`}>{t("categorySubcategory")}</th>
+                  <th className={`${thPad} text-center ${thWeight} text-slate-600 dark:text-slate-300 w-12`}>
+                    <span className="sr-only">{t("symbolsColumn")}</span>
+                  </th>
+                  <th className={`${thPad} text-right ${thWeight} text-slate-600 dark:text-slate-300`}>{t("amount")}</th>
+                  <th className={`${thPad} w-20`} />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {transactions.map((m) => (
+                  <tr key={m.id} className={transactionRowBgClass(m.type)}>
+                    <td className={tdPad}>
+                      <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} />
+                    </td>
+                    <td className={tdPad}>{m.date}</td>
+                    <td className={`${tdPad} text-slate-700 dark:text-slate-300 max-w-[180px] truncate`}>
+                      <span className="block truncate">{m.description || "—"}</span>
+                      {m.type === "transfer" && (
+                        <span className={`block ${transferNote} text-slate-500 dark:text-slate-400 truncate`}>
+                          {m.accountFromId === a.id
+                            ? t("transferredTo", { account: m.accountToName })
+                            : t("transferredFrom", { account: m.accountFromName })}
+                        </span>
+                      )}
+                    </td>
+                    <td className={`${tdPad} text-slate-600 dark:text-slate-400 max-w-[180px] truncate`}>
+                      {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
+                    </td>
+                    <td className={`${tdPad} text-slate-600 dark:text-slate-400 align-middle`}>
+                      <TransactionListIndicators
+                        hasAttachment={m.hasAttachment}
+                        isEssential={m.isEssential}
+                        ariaAttachment={t("hasAttachment")}
+                        ariaEssential={t("essentialExpense")}
+                      />
+                    </td>
+                    <td
+                      className={`${tdPad} text-right tabular-nums ${m.type === "income"
+                        ? "text-green-600 dark:text-green-400"
+                        : m.type === "expense"
+                          ? "text-red-600 dark:text-red-400"
+                          : m.type === "transfer"
+                            ? m.accountFromId === a.id
+                              ? "text-red-600 dark:text-red-400"
+                              : m.accountToId === a.id
+                                ? "text-green-600 dark:text-green-400"
+                                : ""
+                            : ""
+                        }`}
+                    >
+                      {hideBalances
+                        ? MASK
+                        : `${m.type === "income"
+                          ? "+"
+                          : m.type === "expense"
+                            ? "−"
+                            : m.type === "transfer"
+                              ? m.accountFromId === a.id
+                                ? "−"
+                                : m.accountToId === a.id
+                                  ? "+"
+                                  : ""
+                              : ""
+                        }${formatCurrency(m.amount)}`}{" "}
+                      €
+                      <span className={`block ${balanceAfterNote} text-slate-500 dark:text-slate-400 font-sans mt-0.5`}>
+                        {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
+                      </span>
+                    </td>
+                    <td className={tdPad}>
+                      <TransactionRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadTransactions(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && transactions.length > 0 && (
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={(e) => handleSeeAll(a.id, e)}
+              disabled={loading}
+              className={
+                isCard
+                  ? "rounded border border-slate-300 px-2 py-1 text-[10px] hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+                  : "rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-100 disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
+              }
+            >
+              {full ? t("showLess") : t("seeAll")}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (accounts.length === 0) {
     return (
       <div className="p-6 text-xs text-slate-500">
@@ -539,6 +873,93 @@ export function AccountsSection({
 
   return (
     <div className="w-full">
+      {layout === "cards" ? (
+        <div className="w-full space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 items-start">
+            {accounts.map((a) => {
+              const isExpanded = expandedCardAccountIds.has(a.id);
+              const spark = cardSparklines[a.id];
+              const sparklineLoading = spark === "loading" || spark === undefined;
+              const sparklineSeries = Array.isArray(spark) ? spark : null;
+              return (
+                <PortfolioAccountCard
+                  key={a.id}
+                  account={a}
+                  hideBalances={hideBalances}
+                  showInitialBalance={showInitialBalance}
+                  showPlafond={showPlafond}
+                  pendingAmount={pendingAmounts[a.id]}
+                  sparklineSeries={sparklineSeries}
+                  sparklineLoading={sparklineLoading}
+                  orderEditing={orderEditing}
+                  isExpanded={isExpanded}
+                  isDragOver={dragOverId === a.id}
+                  onOpenChart={() => openChart(a.id)}
+                  onToggleExpand={() => toggleExpand(a.id)}
+                  onDragStart={(e) => handleDragStart(e, a.id)}
+                  onDragOver={(e) => handleDragOver(e, a.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, a.id)}
+                  onDragEnd={handleDragEnd}
+                  labels={portfolioCardLabels}
+                  expandedContent={isExpanded ? renderAccountExpandedSection(a, "card") : undefined}
+                />
+              );
+            })}
+          </div>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-4 py-3 font-medium text-xs text-slate-900 dark:text-slate-100">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-2">
+                <span className="text-base leading-none opacity-0" aria-hidden>
+                  {accountTypeIcon("bank_account")}
+                </span>
+                {t("total")}
+              </span>
+              <div className="flex flex-wrap items-end justify-end gap-x-6 gap-y-1">
+                {showInitialBalance && (
+                  <div className="text-right">
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-normal mb-0.5">
+                      {t("initialBalance")}
+                    </div>
+                    <div className="tabular-nums">{fmt(totalInitialBalance, hideBalances)} €</div>
+                  </div>
+                )}
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400 font-normal mb-0.5">
+                    {t("currentBalance")}
+                  </div>
+                  <div className="tabular-nums">{fmt(totalBalance, hideBalances)} €</div>
+                </div>
+                {!orderEditing && (
+                  <button
+                    type="button"
+                    onClick={openAllAccountsChart}
+                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 self-center"
+                    aria-label={t("viewBalanceEvolution")}
+                    title={t("viewBalanceEvolution")}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="M3 3v18h18" />
+                      <path d="m19 9-5 5-4-4-3 3" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
         <table className="w-full text-xs">
           <thead className="bg-slate-50 dark:bg-slate-900">
@@ -555,11 +976,7 @@ export function AccountsSection({
           </thead>
           <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
             {accounts.map((a) => {
-              const state = transactionsByAccount[a.id];
-              const isExpanded = expandedId === a.id;
-              const loading = state?.loading ?? false;
-              const transactions = state?.transactions ?? [];
-              const full = state?.full ?? false;
+              const isExpanded = expandedTableAccountId === a.id;
 
               return (
                 <Fragment key={a.id}>
@@ -688,111 +1105,7 @@ export function AccountsSection({
                   {isExpanded && (
                     <tr key={`${a.id}-transactions`} className="bg-slate-50/50 dark:bg-slate-900/50">
                       <td colSpan={(showInitialBalance ? 5 : 4) + (orderEditing ? 1 : 0) + (!orderEditing ? 1 : 0)} className="px-4 py-3">
-                        <div className="pl-6 space-y-2">
-                          <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">{t("recentTransactions")}</h3>
-                          {loading && !transactions.length ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("loading")}</p>
-                          ) : transactions.length === 0 ? (
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("noTransactionsForAccount")}</p>
-                          ) : (
-                            <div className="rounded border border-slate-200 dark:border-slate-700 overflow-x-auto bg-white dark:bg-slate-950">
-                              <table className="w-full text-xs">
-                                <thead className="bg-slate-100 dark:bg-slate-800">
-                                  <tr>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300 w-10">{t("type")}</th>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("date")}</th>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("description")}</th>
-                                    <th className="px-3 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("categorySubcategory")}</th>
-                                    <th className="px-3 py-2 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
-                                      <span className="sr-only">{t("symbolsColumn")}</span>
-                                    </th>
-                                    <th className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">{t("amount")}</th>
-                                    <th className="px-3 py-2 w-20" />
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                  {transactions.map((m) => (
-                                    <tr key={m.id} className={transactionRowBgClass(m.type)}>
-                                      <td className="px-3 py-2">
-                                        <TransactionTypeIcon type={m.type as "income" | "expense" | "transfer"} />
-                                      </td>
-                                      <td className="px-3 py-2">{m.date}</td>
-                                      <td className="px-3 py-2 text-slate-700 dark:text-slate-300 max-w-[180px] truncate">
-                                        <span className="block truncate">{m.description || "—"}</span>
-                                        {m.type === "transfer" && (
-                                          <span className="block text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                                            {m.accountFromId === a.id
-                                              ? t("transferredTo", { account: m.accountToName })
-                                              : t("transferredFrom", { account: m.accountFromName })}
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 max-w-[180px] truncate">
-                                        {formatCategorySubcategory(m.categoryLabel, m.subcategoryLabel)}
-                                      </td>
-                                      <td className="px-3 py-2 text-slate-600 dark:text-slate-400 align-middle">
-                                        <TransactionListIndicators
-                                          hasAttachment={m.hasAttachment}
-                                          isEssential={m.isEssential}
-                                          ariaAttachment={t("hasAttachment")}
-                                          ariaEssential={t("essentialExpense")}
-                                        />
-                                      </td>
-                                      <td
-                                        className={`px-3 py-2 text-right tabular-nums ${m.type === "income"
-                                          ? "text-green-600 dark:text-green-400"
-                                          : m.type === "expense"
-                                            ? "text-red-600 dark:text-red-400"
-                                            : m.type === "transfer"
-                                              ? m.accountFromId === a.id
-                                                ? "text-red-600 dark:text-red-400"
-                                                : m.accountToId === a.id
-                                                  ? "text-green-600 dark:text-green-400"
-                                                  : ""
-                                              : ""
-                                          }`}
-                                      >
-                                        {hideBalances
-                                          ? MASK
-                                          : `${m.type === "income"
-                                            ? "+"
-                                            : m.type === "expense"
-                                              ? "−"
-                                              : m.type === "transfer"
-                                                ? m.accountFromId === a.id
-                                                  ? "−"
-                                                  : m.accountToId === a.id
-                                                    ? "+"
-                                                    : ""
-                                                : ""
-                                          }${formatCurrency(m.amount)}`} {" "}
-                                        €
-                                        <span className="block text-[11px] text-slate-500 dark:text-slate-400 font-sans mt-0.5">
-                                          {hideBalances ? MASK : `${formatCurrency(m.balanceAfter)} €`}
-                                        </span>
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        <TransactionRowActions id={m.id} status={m.status} holdBalance={m.holdBalance} onAfterAction={() => loadTransactions(a.id, full ? 0 : 5)} showEdit={m.status === "pending"} />
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                          {!loading && transactions.length > 0 && (
-                            <div className="flex gap-2 pt-2">
-                              <button
-                                type="button"
-                                onClick={(e) => handleSeeAll(a.id, e)}
-                                disabled={loading}
-                                className="text-xs px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
-                              >
-                                {full ? t("showLess") : t("seeAll")}
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        {renderAccountExpandedSection(a, "table")}
                       </td>
                     </tr>
                   )}
@@ -819,47 +1132,50 @@ export function AccountsSection({
               </td>
               <td className="px-4 py-3" />
               {!orderEditing && (
-                <td className="px-4 py-3 w-16">
-                  <button
-                    type="button"
-                    onClick={openAllAccountsChart}
-                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500"
-                    aria-label={t("viewBalanceEvolution")}
-                    title={t("viewBalanceEvolution")}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
+                <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={openAllAccountsChart}
+                      className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500"
+                      aria-label={t("viewBalanceEvolution")}
+                      title={t("viewBalanceEvolution")}
                     >
-                      <path d="M3 3v18h18" />
-                      <path d="m19 9-5 5-4-4-3 3" />
-                    </svg>
-                  </button>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <path d="M3 3v18h18" />
+                        <path d="m19 9-5 5-4-4-3 3" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               )}
             </tr>
           </tbody>
         </table>
       </div>
+      )}
       {chartAccountId &&
         createPortal(
           <div
-            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto friendly-scroll"
             role="dialog"
             aria-modal="true"
             onClick={() => setChartAccountId(null)}
           >
             <div className="absolute inset-0 bg-black/40" />
             <div
-              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-[#0b0b0b] border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto friendly-scroll rounded-2xl bg-white dark:bg-[#0b0b0b] border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 mb-4">
@@ -882,12 +1198,7 @@ export function AccountsSection({
                     key={opt.key}
                     type="button"
                     onClick={() => setChartRange(opt.key)}
-                    className={
-                      "rounded-lg px-3 py-1.5 text-[11px] border " +
-                      (chartRange === opt.key
-                        ? "border-slate-700 bg-slate-900 text-white dark:border-slate-600 dark:bg-slate-800"
-                        : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 dark:bg-[#111111]")
-                    }
+                    className={evolutionSegmentToggleClass(chartRange === opt.key)}
                   >
                     {t(`ranges.${opt.labelKey}`)}
                   </button>
@@ -1008,14 +1319,14 @@ export function AccountsSection({
                     <button
                       type="button"
                       onClick={() => applyModalFilter("period", undefined, true)}
-                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:bg-[#111111] dark:hover:bg-white/[0.06]"
+                      className={evolutionSegmentToggleClass(modalFilter === "period")}
                     >
                       {t("showPeriod")}
                     </button>
                     <button
                       type="button"
                       onClick={() => applyModalFilter("all", undefined, true)}
-                      className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:bg-[#111111] dark:hover:bg-white/[0.06]"
+                      className={evolutionSegmentToggleClass(modalFilter === "all")}
                     >
                       {t("showAll")}
                     </button>
@@ -1118,7 +1429,7 @@ export function AccountsSection({
       {chartAllOpen &&
         createPortal(
           <div
-            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto"
+            className="fixed inset-0 z-[200] flex items-start justify-center p-4 overflow-y-auto friendly-scroll"
             role="dialog"
             aria-modal="true"
             onClick={() => {
@@ -1129,7 +1440,7 @@ export function AccountsSection({
           >
             <div className="absolute inset-0 bg-black/40" />
             <div
-              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
+              className="relative w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto friendly-scroll rounded-2xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-6 text-[11px]"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4 mb-4">
@@ -1156,12 +1467,7 @@ export function AccountsSection({
                     key={opt.key}
                     type="button"
                     onClick={() => setChartRange(opt.key)}
-                    className={
-                      "rounded-lg px-3 py-1.5 text-[11px] border " +
-                      (chartRange === opt.key
-                        ? "border-slate-700 bg-slate-900 text-white"
-                        : "border-slate-200 dark:border-slate-700 text-slate-600")
-                    }
+                    className={evolutionSegmentToggleClass(chartRange === opt.key)}
                   >
                     {t(`ranges.${opt.labelKey}`)}
                   </button>

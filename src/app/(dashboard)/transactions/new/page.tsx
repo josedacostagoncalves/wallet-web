@@ -13,6 +13,7 @@ import {
 } from "@/app/actions/transactions";
 import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { CopyIcon } from "@/components/ActionIcons";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { CategorySubcategorySearchField } from "@/components/CategorySubcategorySearchField";
 import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
@@ -454,7 +455,10 @@ export default function NewTransactionPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
+        <DashboardPageHeader
+          title={tForm("page.newTransaction")}
+          description={tForm("page.newTransactionSubtitle")}
+        />
         <p className="text-slate-600 dark:text-slate-400">
           {tForm("noWallet")}
         </p>
@@ -468,7 +472,10 @@ export default function NewTransactionPage() {
   if (copyId && (loadingCopy || step === "type")) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
+        <DashboardPageHeader
+          title={tForm("page.newTransaction")}
+          description={tForm("page.newTransactionSubtitle")}
+        />
         <div className="w-full max-w-md space-y-4 animate-pulse">
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
           <div className="h-10 bg-slate-200 dark:bg-slate-700 rounded-lg" />
@@ -483,7 +490,10 @@ export default function NewTransactionPage() {
   if (copyId && copyError) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
+        <DashboardPageHeader
+          title={tForm("page.newTransaction")}
+          description={tForm("page.newTransactionSubtitle")}
+        />
         <p className="text-slate-600 dark:text-slate-400">{copyError}</p>
         <div className="flex gap-3">
           <Link
@@ -506,10 +516,10 @@ export default function NewTransactionPage() {
   if (step === "type") {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">{tForm("page.newTransaction")}</h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          {tForm("page.chooseTypeSubtitle")}
-        </p>
+        <DashboardPageHeader
+          title={tForm("page.newTransaction")}
+          description={tForm("page.chooseTypeSubtitle")}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
             onClick={() => pickType("income")}
@@ -540,10 +550,13 @@ export default function NewTransactionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-2xl font-semibold">
-          {type === "income" ? tForm("newIncome") : type === "expense" ? tForm("newExpense") : tForm("newTransfer")}
-        </h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <DashboardPageHeader
+          title={
+            type === "income" ? tForm("newIncome") : type === "expense" ? tForm("newExpense") : tForm("newTransfer")
+          }
+          description={tForm("page.newTransactionSubtitle")}
+        />
         <button
           type="button"
           onClick={() => {
@@ -557,7 +570,7 @@ export default function NewTransactionPage() {
             setError(null);
             didCopyFrom.current = false;
           }}
-          className="text-sm text-slate-500 hover:underline"
+          className="text-sm text-slate-500 hover:underline shrink-0 sm:pt-1"
         >
           {tForm("page.changeType")}
         </button>

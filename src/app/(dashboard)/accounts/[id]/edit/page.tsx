@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale, useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import {
   intlLocaleFromAppLocale,
   formatMoneyAmountTwoDecimals,
@@ -100,7 +101,14 @@ export default function EditAccountPage() {
     router.refresh();
   }
 
-  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <DashboardPageHeader title={tAccounts("titleEdit")} description={tAccounts("subtitleEdit")} />
+        <p className="text-slate-500">{tCommon("loading")}</p>
+      </div>
+    );
+  }
   if (error) {
     return (
       <div className="space-y-4">
@@ -112,7 +120,7 @@ export default function EditAccountPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tAccounts("titleEdit")}</h1>
+      <DashboardPageHeader title={tAccounts("titleEdit")} description={tAccounts("subtitleEdit")} />
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">{tAccounts("nameLabel")}</label>

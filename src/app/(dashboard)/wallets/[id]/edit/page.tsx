@@ -10,6 +10,7 @@ import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -253,7 +254,14 @@ export default function EditWalletPage() {
     router.refresh();
   }
 
-  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <DashboardPageHeader title={tWallets("page.edit.title")} description={tWallets("page.edit.subtitle")} />
+        <p className="text-slate-500">{tCommon("loading")}</p>
+      </div>
+    );
+  }
   if (error) {
     return (
       <div className="space-y-4">
@@ -267,7 +275,7 @@ export default function EditWalletPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tWallets("page.edit.title")}</h1>
+      <DashboardPageHeader title={tWallets("page.edit.title")} description={tWallets("page.edit.subtitle")} />
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">{tWallets("page.new.nameLabel")}</label>

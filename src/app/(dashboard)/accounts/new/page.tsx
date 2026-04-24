@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import {
   intlLocaleFromAppLocale,
   formatMoneyAmountTwoDecimals,
@@ -69,7 +70,7 @@ export default function NewAccountPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">{tAccounts("titleAdd")}</h1>
+        <DashboardPageHeader title={tAccounts("titleAdd")} description={tAccounts("subtitleAdd")} />
         <p className="text-slate-600 dark:text-slate-400">
           {tAccounts("noWallet")}
         </p>
@@ -80,7 +81,7 @@ export default function NewAccountPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tAccounts("titleAdd")}</h1>
+      <DashboardPageHeader title={tAccounts("titleAdd")} description={tAccounts("subtitleAdd")} />
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">{tAccounts("nameLabel")}</label>

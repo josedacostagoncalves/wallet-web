@@ -70,7 +70,7 @@ export function IncomeFormModal({
   const localeTag = intlLocaleFromAppLocale(locale);
   const t = useTranslations("transactions.form");
   const { showToast } = useToast();
-  const { currentWalletId } = useWallet();
+  const { currentWalletId, wallets } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const [accounts, setAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
@@ -431,6 +431,7 @@ export function IncomeFormModal({
   const isBasicTracking = walletTrackingMode === "basic" || (!walletTrackingMode && isSplitOnly);
   const requiresAccounts = !isBasicTracking;
   const isSplitWallet = walletSharedOption === "track_and_split" || isSplitOnly;
+  const showIncomeScopeOption = wallets.length > 1;
 
   function validate(): string | null {
     const num = parseFloat(amount.replace(",", "."));
@@ -833,23 +834,6 @@ export function IncomeFormModal({
                   className={inputClass}
                 />
               </div>
-              <div className="rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-800/40 px-2.5 py-2 space-y-1">
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    id="income-scope-wallet-only"
-                    checked={incomeScopeWalletOnly}
-                    onChange={(e) => setIncomeScopeWalletOnly(e.target.checked)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <span className="text-xs font-medium text-slate-800 dark:text-slate-200">
-                    {t("fields.incomeScopeWalletOnly")}
-                  </span>
-                </label>
-                <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 pl-6">
-                  {t("fields.incomeScopeHint")}
-                </p>
-              </div>
               {requiresAccounts && (
                 <div>
                   <label className="block text-xs font-medium mb-1">{t("fields.accountTo")}</label>
@@ -932,6 +916,17 @@ export function IncomeFormModal({
               )}
               {(!isEdit || status !== "pending") && (
                 <div className="flex flex-col gap-3 p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                  {showIncomeScopeOption && (
+                    <label className="flex items-center gap-2 cursor-pointer" title={t("fields.incomeScopeHint")}>
+                      <input
+                        type="checkbox"
+                        id="income-scope-wallet-only"
+                        checked={incomeScopeWalletOnly}
+                        onChange={(e) => setIncomeScopeWalletOnly(e.target.checked)}
+                      />
+                      <span className="text-xs font-medium">{t("fields.incomeScopeWalletOnly")}</span>
+                    </label>
+                  )}
                   {!isEdit && (
                     <>
                       <label className="flex items-center gap-2 cursor-pointer">

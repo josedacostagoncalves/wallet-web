@@ -15,6 +15,7 @@ import { shouldShowUsers } from "@/lib/wallet-modes";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 type UserRow = {
   user_id: string;
@@ -181,7 +182,14 @@ export default function UsersPage() {
     showToast("User linked");
   }
 
-  if (loading) return <p className="text-slate-500">{tCommon("loading")}</p>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <DashboardPageHeader title={t("title")} description={t("subtitle")} />
+        <p className="text-slate-500">{tCommon("loading")}</p>
+      </div>
+    );
+  }
   const joinedCandidates = rows.filter((r) => r.role !== "owner" && r.has_profile);
   const candidatesForRow = (row: UserRow) => {
     const rowName = normalizeDisplayName(row.display_name);
@@ -193,9 +201,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-      </div>
+      <DashboardPageHeader title={t("title")} description={t("subtitle")} />
       {!currentWalletId ? (
         <p className="text-slate-600 dark:text-slate-400">{t("page.noWallet")}</p>
       ) : !enabled ? (

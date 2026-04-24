@@ -16,6 +16,7 @@ import { CategorySubcategorySearchField } from "@/components/CategorySubcategory
 import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";
 import { getWalletSplitInfo } from "@/app/actions/wallets";
@@ -375,21 +376,22 @@ export default function EditTransactionPage() {
     setCurrentSubcategoryName("");
   }
 
+  const editTitle =
+    status === "pending"
+      ? type === "income"
+        ? tForm("editPendingIncome")
+        : type === "expense"
+          ? tForm("editPendingExpense")
+          : tForm("editPendingTransfer")
+      : type === "income"
+        ? tForm("editIncome")
+        : type === "expense"
+          ? tForm("editExpense")
+          : tForm("editTransfer");
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">
-        {status === "pending"
-          ? type === "income"
-            ? tForm("editPendingIncome")
-            : type === "expense"
-              ? tForm("editPendingExpense")
-              : tForm("editPendingTransfer")
-          : type === "income"
-            ? tForm("editIncome")
-            : type === "expense"
-              ? tForm("editExpense")
-              : tForm("editTransfer")}
-      </h1>
+      <DashboardPageHeader title={editTitle} description={tForm("page.editTransactionSubtitle")} />
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>

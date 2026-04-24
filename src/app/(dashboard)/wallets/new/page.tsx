@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export default function NewWalletPage() {
   const tAuth = useTranslations("auth");
@@ -142,7 +143,7 @@ export default function NewWalletPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tWallets("page.create")}</h1>
+      <DashboardPageHeader title={tWallets("page.create")} description={tWallets("page.new.subtitle")} />
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">{tWallets("page.new.nameLabel")}</label>

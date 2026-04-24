@@ -174,7 +174,9 @@
             "reorderAccounts": "Reordenar cuentas",
             "displayOptions": "Opciones de visualización",
             "showInitialBalance": "Saldo inicial",
-            "showPlafondInfo": "Información del límite"
+            "showPlafondInfo": "Información del límite",
+            "viewAsTable": "Vista en tabla",
+            "viewAsCards": "Vista en tarjetas"
         },
         "accountsTable": {
             "noAccounts": "Aún no hay cuentas. Crea una desde",
@@ -190,6 +192,7 @@
             "collapse": "Contraer",
             "expand": "Expandir",
             "recentTransactions": "Transacciones recientes",
+            "last30Days": "Últimos 30 días",
             "loading": "Cargando...",
             "noTransactionsForAccount": "No hay transacciones para esta cuenta.",
             "type": "Tipo",
@@ -342,6 +345,7 @@
     },
     "settings": {
         "title": "Configuración",
+        "subtitle": "Perfil, apariencia, idioma y sesiones activas.",
         "profile": "Perfil",
         "theme": "Tema",
         "language": "Idioma",
@@ -442,6 +446,7 @@
     },
     "accounts": {
         "title": "Cuentas",
+        "subtitle": "Cuentas bancarias y tarjetas de la cartera actual.",
         "addAccount": "Añadir Cuenta",
         "accountName": "Nombre de la Cuenta",
         "accountType": "Tipo de Cuenta",
@@ -477,6 +482,8 @@
         "modal": {
             "titleEdit": "Editar cuenta",
             "titleAdd": "Añadir cuenta",
+            "subtitleAdd": "Registra una cuenta para usarla en transacciones y saldos.",
+            "subtitleEdit": "Actualiza los datos de la cuenta y su visibilidad en el formulario.",
             "noWallet": "Selecciona o crea una cartera primero.",
             "notFound": "No encontrado",
             "invalidInitialBalance": "Saldo inicial no válido",
@@ -494,6 +501,7 @@
     },
     "users": {
         "title": "Usuarios",
+        "subtitle": "Gestiona miembros en carteras compartidas con reparto.",
         "addUser": "Añadir usuario",
         "noUsers": "Aún no hay usuarios.",
         "roles": {
@@ -839,12 +847,15 @@
                 "backToTransactions": "Volver a Transacciones",
                 "changeType": "Cambiar tipo",
                 "pendingHint": "Los saldos no cambiarán hasta que confirmes. Puedes confirmar o cancelar desde Dashboard o Home.",
-                "recurringHint": "Las futuras ocurrencias se crearán en la fecha seleccionada y se mostrarán como Pendientes hasta que las confirmes o canceles."
+                "recurringHint": "Las futuras ocurrencias se crearán en la fecha seleccionada y se mostrarán como Pendientes hasta que las confirmes o canceles.",
+                "newTransactionSubtitle": "Elige un tipo e indica importe, categoría y cuentas.",
+                "editTransactionSubtitle": "Ajusta los campos y guarda. Las pendientes no cambian saldos hasta confirmarlas."
             }
         }
     },
     "activity": {
         "title": "Registro de actividad",
+        "subtitle": "Cambios recientes en tus carteras y datos.",
         "table": {
             "date": "Fecha",
             "activity": "Actividad",
@@ -913,6 +924,7 @@
     },
     "wallets": {
         "title": "Carteras",
+        "subtitle": "Crea, únete y gestiona tus carteras.",
         "addWallet": "Añadir Cartera",
         "walletName": "Nombre de la Cartera",
         "shared": "Compartida",
@@ -924,6 +936,7 @@
             "createOne": "Crear una",
             "joinPage": {
                 "title": "Unirse a cartera",
+                "subtitle": "Introduce el código de invitación del propietario de la cartera.",
                 "validation": {
                     "shareCodeRequired": "Por favor, introduce un código para compartir"
                 },
@@ -937,6 +950,7 @@
             },
             "edit": {
                 "title": "Editar cartera",
+                "subtitle": "Cambia nombre, modo compartido, división y miembros.",
                 "notFound": "Cartera no encontrada o no tienes acceso",
                 "saving": "Guardando…",
                 "sharingType": "Tipo de compartición *",
@@ -977,6 +991,7 @@
                 }
             },
             "new": {
+                "subtitle": "Configura una cartera nueva personal o compartida.",
                 "nameLabel": "Nombre *",
                 "namePlaceholder": "ej.: Familia, Personal",
                 "walletOwnership": "Tipo de cartera",
@@ -1067,6 +1082,7 @@
     },
     "categories": {
         "title": "Categorías",
+        "subtitle": "Organiza categorías de ingresos, gastos y transferencias de esta cartera.",
         "addCategory": "Añadir Categoría",
         "categoryName": "Nombre de la Categoría",
         "noCategories": "Aún no hay categorías",
@@ -1083,6 +1099,9 @@
         "modal": {
             "titleEdit": "Editar categoría",
             "titleAdd": "Añadir categoría",
+            "subtitleAdd": "Crea una categoría principal para el tipo seleccionado.",
+            "subtitleAddOrSub": "Añade una categoría o subcategoría bajo una existente.",
+            "subtitleEdit": "Renombra, mueve, desactiva o ajusta el indicador esencial.",
             "titleAddOrSub": "Añadir categoría o subcategoría",
             "titleAddSubcategory": "Añadir subcategoría a \"{parentName}\"",
             "titleAddType": "Añadir categoría de {type}",

@@ -7,6 +7,7 @@ import {
     saveStatementsHideBalances,
     type StatementsTableOrderKey,
 } from "@/app/actions/preferences";
+import { balanceSheetToolbarIconButtonClass } from "@/lib/balance-sheet-toolbar-icons";
 import { useTranslations } from "next-intl";
 import { Fragment, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { CSSProperties } from "react";
@@ -829,7 +830,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                         type="button"
                         onClick={toggleHide}
                         disabled={!currentWalletId}
-                        className="p-2 rounded-xl border border-slate-200/90 bg-white/80 text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/50 dark:text-slate-300 dark:shadow-none dark:hover:bg-slate-800/70 dark:hover:text-white transition-colors disabled:opacity-50"
+                        className={balanceSheetToolbarIconButtonClass}
                         aria-label={hideBalances ? t("showValues") : t("hideValues")}
                         title={hideBalances ? t("showValues") : t("hideValues")}
                     >
@@ -840,7 +841,7 @@ export function StatementsTable({ data, type, dateRange, currentWalletId, tableK
                             type="button"
                             onClick={startReorder}
                             disabled={!currentWalletId}
-                            className="p-2 rounded-xl border border-slate-200/90 bg-white/80 text-slate-600 shadow-sm hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700/70 dark:bg-slate-900/50 dark:text-slate-300 dark:shadow-none dark:hover:bg-slate-800/70 dark:hover:text-white transition-colors disabled:opacity-50"
+                            className={balanceSheetToolbarIconButtonClass}
                             aria-label={t("reorder")}
                             title={t("reorder")}
                         >

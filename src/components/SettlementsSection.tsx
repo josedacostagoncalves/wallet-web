@@ -21,6 +21,10 @@ import { TransactionRowActions } from "@/components/TransactionRowActions";
 import { useToast } from "@/contexts/ToastContext";
 import { formatCategorySubcategory } from "@/lib/transaction-labels";
 import { transactionRowBgClass } from "@/lib/transaction-row-style";
+import {
+  balanceSheetToolbarIconButtonClass,
+  balanceSheetToolbarIconButtonOpenClass,
+} from "@/lib/balance-sheet-toolbar-icons";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -86,7 +90,19 @@ function sortByOrder<T extends { member_id: string }>(items: T[], order: string[
 
 function DragHandleIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-slate-400"
+      aria-hidden
+    >
       <line x1="8" y1="6" x2="8" y2="18" />
       <line x1="12" y1="6" x2="12" y2="18" />
       <line x1="16" y1="6" x2="16" y2="18" />
@@ -97,7 +113,7 @@ function DragHandleIcon() {
 function EyeIcon({ hidden }: { hidden: boolean }) {
   if (hidden) {
     return (
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.576 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
         <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
         <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-4.963" />
@@ -106,7 +122,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
     );
   }
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -115,7 +131,7 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
 
 function OptionsIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -574,7 +590,7 @@ export function SettlementsSection({
             <button
               type="button"
               onClick={toggleHide}
-              className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
+              className={balanceSheetToolbarIconButtonClass}
               aria-label={hideBalances ? t("showBalances") : t("hideBalances")}
               title={hideBalances ? t("showBalances") : t("hideBalances")}
             >
@@ -602,7 +618,7 @@ export function SettlementsSection({
               <button
                 type="button"
                 onClick={startReorder}
-                className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
+                className={balanceSheetToolbarIconButtonClass}
                 aria-label={t("reorderUsers")}
                 title={t("reorderUsers")}
               >
@@ -613,10 +629,7 @@ export function SettlementsSection({
               ref={optionsBtnRef}
               type="button"
               onClick={toggleOptions}
-              className={`p-2 rounded-lg border transition-colors ${optionsOpen
-                ? "border-slate-400 bg-slate-100 text-slate-800"
-                : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
-                }`}
+              className={optionsOpen ? balanceSheetToolbarIconButtonOpenClass : balanceSheetToolbarIconButtonClass}
               aria-label={t("displayOptions")}
               title={t("displayOptions")}
             >

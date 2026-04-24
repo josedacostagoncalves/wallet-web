@@ -8,12 +8,17 @@ import {
   type BalanceDisplayOptions,
 } from "@/app/actions/preferences";
 import { AccountsSection } from "@/components/AccountsSection";
+import {
+  balanceSheetToolbarIconButtonClass,
+  balanceSheetToolbarIconButtonOpenClass,
+} from "@/lib/balance-sheet-toolbar-icons";
 import type { AccountType } from "@/lib/account-types";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const STORAGE_KEY_HIDE = "j-wallet-hide-balances";
+const STORAGE_KEY_ACCOUNTS_LAYOUT = "j-wallet-portfolio-accounts-layout";
 
 type Account = {
   id: string;
@@ -48,14 +53,15 @@ function DragHandleIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
+      className="text-slate-400"
       aria-hidden
     >
       <line x1="8" y1="6" x2="8" y2="18" />
@@ -70,8 +76,8 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
     return (
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="20"
-        height="20"
+        width="16"
+        height="16"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -90,8 +96,8 @@ function EyeIcon({ hidden }: { hidden: boolean }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -110,8 +116,8 @@ function OptionsIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="20"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -122,6 +128,48 @@ function OptionsIcon() {
     >
       <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
       <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function TableLayoutIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="4" y="5" width="16" height="5" rx="1" />
+      <rect x="4" y="13" width="16" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function CardLayoutIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
     </svg>
   );
 }
@@ -155,15 +203,27 @@ export function CurrentBalancesSection({
   const optionsBtnRef = useRef<HTMLButtonElement>(null);
   const optionsPopRef = useRef<HTMLDivElement>(null);
   const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
+  const [accountsLayout, setAccountsLayout] = useState<"table" | "cards">("table");
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY_HIDE);
       setHideBalances(raw === "true");
+      const layoutRaw = localStorage.getItem(STORAGE_KEY_ACCOUNTS_LAYOUT);
+      if (layoutRaw === "cards") setAccountsLayout("cards");
     } catch {
       setHideBalances(false);
     }
     setMounted(true);
+  }, []);
+
+  const setAccountsLayoutPersisted = useCallback((next: "table" | "cards") => {
+    setAccountsLayout(next);
+    try {
+      localStorage.setItem(STORAGE_KEY_ACCOUNTS_LAYOUT, next);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // Load preferences from DB
@@ -288,7 +348,6 @@ export function CurrentBalancesSection({
       <div className="flex items-center justify-between gap-3 mb-3">
         <div>
           <h2 className="text-lg font-medium">{walletName || t("title")}</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">{t("subtitle")}</p>
         </div>
         {mounted && prefsLoaded && (
           <div className="flex items-center gap-2">
@@ -296,12 +355,36 @@ export function CurrentBalancesSection({
             <button
               type="button"
               onClick={toggleHide}
-              className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
+              className={balanceSheetToolbarIconButtonClass}
               aria-label={hideBalances ? t("showBalances") : t("hideBalances")}
               title={hideBalances ? t("showBalances") : t("hideBalances")}
             >
               <EyeIcon hidden={hideBalances} />
             </button>
+            {accounts.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAccountsLayoutPersisted("table")}
+                  className={accountsLayout === "table" ? balanceSheetToolbarIconButtonOpenClass : balanceSheetToolbarIconButtonClass}
+                  aria-label={t("viewAsTable")}
+                  title={t("viewAsTable")}
+                  aria-pressed={accountsLayout === "table"}
+                >
+                  <TableLayoutIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccountsLayoutPersisted("cards")}
+                  className={accountsLayout === "cards" ? balanceSheetToolbarIconButtonOpenClass : balanceSheetToolbarIconButtonClass}
+                  aria-label={t("viewAsCards")}
+                  title={t("viewAsCards")}
+                  aria-pressed={accountsLayout === "cards"}
+                >
+                  <CardLayoutIcon />
+                </button>
+              </>
+            )}
             {orderEditing ? (
               <>
                 <button
@@ -324,7 +407,7 @@ export function CurrentBalancesSection({
               <button
                 type="button"
                 onClick={startReorder}
-                className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
+                className={balanceSheetToolbarIconButtonClass}
                 aria-label={t("reorderAccounts")}
                 title={t("reorderAccounts")}
               >
@@ -335,10 +418,7 @@ export function CurrentBalancesSection({
               ref={optionsBtnRef}
               type="button"
               onClick={toggleOptions}
-              className={`p-2 rounded-lg border transition-colors ${optionsOpen
-                ? "border-slate-400 bg-slate-100 text-slate-800"
-                : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
-                }`}
+              className={optionsOpen ? balanceSheetToolbarIconButtonOpenClass : balanceSheetToolbarIconButtonClass}
               aria-label={t("displayOptions")}
               title={t("displayOptions")}
             >
@@ -347,7 +427,13 @@ export function CurrentBalancesSection({
           </div>
         )}
       </div>
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div
+        className={
+          accountsLayout === "cards"
+            ? "overflow-visible"
+            : "rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+        }
+      >
         {!prefsLoaded ? (
           <div className="h-48 flex items-center justify-center bg-white dark:bg-slate-900">
             <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
@@ -364,6 +450,7 @@ export function CurrentBalancesSection({
             showInitialBalance={displayOpts.showInitialBalance}
             showPlafond={displayOpts.showPlafond}
             pendingAmounts={pendingAmounts}
+            layout={accountsLayout}
           />
         )}
       </div>

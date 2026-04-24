@@ -5,6 +5,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { ProfileSettingsForm } from "@/components/ProfileSettingsForm";
 import { ThemeSelector } from "@/components/ThemeSelector";
 import { getTranslations } from 'next-intl/server';
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function ProfileSettingsPage() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <DashboardPageHeader title={t("title")} description={t("subtitle")} />
       <ProfileSettingsForm
         first_name={profile.first_name}
         last_name={profile.last_name}

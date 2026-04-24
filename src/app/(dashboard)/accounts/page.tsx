@@ -17,11 +17,16 @@ import {
   accountTypeIcon,
   type AccountType,
 } from "@/lib/account-types";
+import {
+  balanceSheetToolbarIconButtonClass,
+  balanceSheetToolbarIconButtonOpenClass,
+} from "@/lib/balance-sheet-toolbar-icons";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 type AccountDetails = {
   ownerName: string;
@@ -228,7 +233,8 @@ function AccountDetailsPopup({
 export default function AccountsPage() {
   const tAccounts = useTranslations("accounts");
   const tCommon = useTranslations("common");
-  const tHomeAccounts = useTranslations("home.accountsTable");
+  /** Same namespace as Portfolio current-balances toolbar (`CurrentBalancesSection`). */
+  const tHomeBalancesToolbar = useTranslations("home.currentBalances");
   const { currentWalletId, wallets } = useWallet();
   const { showToast } = useToast();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -361,7 +367,7 @@ export default function AccountsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">{tAccounts("title")}</h1>
+        <DashboardPageHeader title={tAccounts("title")} description={tAccounts("subtitle")} />
         <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
@@ -369,15 +375,40 @@ export default function AccountsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{tAccounts("title")}</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <DashboardPageHeader title={tAccounts("title")} description={tAccounts("subtitle")} />
         {currentWalletId && (
-          <Link
-            href="/accounts/new"
-            className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
-          >
-            {tAccounts("addAccount")}
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 shrink-0">
+            {accounts.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setHideBalances((p) => !p)}
+                  className={balanceSheetToolbarIconButtonClass}
+                  aria-label={hideBalances ? tHomeBalancesToolbar("showBalances") : tHomeBalancesToolbar("hideBalances")}
+                  title={hideBalances ? tHomeBalancesToolbar("showBalances") : tHomeBalancesToolbar("hideBalances")}
+                >
+                  <EyeIcon hidden={hideBalances} />
+                </button>
+                <button
+                  ref={optionsBtnRef}
+                  type="button"
+                  onClick={toggleOptions}
+                  className={optionsOpen ? balanceSheetToolbarIconButtonOpenClass : balanceSheetToolbarIconButtonClass}
+                  aria-label={tHomeBalancesToolbar("displayOptions")}
+                  title={tHomeBalancesToolbar("displayOptions")}
+                >
+                  <OptionsIcon />
+                </button>
+              </>
+            )}
+            <Link
+              href="/accounts/new"
+              className="px-4 py-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700"
+            >
+              {tAccounts("addAccount")}
+            </Link>
+          </div>
         )}
       </div>
 
@@ -391,59 +422,43 @@ export default function AccountsPage() {
         </p>
       ) : (
         <>
-          {/* Hide balances + Options buttons */}
-          {accounts.length > 0 && (
-            <div className="flex justify-end gap-2 mb-2">
-              <button
-                onClick={() => setHideBalances((p) => !p)}
-                className="p-2 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800 transition-colors"
-                aria-label={hideBalances ? tHomeAccounts("showBalances") : tHomeAccounts("hideBalances")}
-                title={hideBalances ? tHomeAccounts("showBalances") : tHomeAccounts("hideBalances")}
-              >
-                <EyeIcon hidden={hideBalances} />
-              </button>
-              <button
-                ref={optionsBtnRef}
-                onClick={toggleOptions}
-                className={`p-2 rounded-lg border transition-colors ${optionsOpen
-                  ? "border-slate-400 bg-slate-100 text-slate-800"
-                  : "border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-800"
-                  }`}
-                title={tHomeAccounts("displayOptions")}
-              >
-                <OptionsIcon />
-              </button>
-            </div>
-          )}
-
           {/* Options popover */}
           {optionsOpen && popPos && createPortal(
             <div
               ref={optionsPopRef}
-              className="fixed z-[9999] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3 space-y-2 w-56"
+              className="fixed z-[9999] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-4 w-64"
               style={{ top: popPos.top, left: popPos.left, transform: "translateX(-100%)" }}
             >
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <h3 className="text-sm font-semibold mb-3 text-slate-700 dark:text-slate-200">
+                {tHomeBalancesToolbar("displayOptions")}
+              </h3>
+              <label className="flex items-center gap-3 cursor-pointer py-1.5">
                 <input
                   type="checkbox"
                   checked={displayOpts.showInitialBalance}
                   onChange={() => toggleDisplayOpt("showInitialBalance")}
+                  className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
                 />
-                {tHomeAccounts("showInitialBalance")}
+                <span className="text-sm text-slate-700 dark:text-slate-200">
+                  {tHomeBalancesToolbar("showInitialBalance")}
+                </span>
               </label>
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer py-1.5">
                 <input
                   type="checkbox"
                   checked={displayOpts.showPlafond}
                   onChange={() => toggleDisplayOpt("showPlafond")}
+                  className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
                 />
-                {tHomeAccounts("showPlafondInfo")}
+                <span className="text-sm text-slate-700 dark:text-slate-200">
+                  {tHomeBalancesToolbar("showPlafondInfo")}
+                </span>
               </label>
             </div>,
             document.body
           )}
 
-          <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-x-auto">
             {accounts.length === 0 ? (
               <div className="p-6 text-slate-500">
                 {tAccounts("noAccounts")}.{" "}
@@ -452,35 +467,50 @@ export default function AccountsPage() {
                 </Link>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                    <th className="text-left p-3">{tAccounts("accountName")}</th>
-                    <th className="text-left p-3">{tAccounts("accountType")}</th>
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 dark:bg-slate-900">
+                  <tr className="border-b border-slate-200 dark:border-slate-800">
+                    <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
+                      {tAccounts("accountName")}
+                    </th>
+                    <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
+                      {tAccounts("accountType")}
+                    </th>
                     {displayOpts.showInitialBalance && (
-                      <th className="text-right p-3">{tAccounts("page.table.initial")}</th>
+                      <th className="text-right p-3 font-medium text-slate-600 dark:text-slate-300">
+                        {tAccounts("page.table.initial")}
+                      </th>
                     )}
-                    <th className="text-right p-3">{tAccounts("page.table.current")}</th>
+                    <th className="text-right p-3 font-medium text-slate-600 dark:text-slate-300">
+                      {tAccounts("page.table.current")}
+                    </th>
                     {displayOpts.showPlafond && hasAnyCreditCard && (
-                      <th className="text-right p-3">{tAccounts("page.table.plafond")}</th>
+                      <th className="text-right p-3 font-medium text-slate-600 dark:text-slate-300">
+                        {tAccounts("page.table.plafond")}
+                      </th>
                     )}
-                    <th className="text-left p-3">{tAccounts("page.table.status")}</th>
-                    <th className="text-left p-3 w-20">{tAccounts("page.table.actions")}</th>
+                    <th className="text-left p-3 font-medium text-slate-600 dark:text-slate-300">
+                      {tAccounts("page.table.status")}
+                    </th>
+                    <th className="text-left p-3 w-20 font-medium text-slate-600 dark:text-slate-300">
+                      {tAccounts("page.table.actions")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
                     <tr
                       key={a.id}
-                      className={`border-b border-slate-100 dark:border-slate-700/50 ${!a.is_active ? "opacity-60" : ""
-                        }`}
+                      className={`border-b border-slate-100 dark:border-slate-800 transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-900/50 ${
+                        !a.is_active ? "opacity-60" : ""
+                      }`}
                     >
                       <td className="p-3 font-medium">
                         <span
                           className="inline-flex items-center gap-2"
                           title={accountTypeLabel(a.account_type)}
                         >
-                          <span className="text-base leading-none" aria-hidden>
+                          <span className="text-xs leading-none" aria-hidden>
                             {accountTypeIcon(a.account_type)}
                           </span>
                           {a.name}

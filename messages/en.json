@@ -174,7 +174,9 @@
             "reorderAccounts": "Reorder accounts",
             "displayOptions": "Display options",
             "showInitialBalance": "Initial balance",
-            "showPlafondInfo": "Plafond info"
+            "showPlafondInfo": "Plafond info",
+            "viewAsTable": "Table view",
+            "viewAsCards": "Card view"
         },
         "accountsTable": {
             "noAccounts": "No accounts yet. Create one from",
@@ -190,6 +192,7 @@
             "collapse": "Collapse",
             "expand": "Expand",
             "recentTransactions": "Recent transactions",
+            "last30Days": "Last 30 days",
             "loading": "Loading...",
             "noTransactionsForAccount": "No transactions for this account.",
             "type": "Type",
@@ -342,6 +345,7 @@
     },
     "settings": {
         "title": "Settings",
+        "subtitle": "Profile, appearance, language, and active sessions.",
         "profile": "Profile",
         "theme": "Theme",
         "language": "Language",
@@ -442,6 +446,7 @@
     },
     "accounts": {
         "title": "Accounts",
+        "subtitle": "Bank accounts and cards for the current wallet.",
         "addAccount": "Add Account",
         "accountName": "Account Name",
         "accountType": "Account Type",
@@ -477,6 +482,8 @@
         "modal": {
             "titleEdit": "Edit account",
             "titleAdd": "Add account",
+            "subtitleAdd": "Register an account to use in transactions and balances.",
+            "subtitleEdit": "Update account details and visibility in the transaction form.",
             "noWallet": "Select or create a wallet first.",
             "notFound": "Not found",
             "invalidInitialBalance": "Invalid initial balance",
@@ -494,6 +501,7 @@
     },
     "users": {
         "title": "Users",
+        "subtitle": "Manage members for shared wallets that use splitting.",
         "addUser": "Add user",
         "noUsers": "No users yet.",
         "roles": {
@@ -693,7 +701,7 @@
                 "attachmentPending": "will upload after save",
                 "attachmentsPendingHint": "These files upload automatically after you save the transaction.",
                 "incomeDescriptionPlaceholder": "e.g. Salary",
-                "incomeScopeWalletOnly": "Count this income only in this wallet",
+                "incomeScopeWalletOnly": "Consider only in this wallet",
                 "incomeScopeHint": "When unchecked, this income is included in income totals in every wallet you use. The amount is still credited only to the account you select below.",
                 "selectIncomeReceiver": "Select member",
                 "transferDescriptionPlaceholder": "e.g. Rent payment",
@@ -839,12 +847,15 @@
                 "backToTransactions": "Back to Transactions",
                 "changeType": "Change type",
                 "pendingHint": "Balances will not change until you confirm. Confirm or cancel from Dashboard or Home.",
-                "recurringHint": "Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them."
+                "recurringHint": "Future occurrences will be created on the selected date and shown as Pending until you confirm or cancel them.",
+                "newTransactionSubtitle": "Pick a type, then enter amount, category, and accounts.",
+                "editTransactionSubtitle": "Update fields and save. Pending transactions do not change balances until confirmed."
             }
         }
     },
     "activity": {
         "title": "Activity log",
+        "subtitle": "Recent changes across your wallets and data.",
         "table": {
             "date": "Date",
             "activity": "Activity",
@@ -913,6 +924,7 @@
     },
     "wallets": {
         "title": "Wallets",
+        "subtitle": "Create, join, and manage your wallets.",
         "addWallet": "Add Wallet",
         "walletName": "Wallet Name",
         "shared": "Shared",
@@ -924,6 +936,7 @@
             "createOne": "Create one",
             "joinPage": {
                 "title": "Join Wallet",
+                "subtitle": "Enter a share code from the wallet owner to join.",
                 "validation": {
                     "shareCodeRequired": "Please enter a share code"
                 },
@@ -937,6 +950,7 @@
             },
             "edit": {
                 "title": "Edit wallet",
+                "subtitle": "Change name, sharing mode, split options, and members.",
                 "notFound": "Wallet not found or you don't have access",
                 "saving": "Saving…",
                 "sharingType": "Sharing Type *",
@@ -977,6 +991,7 @@
                 }
             },
             "new": {
+                "subtitle": "Set up a new personal or shared wallet.",
                 "nameLabel": "Name *",
                 "namePlaceholder": "e.g. Family, Personal",
                 "walletOwnership": "Wallet type",
@@ -1067,6 +1082,7 @@
     },
     "categories": {
         "title": "Categories",
+        "subtitle": "Organize income, expense, and transfer categories for this wallet.",
         "addCategory": "Add Category",
         "categoryName": "Category Name",
         "noCategories": "No categories yet",
@@ -1083,6 +1099,9 @@
         "modal": {
             "titleEdit": "Edit category",
             "titleAdd": "Add category",
+            "subtitleAdd": "Create a top-level category for the selected type.",
+            "subtitleAddOrSub": "Add a category or a subcategory under an existing one.",
+            "subtitleEdit": "Rename, move, deactivate, or adjust essential flag.",
             "titleAddOrSub": "Add category or subcategory",
             "titleAddSubcategory": "Add subcategory to \"{parentName}\"",
             "titleAddType": "Add {type} category",

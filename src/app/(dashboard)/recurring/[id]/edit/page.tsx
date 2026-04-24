@@ -23,6 +23,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import {
   intlLocaleFromAppLocale,
   formatMoneyAmountTwoDecimals,
@@ -319,10 +320,10 @@ export default function EditRecurringPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tRecurring("editModal.title")}</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400">
-        {tRecurring("editModal.subtitle")}
-      </p>
+      <DashboardPageHeader
+        title={tRecurring("editModal.title")}
+        description={tRecurring("editModal.subtitle")}
+      />
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>

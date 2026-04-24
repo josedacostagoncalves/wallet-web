@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export default function JoinWalletPage() {
   const tWallets = useTranslations("wallets");
@@ -40,7 +41,10 @@ export default function JoinWalletPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tWallets("page.joinPage.title")}</h1>
+      <DashboardPageHeader
+        title={tWallets("page.joinPage.title")}
+        description={tWallets("page.joinPage.subtitle")}
+      />
 
       {success ? (
         <div className="p-6 rounded-xl border border-green-200 dark:border-green-900 bg-green-50/50 dark:bg-green-900/20">

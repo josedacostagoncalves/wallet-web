@@ -15,6 +15,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { createClient } from "@/lib/supabase/client";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 type Cat = {
   id: string;
@@ -327,7 +328,7 @@ export default function CategoriesPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">{tCategoriesPage("title")}</h1>
+        <DashboardPageHeader title={tCategoriesPage("title")} description={tCategoriesPage("subtitle")} />
         <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
@@ -335,7 +336,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tCategoriesPage("title")}</h1>
+      <DashboardPageHeader title={tCategoriesPage("title")} description={tCategoriesPage("subtitle")} />
 
       {!currentWalletId ? (
         <p className="text-slate-600 dark:text-slate-400">

@@ -43,6 +43,8 @@ type Props = {
   isEssential: boolean;
   ariaAttachment: string;
   ariaEssential: string;
+  /** When false, the essential-expense star is not shown (e.g. compact portfolio card table). */
+  showEssential?: boolean;
 };
 
 export function TransactionListIndicators({
@@ -50,16 +52,21 @@ export function TransactionListIndicators({
   isEssential,
   ariaAttachment,
   ariaEssential,
+  showEssential = true,
 }: Props) {
+  const showStar = showEssential && isEssential;
+  const minW =
+    hasAttachment && showStar ? "min-w-[2.75rem]" : hasAttachment || showStar ? "min-w-[1.25rem]" : "min-w-0";
+
   return (
-    <div className="inline-flex items-center justify-center gap-1.5 min-w-[2.75rem] text-center">
+    <div className={`inline-flex items-center justify-center gap-1.5 text-center ${minW}`}>
       {hasAttachment ? (
         <span className="inline-flex text-slate-500 dark:text-slate-400" title={ariaAttachment}>
           <PaperclipIcon />
           <span className="sr-only">{ariaAttachment}</span>
         </span>
       ) : null}
-      {isEssential ? (
+      {showStar ? (
         <span className="inline-flex text-amber-500 dark:text-amber-400" title={ariaEssential}>
           <EssentialStarIcon />
           <span className="sr-only">{ariaEssential}</span>

@@ -174,7 +174,9 @@
             "reorderAccounts": "Reordenar contas",
             "displayOptions": "Opções de exibição",
             "showInitialBalance": "Saldo inicial",
-            "showPlafondInfo": "Informação do plafond"
+            "showPlafondInfo": "Informação do plafond",
+            "viewAsTable": "Vista em tabela",
+            "viewAsCards": "Vista em cartões"
         },
         "accountsTable": {
             "noAccounts": "Ainda não há contas. Crie uma em",
@@ -190,6 +192,7 @@
             "collapse": "Recolher",
             "expand": "Expandir",
             "recentTransactions": "Transações recentes",
+            "last30Days": "Últimos 30 dias",
             "loading": "A carregar...",
             "noTransactionsForAccount": "Sem transações para esta conta.",
             "type": "Tipo",
@@ -342,6 +345,7 @@
     },
     "settings": {
         "title": "Definições",
+        "subtitle": "Perfil, aspeto, idioma e sessões ativas nos dispositivos.",
         "profile": "Perfil",
         "theme": "Tema",
         "language": "Idioma",
@@ -442,6 +446,7 @@
     },
     "accounts": {
         "title": "Contas",
+        "subtitle": "Contas bancárias e cartões da carteira atual.",
         "addAccount": "Adicionar Conta",
         "accountName": "Nome da Conta",
         "accountType": "Tipo de Conta",
@@ -477,6 +482,8 @@
         "modal": {
             "titleEdit": "Editar conta",
             "titleAdd": "Adicionar conta",
+            "subtitleAdd": "Registe uma conta para usar em transações e saldos.",
+            "subtitleEdit": "Atualize os dados da conta e a visibilidade no formulário de transações.",
             "noWallet": "Selecione ou crie uma carteira primeiro.",
             "notFound": "Não encontrado",
             "invalidInitialBalance": "Saldo inicial inválido",
@@ -494,6 +501,7 @@
     },
     "users": {
         "title": "Utilizadores",
+        "subtitle": "Gira os membros em carteiras partilhadas com divisão.",
         "addUser": "Adicionar utilizador",
         "noUsers": "Ainda não há utilizadores.",
         "roles": {
@@ -693,7 +701,7 @@
                 "attachmentPending": "será enviado após guardar",
                 "attachmentsPendingHint": "Estes ficheiros são enviados automaticamente depois de guardar a transação.",
                 "incomeDescriptionPlaceholder": "ex.: Salário",
-                "incomeScopeWalletOnly": "Contar este rendimento só nesta carteira",
+                "incomeScopeWalletOnly": "Considerar apenas nesta carteira",
                 "incomeScopeHint": "Se desmarcar, este rendimento entra nos totais de rendimento em todas as carteiras que usar. O valor continua a ser creditado apenas na conta que escolher abaixo.",
                 "selectIncomeReceiver": "Selecionar membro",
                 "transferDescriptionPlaceholder": "ex.: Pagamento de renda",
@@ -839,12 +847,15 @@
                 "backToTransactions": "Voltar às Transações",
                 "changeType": "Alterar tipo",
                 "pendingHint": "Os saldos não serão alterados até confirmar. Confirme ou cancele a partir do Dashboard ou Home.",
-                "recurringHint": "As ocorrências futuras serão criadas na data selecionada e mostradas como Pendentes até confirmar ou cancelar."
+                "recurringHint": "As ocorrências futuras serão criadas na data selecionada e mostradas como Pendentes até confirmar ou cancelar.",
+                "newTransactionSubtitle": "Escolha um tipo e depois indique montante, categoria e contas.",
+                "editTransactionSubtitle": "Altere os campos e guarde. As transações pendentes não alteram saldos até confirmar."
             }
         }
     },
     "activity": {
         "title": "Registo de atividade",
+        "subtitle": "Alterações recentes nas suas carteiras e dados.",
         "table": {
             "date": "Data",
             "activity": "Atividade",
@@ -913,6 +924,7 @@
     },
     "wallets": {
         "title": "Carteiras",
+        "subtitle": "Crie, entre e gira as suas carteiras.",
         "addWallet": "Adicionar Carteira",
         "walletName": "Nome da Carteira",
         "shared": "Partilhada",
@@ -924,6 +936,7 @@
             "createOne": "Criar uma",
             "joinPage": {
                 "title": "Entrar na carteira",
+                "subtitle": "Introduza o código de partilha do proprietário da carteira.",
                 "validation": {
                     "shareCodeRequired": "Por favor, introduza um código de partilha"
                 },
@@ -937,6 +950,7 @@
             },
             "edit": {
                 "title": "Editar carteira",
+                "subtitle": "Altere o nome, o modo de partilha, a divisão e os membros.",
                 "notFound": "Carteira não encontrada ou sem acesso",
                 "saving": "A guardar…",
                 "sharingType": "Tipo de partilha *",
@@ -977,6 +991,7 @@
                 }
             },
             "new": {
+                "subtitle": "Configure uma nova carteira pessoal ou partilhada.",
                 "nameLabel": "Nome *",
                 "namePlaceholder": "ex.: Família, Pessoal",
                 "walletOwnership": "Tipo de carteira",
@@ -1067,6 +1082,7 @@
     },
     "categories": {
         "title": "Categorias",
+        "subtitle": "Organize categorias de receitas, despesas e transferências desta carteira.",
         "addCategory": "Adicionar Categoria",
         "categoryName": "Nome da Categoria",
         "noCategories": "Ainda não há categorias",
@@ -1083,6 +1099,9 @@
         "modal": {
             "titleEdit": "Editar categoria",
             "titleAdd": "Adicionar categoria",
+            "subtitleAdd": "Crie uma categoria de nível superior para o tipo selecionado.",
+            "subtitleAddOrSub": "Adicione uma categoria ou uma subcategoria sob uma existente.",
+            "subtitleEdit": "Altere o nome, mova, desative ou ajuste o indicador de essencial.",
             "titleAddOrSub": "Adicionar categoria ou subcategoria",
             "titleAddSubcategory": "Adicionar subcategoria a \"{parentName}\"",
             "titleAddType": "Adicionar categoria de {type}",

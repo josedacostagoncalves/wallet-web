@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 export default function NewCategoryPage() {
   const tCategories = useTranslations("categories.modal");
@@ -72,7 +73,7 @@ export default function NewCategoryPage() {
   if (!currentWalletId) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold">{tCategories("titleAdd")}</h1>
+        <DashboardPageHeader title={tCategories("titleAdd")} description={tCategories("subtitleAdd")} />
         <p className="text-slate-600 dark:text-slate-400">
           {tCategories("noWallet")}
         </p>
@@ -83,7 +84,7 @@ export default function NewCategoryPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{tCategories("titleAddOrSub")}</h1>
+      <DashboardPageHeader title={tCategories("titleAddOrSub")} description={tCategories("subtitleAddOrSub")} />
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">{tCategories("typeLabel")}</label>

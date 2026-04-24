@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
 interface Wallet {
   id: string;
@@ -323,7 +324,7 @@ export default function WalletsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">{tWallets("title")}</h1>
+        <DashboardPageHeader title={tWallets("title")} description={tWallets("subtitle")} />
         <p className="text-slate-500">{tCommon("loading")}</p>
       </div>
     );
@@ -331,9 +332,9 @@ export default function WalletsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{tWallets("title")}</h1>
-        <div className="flex gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <DashboardPageHeader title={tWallets("title")} description={tWallets("subtitle")} />
+        <div className="flex gap-3 shrink-0">
           <Link
             href="/wallets/join"
             className="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
