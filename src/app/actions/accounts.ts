@@ -1,5 +1,7 @@
 "use server";
 
+/** Accounts per wallet: list, create, update, balances. */
+
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import type { AccountType } from "@/lib/account-types";

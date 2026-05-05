@@ -1,5 +1,7 @@
 "use client";
 
+/** Full-page edit for a recurring rule by id: schedule, accounts, category, delete. */
+
 import { getCategory } from "@/app/actions/categories";
 import {
   getAccounts,

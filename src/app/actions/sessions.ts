@@ -1,5 +1,7 @@
 "use server";
 
+/** Device/session listing and revocation for the signed-in user. */
+
 import { createClient } from "@/lib/supabase/server";
 
 export type SessionRow = {

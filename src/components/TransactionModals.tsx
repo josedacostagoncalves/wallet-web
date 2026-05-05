@@ -1,14 +1,39 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useTransactionModals } from "@/contexts/TransactionModalsContext";
-import { ExpenseFormModal } from "@/components/ExpenseFormModal";
-import { IncomeFormModal } from "@/components/IncomeFormModal";
-import { RecurringEditModal } from "@/components/RecurringEditModal";
-import { TransferFormModal } from "@/components/TransferFormModal";
 
+const IncomeFormModal = dynamic(
+  () => import("@/components/IncomeFormModal").then((m) => ({ default: m.IncomeFormModal })),
+  { loading: () => null }
+);
+const ExpenseFormModal = dynamic(
+  () => import("@/components/ExpenseFormModal").then((m) => ({ default: m.ExpenseFormModal })),
+  { loading: () => null }
+);
+const TransferFormModal = dynamic(
+  () => import("@/components/TransferFormModal").then((m) => ({ default: m.TransferFormModal })),
+  { loading: () => null }
+);
+const RecurringEditModal = dynamic(
+  () => import("@/components/RecurringEditModal").then((m) => ({ default: m.RecurringEditModal })),
+  { loading: () => null }
+);
+
+/** Global transaction modals (income / expense / transfer / recurring). Code-split per modal. */
 export function TransactionModals() {
   const { state, closeModals } = useTransactionModals();
-  const { which, mode, transactionId, copyFromTransactionId, copyFromRecurringId, recurringEditId, opening } = state;
+  const {
+    which,
+    mode,
+    transactionId,
+    copyFromTransactionId,
+    copyFromRecurringId,
+    recurringEditId,
+    opening,
+    prefetchedTransaction,
+    prefetchedRecurringRule,
+  } = state;
 
   return (
     <>
@@ -19,7 +44,10 @@ export function TransactionModals() {
           aria-live="polite"
         >
           <div className="rounded-lg bg-white dark:bg-slate-800 px-5 py-4 shadow-lg">
-            <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
+            <div
+              className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin"
+              aria-hidden
+            />
           </div>
         </div>
       )}
@@ -32,6 +60,8 @@ export function TransactionModals() {
           transactionId={transactionId ?? undefined}
           copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
+          prefetchedTransaction={prefetchedTransaction ?? undefined}
+          prefetchedRecurringRule={prefetchedRecurringRule ?? undefined}
         />
       )}
 
@@ -43,6 +73,8 @@ export function TransactionModals() {
           transactionId={transactionId ?? undefined}
           copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
+          prefetchedTransaction={prefetchedTransaction ?? undefined}
+          prefetchedRecurringRule={prefetchedRecurringRule ?? undefined}
         />
       )}
 
@@ -54,15 +86,13 @@ export function TransactionModals() {
           transactionId={transactionId ?? undefined}
           copyFromTransactionId={copyFromTransactionId ?? undefined}
           copyFromRecurringId={copyFromRecurringId ?? undefined}
+          prefetchedTransaction={prefetchedTransaction ?? undefined}
+          prefetchedRecurringRule={prefetchedRecurringRule ?? undefined}
         />
       )}
 
       {which === "recurring-edit" && recurringEditId && (
-        <RecurringEditModal
-          open
-          onClose={closeModals}
-          ruleId={recurringEditId}
-        />
+        <RecurringEditModal open onClose={closeModals} ruleId={recurringEditId} />
       )}
     </>
   );

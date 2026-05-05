@@ -1,5 +1,7 @@
 "use server";
 
+/** Mutations and reads for movements: CRUD, splits, attachments, recurrence generation, modal helpers. */
+
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
@@ -916,6 +918,9 @@ export async function getTransaction(id: string) {
         : null,
   };
 }
+
+/** Row returned by {@link getTransaction} (null excluded). Used to hydrate modals without a second fetch. */
+export type TransactionDetail = NonNullable<Awaited<ReturnType<typeof getTransaction>>>;
 
 export async function updateTransaction(
   id: string,

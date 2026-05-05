@@ -1,5 +1,7 @@
 "use server";
 
+/** Wallet categories and subcategories: CRUD and lookups for transaction forms. */
+
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 

@@ -1,5 +1,7 @@
 "use client";
 
+/** Edit wallet by id: name, sharing/split, share code, member incomes, settlements preview. */
+
 import {
   updateWallet,
   getWalletShareCode,

@@ -1,5 +1,7 @@
 "use server";
 
+/** Wallets, members, split metadata, settlements, and helpers for shared-wallet UI. */
+
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 import { getOrEnsureProfile } from "@/app/actions/profiles";

@@ -88,6 +88,7 @@ export function CategorySubcategorySearchField({
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const options = useMemo(() => buildSearchOptions(flat, query), [flat, query]);
+  const showPanel = open && norm(query).length > 0;
 
   useEffect(() => {
     if (!open || options.length === 0) {
@@ -105,7 +106,7 @@ export function CategorySubcategorySearchField({
     if (highlightedIndex < 0 || highlightedIndex >= options.length) return;
     const el = optionRefs.current[highlightedIndex];
     el?.scrollIntoView({ block: "nearest" });
-  }, [highlightedIndex, options.length]);
+  }, [highlightedIndex, options.length, showPanel]);
 
   useEffect(() => {
     if (!open) return;
@@ -127,7 +128,6 @@ export function CategorySubcategorySearchField({
     [onPick]
   );
 
-  const showPanel = open && norm(query).length > 0;
   const defaultInputClass =
     "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
   const inputClass = inputClassName ?? defaultInputClass;

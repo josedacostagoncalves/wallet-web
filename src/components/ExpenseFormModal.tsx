@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  getAccounts,
   getCategories,
   getCategoriesFlatForSearch,
   getSubcategories,
@@ -14,6 +13,7 @@ import {
   deleteTransaction,
   type CategoryFlatRow,
   type RecentSimilarRow,
+  type TransactionDetail,
 } from "@/app/actions/transactions";
 import { uploadTransactionAttachment, type TransactionAttachmentRow } from "@/app/actions/transaction-attachments";
 import { getWalletSplitInfo, getCurrentUserId } from "@/app/actions/wallets";
@@ -23,7 +23,7 @@ import { CategorySubcategorySearchField } from "@/components/CategorySubcategory
 import { TransactionDateInput } from "@/components/TransactionDateInput";
 import { TransactionObservationsAttachments } from "@/components/TransactionObservationsAttachments";
 import { CategoryModal } from "@/components/CategoryModal";
-import { getRecurringRule } from "@/app/actions/recurring";
+import { getRecurringRule, type RecurringRuleRow } from "@/app/actions/recurring";
 import { CopyIcon, TransactionTypeIcon } from "@/components/ActionIcons";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useToast } from "@/contexts/ToastContext";
@@ -43,6 +43,8 @@ import {
   normalizeMoneyInputString,
 } from "@/lib/money-format";
 import { EssentialTagToggle } from "@/components/EssentialTagToggle";
+import { recurrenceOptionLabel } from "@/lib/recurrence-labels";
+import { useTransactionModalReferenceData } from "@/hooks/useTransactionModalReferenceData";
 
 type EssentialMode = "inherit" | "yes" | "no";
 
@@ -64,6 +66,8 @@ type Props = {
   transactionId?: string;
   copyFromTransactionId?: string;
   copyFromRecurringId?: string;
+  prefetchedTransaction?: TransactionDetail | null;
+  prefetchedRecurringRule?: RecurringRuleRow | null;
 };
 
 const inputClass =
@@ -76,6 +80,7 @@ const formatPctInput = (v: number) => {
   return fixed.endsWith(".00") ? fixed.slice(0, -3) : fixed.endsWith("0") ? fixed.slice(0, -1) : fixed;
 };
 
+/** Expense modal: same mode matrix as income; includes essential tag and split fields. */
 export function ExpenseFormModal({
   open,
   onClose,
@@ -83,6 +88,8 @@ export function ExpenseFormModal({
   transactionId,
   copyFromTransactionId,
   copyFromRecurringId,
+  prefetchedTransaction = null,
+  prefetchedRecurringRule = null,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -93,9 +100,8 @@ export function ExpenseFormModal({
   const { currentWalletId } = useWallet();
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const [accounts, setAccounts] = useState<{ id: string; name: string; current_balance: number }[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [categoriesFlat, setCategoriesFlat] = useState<CategoryFlatRow[]>([]);
+  const { accounts, categories, categoriesFlat, setCategories, setCategoriesFlat } =
+    useTransactionModalReferenceData(open, currentWalletId, "expense");
   const [subcategories, setSubcategories] = useState<{ id: string; name: string }[]>([]);
 
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -155,6 +161,8 @@ export function ExpenseFormModal({
   const isEdit = mode === "edit" && !!transactionId;
   const isCopy = mode === "copy" && !!copyFromTransactionId;
   const shouldBlockForm = loadingData && (isEdit || isCopy || !!copyFromRecurringId);
+  const showSimilarTransactions =
+    mode === "new" && !copyFromTransactionId && !copyFromRecurringId;
   const targetAfterSave = pathname?.startsWith("/portfolio") ? "/portfolio" : "/transactions";
 
   const essentialLeafCategoryId = useMemo(() => {
@@ -181,50 +189,22 @@ export function ExpenseFormModal({
     [essentialMode, categoryDefaultEssential]
   );
 
-  const recurrenceOptionLabel = (value: string, fallback: string) => {
-    switch (value) {
-      case "daily":
-        return t("options.scheduleTypes.daily");
-      case "weekly":
-        return t("options.scheduleTypes.weekly");
-      case "monthly":
-        return t("options.scheduleTypes.monthly");
-      case "yearly":
-        return t("options.scheduleTypes.yearly");
-      case "interval_days":
-        return t("options.scheduleTypes.intervalDays");
-      case "interval_months":
-        return t("options.scheduleTypes.intervalMonths");
-      case "monthly_nth_work_day":
-        return t("options.scheduleTypes.monthlyNthWorkDay");
-      case "monthly_nth_last_work_day":
-        return t("options.scheduleTypes.monthlyNthLastWorkDay");
-      default:
-        return fallback;
-    }
-  };
-
   useEffect(() => {
     if (!open || !currentWalletId) {
       autoSelectedMember.current = false;
       appliedDefaultSplitForSession.current = false;
-      return;
     }
-    getAccounts(currentWalletId).then(setAccounts);
-    Promise.all([
-      getCategories(currentWalletId, "expense"),
-      getCategoriesFlatForSearch(currentWalletId, "expense"),
-    ]).then(([cats, flat]) => {
-      setCategories(cats);
-      setCategoriesFlat(flat);
-    });
   }, [open, currentWalletId]);
 
   useEffect(() => {
     if (!open || !currentWalletId) return;
     if (isEdit && transactionId) {
       setLoadingData(true);
-      getTransaction(transactionId).then(async (m) => {
+      const txPromise =
+        prefetchedTransaction && prefetchedTransaction.id === transactionId
+          ? Promise.resolve(prefetchedTransaction)
+          : getTransaction(transactionId);
+      txPromise.then(async (m) => {
         if (!m) return;
         setStatus(m.status);
         editOriginal.current = {
@@ -275,7 +255,11 @@ export function ExpenseFormModal({
     }
     if (isCopy && copyFromTransactionId) {
       setLoadingData(true);
-      getTransaction(copyFromTransactionId).then(async (m) => {
+      const txCopyPromise =
+        prefetchedTransaction && prefetchedTransaction.id === copyFromTransactionId
+          ? Promise.resolve(prefetchedTransaction)
+          : getTransaction(copyFromTransactionId);
+      txCopyPromise.then(async (m) => {
         if (!m) return;
         const parentId = m.parent_id ?? null;
         const catId = parentId || m.category_id;
@@ -317,7 +301,11 @@ export function ExpenseFormModal({
     }
     if (isCopy && copyFromRecurringId) {
       setLoadingData(true);
-      getRecurringRule(copyFromRecurringId).then(async (r) => {
+      const rPromise =
+        prefetchedRecurringRule && prefetchedRecurringRule.id === copyFromRecurringId
+          ? Promise.resolve(prefetchedRecurringRule)
+          : getRecurringRule(copyFromRecurringId);
+      rPromise.then(async (r) => {
         if (!r) {
           setLoadingData(false);
           return;
@@ -364,7 +352,18 @@ export function ExpenseFormModal({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional deps
-  }, [open, currentWalletId, isEdit, isCopy, transactionId, copyFromTransactionId, copyFromRecurringId, localeTag]);
+  }, [
+    open,
+    currentWalletId,
+    isEdit,
+    isCopy,
+    transactionId,
+    copyFromTransactionId,
+    copyFromRecurringId,
+    localeTag,
+    prefetchedTransaction,
+    prefetchedRecurringRule,
+  ]);
 
   useEffect(() => {
     if (!categoryId) {
@@ -386,6 +385,11 @@ export function ExpenseFormModal({
       if (!currentWalletId) setRecentSimilar([]);
       return;
     }
+    if (!showSimilarTransactions) {
+      setRecentSimilar([]);
+      setLoadingSimilar(false);
+      return;
+    }
     setLoadingSimilar(true);
     if (!categoryId) {
       getRecentTransactionsByType(currentWalletId, "expense", 20)
@@ -402,7 +406,7 @@ export function ExpenseFormModal({
         .then(setRecentSimilar)
         .finally(() => setLoadingSimilar(false));
     }
-  }, [open, currentWalletId, categoryId, subcategoryId]);
+  }, [open, currentWalletId, categoryId, subcategoryId, showSimilarTransactions]);
 
   async function handleCopyFromSimilar(id: string) {
     setCopyingSimilarId(id);
@@ -907,7 +911,11 @@ export function ExpenseFormModal({
               <div className="h-8 w-8 rounded-full border-2 border-slate-300 border-t-slate-600 animate-spin" aria-hidden />
             </div>
           ) : (
-            <div className="p-2 sm:p-3 flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-3 gap-2 lg:gap-3 items-stretch overflow-hidden">
+            <div
+              className={`p-2 sm:p-3 flex-1 min-h-0 grid grid-cols-1 gap-2 lg:gap-3 items-stretch overflow-hidden ${
+                showSimilarTransactions ? "lg:grid-cols-3" : "lg:grid-cols-2"
+              }`}
+            >
             <div className="min-h-0 overflow-y-auto min-w-0 space-y-2.5 lg:pr-1 friendly-scroll">
               <div>
                 <label className="block text-xs font-medium mb-1">{t("fields.date")}</label>
@@ -1264,7 +1272,7 @@ export function ExpenseFormModal({
                               </option>
                             ) : (
                               <option key={o.value} value={o.value}>
-                                {recurrenceOptionLabel(o.value, o.label)}
+                                {recurrenceOptionLabel(t, o.value, o.label)}
                               </option>
                             )
                           )}
@@ -1323,71 +1331,73 @@ export function ExpenseFormModal({
                 <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
               )}
             </div>
-            <div className="min-h-0 flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 lg:min-w-0">
-              <div className="shrink-0 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 lg:px-4 lg:py-3 border-b border-slate-200 dark:border-slate-700">
-                <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                  {!categoryId
-                    ? t("similar.expenses")
-                    : subcategoryId
-                      ? t("similar.expensesSubcategory")
-                      : t("similar.expensesCategory")}
-                </h3>
-              </div>
-              <div className="p-2 lg:p-3 flex-1 min-h-0 overflow-y-auto min-h-[100px] friendly-scroll">
-                {loadingSimilar ? (
-                  <p className="text-xs text-slate-500">{t("similar.loading")}</p>
-                ) : recentSimilar.length === 0 ? (
-                  <p className="text-xs text-slate-500">
-                    {!categoryId ? t("similar.noExpenses") : t("similar.noSimilar")}
-                  </p>
-                ) : (
-                  <div className="w-full min-w-0 text-xs">
-                    <div className="flex items-center justify-between gap-6 pb-1.5 border-b border-slate-200 dark:border-slate-700 text-slate-500">
-                      <span className="font-medium min-w-0 max-w-[42%] truncate">{t("similar.tableDescription")}</span>
-                      <span className="font-medium shrink-0">{t("similar.tableAmount")}</span>
+            {showSimilarTransactions && (
+              <div className="min-h-0 flex flex-col overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 lg:min-w-0">
+                <div className="shrink-0 bg-slate-50 dark:bg-slate-800/50 px-3 py-2 lg:px-4 lg:py-3 border-b border-slate-200 dark:border-slate-700">
+                  <h3 className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    {!categoryId
+                      ? t("similar.expenses")
+                      : subcategoryId
+                        ? t("similar.expensesSubcategory")
+                        : t("similar.expensesCategory")}
+                  </h3>
+                </div>
+                <div className="p-2 lg:p-3 flex-1 min-h-0 overflow-y-auto min-h-[100px] friendly-scroll">
+                  {loadingSimilar ? (
+                    <p className="text-xs text-slate-500">{t("similar.loading")}</p>
+                  ) : recentSimilar.length === 0 ? (
+                    <p className="text-xs text-slate-500">
+                      {!categoryId ? t("similar.noExpenses") : t("similar.noSimilar")}
+                    </p>
+                  ) : (
+                    <div className="w-full min-w-0 text-xs">
+                      <div className="flex items-center justify-between gap-6 pb-1.5 border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                        <span className="font-medium min-w-0 max-w-[42%] truncate">{t("similar.tableDescription")}</span>
+                        <span className="font-medium shrink-0">{t("similar.tableAmount")}</span>
+                      </div>
+                      <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {recentSimilar.map((r) => (
+                          <li key={r.id} className="py-1.5 min-w-0">
+                            <div className="text-[10px] leading-tight text-slate-500 dark:text-slate-400 tabular-nums">
+                              {r.date}
+                            </div>
+                            <div className="mt-0.5 flex items-start justify-between gap-4 min-w-0">
+                              <div className="min-w-0 max-w-[38%] flex-none text-left sm:max-w-[40%]">
+                                <p className="text-slate-700 dark:text-slate-200 break-words hyphens-auto">
+                                  {r.description || "—"}
+                                </p>
+                                <p className="mt-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400 break-words">
+                                  {r.account_from_name ?? "—"}
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 items-start gap-2">
+                                <span className="tabular-nums text-right text-red-600 dark:text-red-400 whitespace-nowrap pt-px">
+                                  −{r.amount.toLocaleString("pt-PT", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}{" "}
+                                  €
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyFromSimilar(r.id)}
+                                  disabled={!!copyingSimilarId}
+                                  className="p-1 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 disabled:opacity-50 transition-colors shrink-0"
+                                  title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                                  aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
+                                >
+                                  <CopyIcon aria-hidden />
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <ul className="divide-y divide-slate-100 dark:divide-slate-700">
-                      {recentSimilar.map((r) => (
-                        <li key={r.id} className="py-1.5 min-w-0">
-                          <div className="text-[10px] leading-tight text-slate-500 dark:text-slate-400 tabular-nums">
-                            {r.date}
-                          </div>
-                          <div className="mt-0.5 flex items-start justify-between gap-4 min-w-0">
-                            <div className="min-w-0 max-w-[38%] flex-none text-left sm:max-w-[40%]">
-                              <p className="text-slate-700 dark:text-slate-200 break-words hyphens-auto">
-                                {r.description || "—"}
-                              </p>
-                              <p className="mt-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400 break-words">
-                                {r.account_from_name ?? "—"}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 items-start gap-2">
-                              <span className="tabular-nums text-right text-red-600 dark:text-red-400 whitespace-nowrap pt-px">
-                                −{r.amount.toLocaleString("pt-PT", {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}{" "}
-                                €
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyFromSimilar(r.id)}
-                                disabled={!!copyingSimilarId}
-                                className="p-1 rounded text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-slate-600 dark:hover:text-slate-200 disabled:opacity-50 transition-colors shrink-0"
-                                title={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
-                                aria-label={copyingSimilarId === r.id ? t("similar.copying") : t("similar.copy")}
-                              >
-                                <CopyIcon aria-hidden />
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
             </div>
           )}
           {!shouldBlockForm && (

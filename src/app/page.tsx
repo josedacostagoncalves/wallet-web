@@ -1,3 +1,4 @@
+/** Public entry: marketing shell with links to login and signup (not the in-app dashboard home). */
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 

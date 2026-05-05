@@ -1,5 +1,7 @@
 "use client";
 
+/** Full-page “new transaction” flow (alternate to sidebar modals): pick type inline and submit. */
+
 import {
   getAccounts,
   getCategories,

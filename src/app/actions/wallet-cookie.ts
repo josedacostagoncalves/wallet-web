@@ -1,5 +1,7 @@
 "use server";
 
+/** Persists selected wallet id in an HTTP-only cookie for server components and actions. */
+
 import { cookies } from "next/headers";
 
 const WALLET_COOKIE = "wallet_id";

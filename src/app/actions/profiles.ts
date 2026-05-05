@@ -1,5 +1,7 @@
 "use server";
 
+/** User profile rows: theme, locale, avatar, names; used by dashboard layout. */
+
 import { createClient } from "@/lib/supabase/server";
 
 export type ThemeMode = "light" | "dark" | "system";

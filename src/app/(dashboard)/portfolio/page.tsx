@@ -1,5 +1,7 @@
+/** Portfolio: balances, period selector, settlements for the active wallet (RSC). */
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
+import { getActiveWalletContext } from "@/lib/active-wallet-server";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { getWalletSettlements } from "@/app/actions/wallets";
 import { CurrentBalancesSection } from "@/components/CurrentBalancesSection";
@@ -17,14 +19,7 @@ export default async function PortfolioPage({
     const t = await getTranslations("portfolio");
     const supabase = await createClient();
     const cookie = await getWalletCookie();
-
-    const { data: wallets } = await supabase
-        .from("wallets")
-        .select("id")
-        .eq("is_active", true)
-        .is("deleted_at", null);
-    const walletIds = (wallets ?? []).map((w) => w.id);
-    const currentWalletId = cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
+    const { currentWalletId } = await getActiveWalletContext(supabase, cookie);
 
     let accounts: {
         id: string;

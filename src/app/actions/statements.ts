@@ -1,5 +1,7 @@
 "use server";
 
+/** Yearly statements by category and savings/investment aggregates. */
+
 import { createClient } from "@/lib/supabase/server";
 import { transactionsForWalletOrReceiverUserIncomes } from "@/lib/income-scope";
 

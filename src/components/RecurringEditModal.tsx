@@ -28,6 +28,7 @@ import {
   normalizeMoneyInputString,
   parseMoneyInputString,
 } from "@/lib/money-format";
+import { recurrenceOptionLabel } from "@/lib/recurrence-labels";
 
 type Props = { open: boolean; onClose: () => void; ruleId: string };
 type TransactionType = "income" | "expense" | "transfer";
@@ -35,6 +36,7 @@ type TransactionType = "income" | "expense" | "transfer";
 const inputClass =
   "w-full text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-lg dark:bg-slate-800";
 
+/** Edit an existing recurring rule by id; loads rule + accounts + categories on open. */
 export function RecurringEditModal({ open, onClose, ruleId }: Props) {
   const router = useRouter();
   const tForm = useTranslations("transactions.form");
@@ -82,29 +84,6 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
     tCalendar("friday"),
     tCalendar("saturday"),
   ];
-
-  const recurrenceOptionLabel = (value: string, fallback: string) => {
-    switch (value) {
-      case "daily":
-        return tForm("options.scheduleTypes.daily");
-      case "weekly":
-        return tForm("options.scheduleTypes.weekly");
-      case "monthly":
-        return tForm("options.scheduleTypes.monthly");
-      case "yearly":
-        return tForm("options.scheduleTypes.yearly");
-      case "interval_days":
-        return tForm("options.scheduleTypes.intervalDays");
-      case "interval_months":
-        return tForm("options.scheduleTypes.intervalMonths");
-      case "monthly_nth_work_day":
-        return tForm("options.scheduleTypes.monthlyNthWorkDay");
-      case "monthly_nth_last_work_day":
-        return tForm("options.scheduleTypes.monthlyNthLastWorkDay");
-      default:
-        return fallback;
-    }
-  };
 
   useEffect(() => {
     if (!open || !ruleId) return;
@@ -665,7 +644,7 @@ export function RecurringEditModal({ open, onClose, ruleId }: Props) {
                         </option>
                       ) : (
                         <option key={o.value} value={o.value}>
-                          {recurrenceOptionLabel(o.value, o.label)}
+                          {recurrenceOptionLabel(tForm, o.value, o.label)}
                         </option>
                       )
                     )}

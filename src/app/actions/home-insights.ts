@@ -1,5 +1,7 @@
 "use server";
 
+/** Home briefing aggregates for a wallet and selected period (month, year, custom range). */
+
 import { createClient } from "@/lib/supabase/server";
 
 type LocaleCode = "en" | "pt" | "es" | "fr";

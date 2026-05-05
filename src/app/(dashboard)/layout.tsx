@@ -1,3 +1,6 @@
+/**
+ * Authenticated shell: theme, wallet list + cookie, global transaction modals, sidebar + main outlet.
+ */
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";

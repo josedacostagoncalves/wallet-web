@@ -1,5 +1,7 @@
 "use client";
 
+/** Full-page edit for one transaction by id: form, attachments, confirm/delete for pending. */
+
 import {
   getTransaction,
   getAccounts,

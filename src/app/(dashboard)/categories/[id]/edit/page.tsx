@@ -1,5 +1,7 @@
 "use client";
 
+/** Edit an existing category by id: name, active state, essential default, parent. */
+
 import { updateCategory } from "@/app/actions/categories";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";

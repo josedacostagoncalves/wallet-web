@@ -1,5 +1,7 @@
 "use client";
 
+/** Create a wallet: name, personal vs shared, tracking mode, split defaults; sets cookie when done. */
+
 import { setWalletCookie } from "@/app/actions/wallet-cookie";
 import { useToast } from "@/contexts/ToastContext";
 import { createClient } from "@/lib/supabase/client";

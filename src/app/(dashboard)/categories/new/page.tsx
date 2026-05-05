@@ -1,5 +1,7 @@
 "use client";
 
+/** Create a new category or subcategory (type, parent, essential flag) for the active wallet. */
+
 import { createCategory } from "@/app/actions/categories";
 import { useToast } from "@/contexts/ToastContext";
 import { useWallet } from "@/contexts/WalletContext";

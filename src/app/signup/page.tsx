@@ -1,5 +1,6 @@
 "use client";
 
+/** Sign up: register a new user then redirect into the app. */
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/contexts/ToastContext";
 import Link from "next/link";

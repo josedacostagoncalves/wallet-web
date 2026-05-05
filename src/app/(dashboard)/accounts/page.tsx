@@ -1,5 +1,6 @@
 "use client";
 
+/** Accounts list: balances, filters, and edit links for the active wallet. */
 import { getAccountDetails } from "@/app/actions/accounts";
 import {
   getAccountsTableDisplayOptions,

@@ -1,5 +1,7 @@
 "use server";
 
+/** Activity logging bridge for client-triggered audit events. */
+
 import { createClient } from "@/lib/supabase/server";
 import { logActivity } from "@/lib/activity-log";
 

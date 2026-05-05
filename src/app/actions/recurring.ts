@@ -1,5 +1,7 @@
 "use server";
 
+/** Recurring rules: read/update/delete and generation helpers used with transactions. */
+
 import { createClient } from "@/lib/supabase/server";
 import { createTransaction } from "@/app/actions/transactions";
 import { incomeScopeForInsert } from "@/lib/income-scope";

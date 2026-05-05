@@ -1,5 +1,7 @@
 "use client";
 
+/** Edit an account by id: type, name, balances, and validation against current wallet. */
+
 import { updateAccount } from "@/app/actions/accounts";
 import { AccountTypeSelect } from "@/components/AccountTypeSelect";
 import { useToast } from "@/contexts/ToastContext";

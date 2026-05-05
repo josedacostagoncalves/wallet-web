@@ -1,7 +1,10 @@
 "use client";
 
-import { getTransaction } from "@/app/actions/transactions";
-import { getRecurringRule } from "@/app/actions/recurring";
+/**
+ * Controls which global transaction modal is open. Edit/copy prefetch one server read so modals do not repeat it.
+ */
+import { getTransaction, type TransactionDetail } from "@/app/actions/transactions";
+import { getRecurringRule, type RecurringRuleRow } from "@/app/actions/recurring";
 import {
   createContext,
   useCallback,
@@ -22,6 +25,10 @@ type TransactionModalsState = {
   copyFromRecurringId: string | null;
   recurringEditId: string | null;
   opening: boolean;
+  /** Fetched once when opening edit/copy transaction; modals reuse it instead of calling getTransaction again. */
+  prefetchedTransaction: TransactionDetail | null;
+  /** Fetched once when opening copy-from-recurring; modals reuse it instead of calling getRecurringRule again. */
+  prefetchedRecurringRule: RecurringRuleRow | null;
 };
 
 const initialState: TransactionModalsState = {
@@ -32,6 +39,8 @@ const initialState: TransactionModalsState = {
   copyFromRecurringId: null,
   recurringEditId: null,
   opening: false,
+  prefetchedTransaction: null,
+  prefetchedRecurringRule: null,
 };
 
 type TransactionModalsContextValue = {
@@ -98,6 +107,7 @@ export function TransactionModalsProvider({ children }: Props) {
       which,
       mode: "edit",
       transactionId: id,
+      prefetchedTransaction: m,
     });
   }, []);
 
@@ -112,6 +122,7 @@ export function TransactionModalsProvider({ children }: Props) {
       which,
       mode: "copy",
       copyFromTransactionId: id,
+      prefetchedTransaction: m,
     });
   }, []);
 
@@ -135,6 +146,7 @@ export function TransactionModalsProvider({ children }: Props) {
       which,
       mode: "copy",
       copyFromRecurringId: id,
+      prefetchedRecurringRule: r,
     });
   }, []);
 

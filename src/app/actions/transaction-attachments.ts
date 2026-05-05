@@ -1,5 +1,7 @@
 "use server";
 
+/** Transaction file attachments: upload metadata and storage integration. */
+
 import { createClient } from "@/lib/supabase/server";
 import {
   sanitizeStorageFileName,

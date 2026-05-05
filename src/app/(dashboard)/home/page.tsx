@@ -1,7 +1,9 @@
+/** In-app home: smart briefing for the active wallet and selected insight period (RSC). */
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { getHomeBriefing, type HomeInsightsPeriod } from "@/app/actions/home-insights";
 import { HomeSmartBriefing } from "@/components/HomeSmartBriefing";
 import { createClient } from "@/lib/supabase/server";
+import { getActiveWalletContext } from "@/lib/active-wallet-server";
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -31,13 +33,7 @@ export default async function HomePage({
   const locale = (await getLocale()) as "en" | "pt" | "es" | "fr";
   const supabase = await createClient();
   const cookie = await getWalletCookie();
-  const { data: wallets } = await supabase
-    .from("wallets")
-    .select("id")
-    .eq("is_active", true)
-    .is("deleted_at", null);
-  const walletIds = (wallets ?? []).map((w) => w.id);
-  const currentWalletId = cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
+  const { currentWalletId } = await getActiveWalletContext(supabase, cookie);
   const { period: selectedPeriod, customRange } = parseHomePeriod(searchParams);
 
   const briefing = currentWalletId

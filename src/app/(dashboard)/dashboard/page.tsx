@@ -1,3 +1,4 @@
+/** Legacy `/dashboard` route; forwards to the transactions hub. */
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";

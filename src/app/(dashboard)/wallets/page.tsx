@@ -1,5 +1,7 @@
 "use client";
 
+/** Wallet list: open each wallet, usage, soft-delete/restore, links to create or join. */
+
 import {
   getWalletDetails,
   getWalletUsage,

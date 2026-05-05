@@ -1,5 +1,7 @@
 "use client";
 
+/** Categories and subcategories for the active wallet: list, copy from another wallet, delete, usage. */
+
 import {
   copyCategoriesToWallet,
   deleteCategory,

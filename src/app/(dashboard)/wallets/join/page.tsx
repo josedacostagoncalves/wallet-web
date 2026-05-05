@@ -1,5 +1,7 @@
 "use client";
 
+/** Join a shared wallet using a share code (optional `?code=` prefill). */
+
 import { joinWalletByCode } from "@/app/actions/wallets";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";

@@ -1,3 +1,4 @@
+/** Profile settings: display name, theme, locale, devices, and preferences (RSC). */
 import { createClient } from "@/lib/supabase/server";
 import { getOrEnsureProfile } from "@/app/actions/profiles";
 import { DevicesSection } from "@/components/DevicesSection";

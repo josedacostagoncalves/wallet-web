@@ -1,5 +1,7 @@
 "use client";
 
+/** Wallet members for the current shared/split wallet: invite, link profiles, remove, settlements context. */
+
 import {
   addWalletMemberByName,
   ensureCurrentWalletMemberName,

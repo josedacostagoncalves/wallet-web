@@ -1,5 +1,7 @@
 "use client";
 
+/** Create an account in the active wallet: type, name, initial balance. */
+
 import { createAccount } from "@/app/actions/accounts";
 import { AccountTypeSelect } from "@/components/AccountTypeSelect";
 import { useToast } from "@/contexts/ToastContext";

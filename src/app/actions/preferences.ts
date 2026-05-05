@@ -1,5 +1,7 @@
 "use server";
 
+/** Per-user UI preferences (e.g. account ordering) stored in Supabase. */
+
 import { createClient } from "@/lib/supabase/server";
 
 const ACCOUNT_ORDER_KEY = "account_order";

@@ -1,3 +1,4 @@
+/** Activity log: recent actions with actor names and links to related entities when available (RSC). */
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";

@@ -1,3 +1,4 @@
+/** Root layout: i18n messages, fonts, global toast provider. */
 import type { Metadata } from "next";
 import "./globals.css";
 import { ToastProvider } from "@/contexts/ToastContext";

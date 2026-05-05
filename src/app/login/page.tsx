@@ -1,5 +1,6 @@
 "use client";
 
+/** Login page: email/password and OAuth entry with Suspense-wrapped form. */
 import { Suspense } from "react";
 import { LoginForm } from "./LoginForm";
 import { useTranslations } from "next-intl";

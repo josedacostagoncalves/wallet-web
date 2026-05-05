@@ -6,7 +6,13 @@ import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { getWalletSplitInfo } from "@/app/actions/wallets";
 import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
+import { getActiveWalletContext } from "@/lib/active-wallet-server";
 import { unstable_noStore as noStore } from "next/cache";
+
+/**
+ * Reports dashboard: calendar transactions, recurring previews, portfolio / per-user series,
+ * monthly aggregates. Calls `ensureRecurringGenerated` for the active wallet before reads.
+ */
 
 function firstName(value: string | null | undefined): string {
     const v = (value ?? "").trim();
@@ -14,21 +20,12 @@ function firstName(value: string | null | undefined): string {
     return v.split(/\s+/)[0] ?? "";
 }
 
+/** Full payload for the client Reports page (charts + calendar). */
 export async function getReportsData() {
     noStore();
     const supabase = await createClient();
     const cookie = await getWalletCookie();
-
-    const { data: wallets } = await supabase
-        .from("wallets")
-        .select("id, tracking_mode")
-        .eq("is_active", true)
-        .is("deleted_at", null);
-    const walletIds = (wallets ?? []).map((w) => w.id);
-    const currentWalletId =
-        cookie && walletIds.includes(cookie) ? cookie : walletIds[0] ?? null;
-    const currentWallet = (wallets ?? []).find((w) => w.id === currentWalletId);
-    const walletTracksBalances = currentWallet?.tracking_mode !== "basic";
+    const { currentWalletId, walletTracksBalances } = await getActiveWalletContext(supabase, cookie);
 
     let chartData: { name: string; value: number }[] = [];
     let totalIncome = 0;
@@ -464,5 +461,46 @@ export async function getReportsData() {
         expenseUsers,
         expenseByUserDaily,
         defaultPeriodMonths,
+    };
+}
+
+export type ReportsFullPayload = Awaited<ReturnType<typeof getReportsData>>;
+
+/**
+ * Same data as {@link getReportsData}, split for staged UI: render calendar first, then chart-heavy rows.
+ * One server round-trip; client merges `secondary` after paint.
+ */
+export async function getReportsDataStaged(): Promise<{
+    primary: Pick<
+        ReportsFullPayload,
+        | "currentWalletId"
+        | "calendarTransactions"
+        | "recurringNextRuns"
+        | "walletTracksBalances"
+        | "defaultPeriodMonths"
+    >;
+    secondary: Omit<
+        ReportsFullPayload,
+        "currentWalletId" | "calendarTransactions" | "recurringNextRuns" | "walletTracksBalances" | "defaultPeriodMonths"
+    >;
+}> {
+    const full = await getReportsData();
+    const {
+        currentWalletId,
+        calendarTransactions,
+        recurringNextRuns,
+        walletTracksBalances,
+        defaultPeriodMonths,
+        ...secondary
+    } = full;
+    return {
+        primary: {
+            currentWalletId,
+            calendarTransactions,
+            recurringNextRuns,
+            walletTracksBalances,
+            defaultPeriodMonths,
+        },
+        secondary,
     };
 }
