@@ -13,9 +13,17 @@ type Props = {
   pending: PendingRow[];
   recurring: RecurringRow[];
   isSplitOnly: boolean;
+  /** When true, the hub loaded only the first page of confirmed rows; client can load older chunks. */
+  confirmedHubHasMore?: boolean;
 };
 
-export function TransactionsTabs({ confirmed, pending, recurring, isSplitOnly }: Props) {
+export function TransactionsTabs({
+  confirmed,
+  pending,
+  recurring,
+  isSplitOnly,
+  confirmedHubHasMore = false,
+}: Props) {
   const t = useTranslations("transactions");
   const [activeTab, setActiveTab] = useState<TabKey>("all");
 
@@ -64,7 +72,11 @@ export function TransactionsTabs({ confirmed, pending, recurring, isSplitOnly }:
 
       {activeTab === "all" && (
         <section>
-          <AllTransactionsSection confirmed={confirmed} isSplitOnly={isSplitOnly} />
+          <AllTransactionsSection
+            confirmed={confirmed}
+            isSplitOnly={isSplitOnly}
+            confirmedHubHasMore={confirmedHubHasMore}
+          />
         </section>
       )}
       {activeTab === "pending" && (

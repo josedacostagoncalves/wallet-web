@@ -570,6 +570,16 @@
                 "description": "Descripción",
                 "categorySubcategory": "Categoría :: Subcategoría",
                 "fromTo": "De → A",
+                "fromColumn": "De",
+                "toColumn": "A",
+                "filterFromAccountsTitle": "Filtrar por cuenta (origen)",
+                "filterToAccountsTitle": "Filtrar por cuenta (destino)",
+                "clearAccountFilter": "Borrar selección",
+                "accountFilterEmpty": "No hay cuentas en esta lista",
+                "categoryColumn": "Categoría",
+                "subcategoryColumn": "Subcategoría",
+                "filterCategoriesTitle": "Filtrar por categoría",
+                "filterSubcategoriesTitle": "Filtrar por subcategoría",
                 "symbolsColumn": "Adjuntos e indicador esencial",
                 "hasAttachment": "Tiene archivo adjunto",
                 "essentialExpense": "Gasto esencial",
@@ -591,7 +601,10 @@
             "searchOr": "o",
             "clearSearchLink": "Limpiar búsqueda",
             "clearFiltersLink": "Limpiar filtros",
-            "showMore30Days": "Mostrar más (30 días)"
+            "showMore30Days": "Mostrar más (30 días)",
+            "hubLoadOlder": "Cargar {count} anteriores",
+            "hubLoadingOlder": "Cargando…",
+            "hubLoadOlderError": "No se pudieron cargar transacciones más antiguas. Inténtalo de nuevo."
         },
         "recurring": {
             "title": "Recurrentes",

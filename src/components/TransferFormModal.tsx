@@ -185,7 +185,10 @@ export function TransferFormModal({
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setLoadingData(false);
       });
@@ -217,7 +220,10 @@ export function TransferFormModal({
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setLoadingData(false);
       });

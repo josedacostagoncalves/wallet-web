@@ -868,16 +868,28 @@ export async function getTransaction(id: string) {
     .eq("id", id)
     .single();
   if (error || !data) return null;
-  const { data: manualSplits } = await supabase
-    .from("transaction_splits")
-    .select("member_id, percentage")
-    .eq("transaction_id", id);
-  const { data: attachmentRows } = await supabase
-    .from("transaction_attachments")
-    .select("id, file_name, mime_type, size_bytes")
-    .eq("transaction_id", id)
-    .order("created_at", { ascending: true });
   const c = data.category as { id: string; name: string; type: string; parent_id: string | null } | null;
+  const categoryIdForSubcategories =
+    data.category_id != null ? (c?.parent_id ?? data.category_id) : null;
+  const subcategoriesQuery =
+    categoryIdForSubcategories != null && String(categoryIdForSubcategories).length > 0
+      ? supabase
+          .from("categories")
+          .select("id, name")
+          .eq("parent_id", categoryIdForSubcategories)
+          .eq("is_active", true)
+          .order("name")
+      : Promise.resolve({ data: [] as { id: string; name: string }[] | null });
+
+  const [{ data: manualSplits }, { data: attachmentRows }, { data: subCatRows }] = await Promise.all([
+    supabase.from("transaction_splits").select("member_id, percentage").eq("transaction_id", id),
+    supabase
+      .from("transaction_attachments")
+      .select("id, file_name, mime_type, size_bytes")
+      .eq("transaction_id", id)
+      .order("created_at", { ascending: true }),
+    subcategoriesQuery,
+  ]);
   return {
     id: data.id,
     wallet_id: data.wallet_id,
@@ -916,6 +928,7 @@ export async function getTransaction(id: string) {
       data.type === "income"
         ? ((data as { income_scope?: string | null }).income_scope === "wallet" ? "wallet" : "user")
         : null,
+    subcategories: (subCatRows ?? []).map((row) => ({ id: row.id, name: row.name })),
   };
 }
 

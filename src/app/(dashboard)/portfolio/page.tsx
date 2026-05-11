@@ -55,17 +55,22 @@ export default async function PortfolioPage({
     if (currentWalletId) {
         await ensureRecurringGenerated(currentWalletId);
 
-        // Fetch wallet shared_option and split type
-        const { data: walletData } = await supabase
-            .from("wallets")
-            .select("shared_option, split_type, name")
-            .eq("id", currentWalletId)
-            .single();
+        const [{ data: walletData }, { data: accountsData }] = await Promise.all([
+            supabase
+                .from("wallets")
+                .select("shared_option, split_type, name")
+                .eq("id", currentWalletId)
+                .single(),
+            supabase
+                .from("accounts")
+                .select("id, name, account_type, initial_balance, current_balance, plafond")
+                .eq("wallet_id", currentWalletId)
+                .eq("is_active", true),
+        ]);
         walletSharedOption = walletData?.shared_option ?? null;
         walletSplitType = walletData?.split_type ?? null;
         walletName = walletData?.name ?? null;
 
-        // Fetch settlements if wallet is split type
         if (walletSharedOption === "split" || walletSharedOption === "track_and_split") {
             const [{ data: minTx }, { data: maxTx }] = await Promise.all([
                 supabase
@@ -106,103 +111,65 @@ export default async function PortfolioPage({
             }
         }
 
-        const { data } = await supabase
-            .from("accounts")
-            .select("id, name, account_type, initial_balance, current_balance, plafond")
-            .eq("wallet_id", currentWalletId)
-            .eq("is_active", true);
-
+        const data = accountsData;
         const accountIds = (data ?? []).map((a) => a.id);
 
-        // Get last update date for each account from transactions
         const lastUpdates: Record<string, string | null> = {};
+        let pendingRows: { type: string; amount: number; account_from_id: string | null; account_to_id: string | null }[] =
+            [];
+
         if (accountIds.length > 0) {
-            const { data: transactionsFrom } = await supabase
-                .from("transactions")
-                .select("account_from_id, date")
-                .in("account_from_id", accountIds)
-                .order("date", { ascending: false });
+            const [rpcRes, pendingRes] = await Promise.all([
+                supabase.rpc("account_last_transaction_dates", {
+                    p_wallet_id: currentWalletId,
+                    p_account_ids: accountIds,
+                }),
+                supabase
+                    .from("transactions")
+                    .select("type, amount, account_from_id, account_to_id")
+                    .eq("wallet_id", currentWalletId)
+                    .eq("status", "pending")
+                    .eq("hold_balance", false),
+            ]);
+            pendingRows = (pendingRes.data ?? []) as typeof pendingRows;
 
-            const { data: transactionsTo } = await supabase
-                .from("transactions")
-                .select("account_to_id, date")
-                .in("account_to_id", accountIds)
-                .order("date", { ascending: false });
-
-            // Combine and find latest date for each account
-            for (const accId of accountIds) {
-                const fromDates = (transactionsFrom ?? [])
-                    .filter((m) => m.account_from_id === accId)
-                    .map((m) => m.date);
-                const toDates = (transactionsTo ?? [])
-                    .filter((m) => m.account_to_id === accId)
-                    .map((m) => m.date);
-                const allDates = [...fromDates, ...toDates].sort().reverse();
-                lastUpdates[accId] = allDates.length > 0 ? allDates[0] : null;
+            if (!rpcRes.error && Array.isArray(rpcRes.data)) {
+                for (const row of rpcRes.data as { account_id: string; last_date: string }[]) {
+                    if (row.account_id) {
+                        lastUpdates[row.account_id] = row.last_date ? String(row.last_date).slice(0, 10) : null;
+                    }
+                }
             }
-        }
-
-        // Fetch effective transactions used in running balance (confirmed + pending that hold no balance),
-        // so portfolio main balance stays aligned with expanded transaction balance evolution.
-        const [{ data: confirmedTx }, { data: pendingNoHoldTx }] = await Promise.all([
-            supabase
-                .from("transactions")
-                .select("type, amount, account_from_id, account_to_id")
-                .eq("wallet_id", currentWalletId)
-                .eq("status", "confirmed"),
-            supabase
-                .from("transactions")
-                .select("type, amount, account_from_id, account_to_id")
-                .eq("wallet_id", currentWalletId)
-                .eq("status", "pending")
-                .eq("hold_balance", false),
-        ]);
-        const effectiveTx = [...(confirmedTx ?? []), ...(pendingNoHoldTx ?? [])];
-
-        const deltaByAccount: Record<string, number> = {};
-        for (const tx of effectiveTx ?? []) {
-            const amt = Number(tx.amount);
-            if (tx.type === "income" && tx.account_to_id) {
-                deltaByAccount[tx.account_to_id] = (deltaByAccount[tx.account_to_id] ?? 0) + amt;
-            } else if (tx.type === "expense" && tx.account_from_id) {
-                deltaByAccount[tx.account_from_id] = (deltaByAccount[tx.account_from_id] ?? 0) - amt;
-            } else if (tx.type === "transfer") {
-                if (tx.account_from_id) deltaByAccount[tx.account_from_id] = (deltaByAccount[tx.account_from_id] ?? 0) - amt;
-                if (tx.account_to_id) deltaByAccount[tx.account_to_id] = (deltaByAccount[tx.account_to_id] ?? 0) + amt;
-            }
-        }
-
-        // Fetch pending transactions that did NOT hold balance (already applied to current_balance)
-        if (accountIds.length > 0) {
-            const { data: pendingTx } = await supabase
+        } else {
+            const { data: pendingOnly } = await supabase
                 .from("transactions")
                 .select("type, amount, account_from_id, account_to_id")
                 .eq("wallet_id", currentWalletId)
                 .eq("status", "pending")
                 .eq("hold_balance", false);
-
-            const pa: Record<string, number> = {};
-            for (const tx of pendingTx ?? []) {
-                const amt = Number(tx.amount);
-                if (tx.type === "income" && tx.account_to_id) {
-                    pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
-                } else if (tx.type === "expense" && tx.account_from_id) {
-                    pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
-                } else if (tx.type === "transfer") {
-                    if (tx.account_from_id) pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
-                    if (tx.account_to_id) pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
-                }
-            }
-            pendingAmounts = pa;
+            pendingRows = (pendingOnly ?? []) as typeof pendingRows;
         }
+
+        const pa: Record<string, number> = {};
+        for (const tx of pendingRows) {
+            const amt = Number(tx.amount);
+            if (tx.type === "income" && tx.account_to_id) {
+                pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
+            } else if (tx.type === "expense" && tx.account_from_id) {
+                pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
+            } else if (tx.type === "transfer") {
+                if (tx.account_from_id) pa[tx.account_from_id] = (pa[tx.account_from_id] ?? 0) - amt;
+                if (tx.account_to_id) pa[tx.account_to_id] = (pa[tx.account_to_id] ?? 0) + amt;
+            }
+        }
+        pendingAmounts = pa;
 
         accounts = (data ?? []).map((a) => ({
             id: a.id,
             name: a.name,
             account_type: (a.account_type ?? "bank_account") as AccountType,
             initial_balance: Number(a.initial_balance),
-            current_balance:
-                Number(a.initial_balance) + (deltaByAccount[a.id] ?? 0),
+            current_balance: Number(a.current_balance),
             last_update: lastUpdates[a.id] ?? null,
             plafond: a.plafond != null ? Number(a.plafond) : null,
         }));

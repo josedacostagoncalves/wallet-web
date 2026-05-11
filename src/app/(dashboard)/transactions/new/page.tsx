@@ -192,6 +192,9 @@ export default function NewTransactionPage() {
       if (m.type === "income") {
         setIncomeReceiverMemberId((m as { received_by_member_id?: string | null }).received_by_member_id ?? null);
       }
+      if ("subcategories" in m && Array.isArray(m.subcategories)) {
+        setSubcategories(m.subcategories);
+      }
       skipNextSubcategoryReset.current = true;
       didCopyFrom.current = true;
     });
@@ -304,7 +307,11 @@ export default function NewTransactionPage() {
     }
     setCategoryId(catId);
     setSubcategoryId(subId);
-    getSubcategories(catId).then(setSubcategories);
+    if ("subcategories" in m && Array.isArray(m.subcategories)) {
+      setSubcategories(m.subcategories);
+    } else {
+      getSubcategories(catId).then(setSubcategories);
+    }
     setError(null);
   }
 

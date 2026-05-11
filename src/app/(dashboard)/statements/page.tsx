@@ -4,12 +4,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useWallet } from "@/contexts/WalletContext";
-import {
-  getStatementsByCategory,
-  getSavingsInvestmentStatements,
-  getAvailableYears,
-  type StatementsViewMode,
-} from "@/app/actions/statements";
+import { getStatementsPagePayload, type StatementsViewMode } from "@/app/actions/statements";
 import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 import { StatementsTable } from "@/components/StatementsTable";
 
@@ -40,41 +35,16 @@ export default function StatementsPage() {
       setLoading(true);
       setError(null);
       try {
-        const years = await getAvailableYears(walletId, viewMode);
+        const payload = await getStatementsPagePayload(walletId, viewMode, selectedYear);
         if (cancelled) return;
-        setAvailableYears(years);
-
-        const currentYear = new Date().getFullYear();
-        const effectiveYear = years.includes(selectedYear)
-          ? selectedYear
-          : years.includes(currentYear)
-            ? currentYear
-            : years[0] ?? currentYear;
-
-        if (effectiveYear !== selectedYear) {
-          setSelectedYear(effectiveYear);
-          return;
+        setAvailableYears(payload.years);
+        if (payload.effectiveYear !== selectedYear) {
+          setSelectedYear(payload.effectiveYear);
         }
-
-        const dr = {
-          start: `${effectiveYear}-01-01`,
-          end: `${effectiveYear}-12-31`,
-        };
-        setDateRange(dr);
-
-        if (viewMode === "incomeExpenses") {
-          const data = await getStatementsByCategory(walletId, dr.start, dr.end);
-          if (cancelled) return;
-          setIncomeData(data.income);
-          setExpenseData(data.expenses);
-          setSavingsInvestmentsData([]);
-        } else {
-          const data = await getSavingsInvestmentStatements(walletId, dr.start, dr.end);
-          if (cancelled) return;
-          setSavingsInvestmentsData(data);
-          setIncomeData([]);
-          setExpenseData([]);
-        }
+        setDateRange(payload.dateRange);
+        setIncomeData(payload.income);
+        setExpenseData(payload.expenses);
+        setSavingsInvestmentsData(payload.savingsInvestments);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : t("errorFailed"));

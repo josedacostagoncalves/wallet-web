@@ -12,6 +12,8 @@ import { transactionRowBgClass } from "@/lib/transaction-row-style";
 import { UserIcon } from "@/components/UserIcon";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { loadMoreHubConfirmedTransactions } from "@/app/actions/transactions-hub";
+import { TRANSACTIONS_HUB_CONFIRMED_PAGE_SIZE } from "@/lib/transactions-hub-row-mapper";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -37,27 +39,44 @@ export type ConfirmedRow = {
   postedFromWalletName: string | null;
 };
 
-type Props = { confirmed: ConfirmedRow[]; isSplitOnly: boolean };
+type Props = {
+  confirmed: ConfirmedRow[];
+  isSplitOnly: boolean;
+  confirmedHubHasMore?: boolean;
+};
 
 type FilterState = {
   types: Set<string>;
   dateFrom: string;
   dateTo: string;
-  category: string;
-  subcategory: string;
+  /** When non-empty, row category label must be one of these (exact match). */
+  categoryLabels: Set<string>;
+  /** When non-empty, row subcategory label must be one of these (exact match). */
+  subcategoryLabels: Set<string>;
   amountMin: string;
   amountMax: string;
+  /** When non-empty, row `accountFromName` must be one of these (exact match). */
+  accountFromNames: Set<string>;
+  /** When non-empty, row `accountToName` must be one of these (exact match). */
+  accountToNames: Set<string>;
 };
 
 const defaultFilter: FilterState = {
   types: new Set(),
   dateFrom: "",
   dateTo: "",
-  category: "",
-  subcategory: "",
+  categoryLabels: new Set(),
+  subcategoryLabels: new Set(),
   amountMin: "",
   amountMax: "",
+  accountFromNames: new Set(),
+  accountToNames: new Set(),
 };
+
+function isRealLabel(value: string): boolean {
+  const v = (value ?? "").trim();
+  return v !== "" && v !== "—";
+}
 
 function matchSearch(t: ConfirmedRow, q: string): boolean {
   const qq = q.trim().toLowerCase();
@@ -87,21 +106,54 @@ function filterValue(t: ConfirmedRow): number {
   return Math.abs(t.amount);
 }
 
-function matchFilter(t: ConfirmedRow, f: FilterState): boolean {
+/** Omit parts of the filter when building contextual option lists (e.g. From names exclude the From filter). */
+type FilterOmit = {
+  category?: boolean;
+  subcategory?: boolean;
+  accountFrom?: boolean;
+  accountTo?: boolean;
+};
+
+function matchFilter(t: ConfirmedRow, f: FilterState, omit?: FilterOmit): boolean {
   if (f.types.size > 0 && !f.types.has(t.type)) return false;
   const d = t.date.slice(0, 10);
   if (f.dateFrom && d < f.dateFrom) return false;
   if (f.dateTo && d > f.dateTo) return false;
   const cat = t.categoryLabel || "—";
   const sub = t.subcategoryLabel || "—";
-  if (f.category && cat !== f.category) return false;
-  if (f.subcategory && sub !== f.subcategory) return false;
+  if (!omit?.category && f.categoryLabels.size > 0 && !f.categoryLabels.has(cat)) return false;
+  if (!omit?.subcategory && f.subcategoryLabels.size > 0 && !f.subcategoryLabels.has(sub)) return false;
   const v = filterValue(t);
   const min = f.amountMin.trim() ? Number.parseFloat(f.amountMin) : NaN;
   const max = f.amountMax.trim() ? Number.parseFloat(f.amountMax) : NaN;
   if (!Number.isNaN(min) && v < min) return false;
-  if (!Number.isNaN(max) && v > max) return false;
+  if (!omit?.accountFrom && f.accountFromNames.size > 0 && !f.accountFromNames.has(t.accountFromName))
+    return false;
+  if (!omit?.accountTo && f.accountToNames.size > 0 && !f.accountToNames.has(t.accountToName)) return false;
   return true;
+}
+
+function periodStartKey(periodBlocks: number): string {
+  const now = new Date();
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const totalDays = Math.max(30, periodBlocks * 30);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - (totalDays - 1));
+  return start.toISOString().slice(0, 10);
+}
+
+/** For filter popovers: use full loaded data (no default period window). With search, still scope to search matches. */
+function rowMatchesForOptions(
+  row: ConfirmedRow,
+  search: string,
+  f: FilterState,
+  omit?: FilterOmit
+): boolean {
+  const query = search.trim();
+  if (query) {
+    return matchSearch(row, query) && matchFilter(row, f, omit);
+  }
+  return matchFilter(row, f, omit);
 }
 
 function SortDirectionIcon({ direction }: { direction: "desc" | "asc" }) {
@@ -144,10 +196,18 @@ function FilterIcon({ className = "" }: { className?: string }) {
   );
 }
 
-export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
+export function AllTransactionsSection({
+  confirmed,
+  isSplitOnly,
+  confirmedHubHasMore = false,
+}: Props) {
   const t = useTranslations("transactions.allMovements");
   const tType = useTranslations("transactions");
   const locale = useLocale();
+  const [extraConfirmed, setExtraConfirmed] = useState<ConfirmedRow[]>([]);
+  const [hubHasMore, setHubHasMore] = useState(!!confirmedHubHasMore);
+  const [hubLoading, setHubLoading] = useState(false);
+  const [hubError, setHubError] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const [search, setSearch] = useState("");
   const [periodBlocks, setPeriodBlocks] = useState(1);
@@ -158,60 +218,112 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     direction: "desc" | "asc" | null;
   }>({ key: null, direction: null });
   const [popoverStyle, setPopoverStyle] = useState<{ top: number; left: number } | null>(null);
+  const [headerFilterOpen, setHeaderFilterOpen] = useState<
+    null | "from" | "to" | "category" | "subcategory"
+  >(null);
+  const [headerPopoverStyle, setHeaderPopoverStyle] = useState<{ top: number; left: number } | null>(
+    null
+  );
   const filterRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const fromAccountHeaderBtnRef = useRef<HTMLButtonElement>(null);
+  const toAccountHeaderBtnRef = useRef<HTMLButtonElement>(null);
+  const categoryHeaderBtnRef = useRef<HTMLButtonElement>(null);
+  const subcategoryHeaderBtnRef = useRef<HTMLButtonElement>(null);
+  const headerPopoverRef = useRef<HTMLDivElement>(null);
   const POPOVER_W = 320;
 
-  const { categories, categoryToSubs, maxAmount } = useMemo(() => {
-    const cats = new Set<string>();
-    const catToSub = new Map<string, Set<string>>();
+  const hubResetKey = `${confirmed.length}:${confirmed[0]?.id ?? ""}:${confirmed[confirmed.length - 1]?.id ?? ""}:${confirmedHubHasMore}`;
+  useEffect(() => {
+    setExtraConfirmed([]);
+    setHubHasMore(!!confirmedHubHasMore);
+    setHubError(false);
+  }, [hubResetKey, confirmedHubHasMore]);
+
+  const mergedConfirmed = useMemo(
+    () => [...confirmed, ...extraConfirmed],
+    [confirmed, extraConfirmed]
+  );
+
+  const loadOlderConfirmed = useCallback(async () => {
+    setHubLoading(true);
+    setHubError(false);
+    const offset = confirmed.length + extraConfirmed.length;
+    try {
+      const res = await loadMoreHubConfirmedTransactions(offset);
+      if (res.error) {
+        setHubError(true);
+        return;
+      }
+      setExtraConfirmed((prev) => [...prev, ...res.rows]);
+      setHubHasMore(res.hasMore);
+    } catch {
+      setHubError(true);
+    } finally {
+      setHubLoading(false);
+    }
+  }, [confirmed.length, extraConfirmed.length]);
+
+  const maxAmount = useMemo(() => {
     let max = 0;
-    for (const t of confirmed) {
-      const c = t.categoryLabel || "—";
-      const s = t.subcategoryLabel || "—";
-      cats.add(c);
-      if (!catToSub.has(c)) catToSub.set(c, new Set());
-      catToSub.get(c)!.add(s);
-      const v = filterValue(t);
+    for (const row of mergedConfirmed) {
+      const v = filterValue(row);
       if (v > max) max = v;
     }
-    return {
-      categories: Array.from(cats).sort(),
-      categoryToSubs: catToSub,
-      maxAmount: max,
-    };
-  }, [confirmed]);
+    return max;
+  }, [mergedConfirmed]);
 
-  const subcategories = useMemo(() => {
-    if (!filter.category) {
-      const all = new Set<string>();
-      for (const s of Array.from(categoryToSubs.values())) {
-        for (const x of Array.from(s)) all.add(x);
-      }
-      return Array.from(all).sort();
+  const categoryFilterOptions = useMemo(() => {
+    const cats = new Set<string>();
+    for (const row of mergedConfirmed) {
+      if (!rowMatchesForOptions(row, search, filter, { category: true })) continue;
+      const c = row.categoryLabel || "—";
+      if (isRealLabel(c)) cats.add(c);
     }
-    return Array.from(categoryToSubs.get(filter.category) ?? []).sort();
-  }, [filter.category, categoryToSubs]);
+    return Array.from(cats).sort((a, b) => a.localeCompare(b, locale));
+  }, [mergedConfirmed, search, filter, locale]);
+
+  const subcategoryFilterOptions = useMemo(() => {
+    const subs = new Set<string>();
+    for (const row of mergedConfirmed) {
+      if (!rowMatchesForOptions(row, search, filter, { subcategory: true })) continue;
+      const sub = row.subcategoryLabel || "—";
+      if (isRealLabel(sub)) subs.add(sub);
+    }
+    return Array.from(subs).sort((a, b) => a.localeCompare(b, locale));
+  }, [mergedConfirmed, search, filter, locale]);
+
+  const accountFromOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of mergedConfirmed) {
+      if (!rowMatchesForOptions(row, search, filter, { accountFrom: true })) continue;
+      const n = row.accountFromName ?? "";
+      if (isRealLabel(n)) names.add(n);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, locale));
+  }, [mergedConfirmed, search, filter, locale]);
+
+  const accountToOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of mergedConfirmed) {
+      if (!rowMatchesForOptions(row, search, filter, { accountTo: true })) continue;
+      const n = row.accountToName ?? "";
+      if (isRealLabel(n)) names.add(n);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, locale));
+  }, [mergedConfirmed, search, filter, locale]);
 
   const filtered = useMemo(
     () => {
       const query = search.trim();
       if (query) {
-        return confirmed.filter((t) => matchSearch(t, query) && matchFilter(t, filter));
+        return mergedConfirmed.filter((t) => matchSearch(t, query) && matchFilter(t, filter));
       }
-
-      const now = new Date();
-      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-      const totalDays = Math.max(30, periodBlocks * 30);
-      const start = new Date(end);
-      start.setUTCDate(start.getUTCDate() - (totalDays - 1));
-      const startKey = start.toISOString().slice(0, 10);
-      return confirmed.filter(
-        (t) => t.date.slice(0, 10) >= startKey && matchFilter(t, filter)
-      );
+      const startKey = periodStartKey(periodBlocks);
+      return mergedConfirmed.filter((t) => t.date.slice(0, 10) >= startKey && matchFilter(t, filter));
     },
-    [confirmed, search, filter, periodBlocks]
+    [mergedConfirmed, search, filter, periodBlocks]
   );
 
   const setNextSort = useCallback((key: "date" | "amount") => {
@@ -275,8 +387,8 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     const start = new Date(end);
     start.setUTCDate(start.getUTCDate() - (totalDays - 1));
     const startKey = start.toISOString().slice(0, 10);
-    return confirmed.some((t) => t.date.slice(0, 10) < startKey);
-  }, [confirmed, search, periodBlocks]);
+    return mergedConfirmed.some((t) => t.date.slice(0, 10) < startKey);
+  }, [mergedConfirmed, search, periodBlocks]);
 
   useEffect(() => {
     if (!search.trim()) return;
@@ -287,16 +399,26 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     filter.types.size > 0 ||
     !!filter.dateFrom ||
     !!filter.dateTo ||
-    !!filter.category ||
-    !!filter.subcategory ||
+    filter.categoryLabels.size > 0 ||
+    filter.subcategoryLabels.size > 0 ||
     !!filter.amountMin.trim() ||
-    !!filter.amountMax.trim();
+    !!filter.amountMax.trim() ||
+    filter.accountFromNames.size > 0 ||
+    filter.accountToNames.size > 0;
 
   const showFilteredTotals = !!search.trim() || hasActiveFilter;
 
   const clearFilter = useCallback(() => {
-    setFilter(defaultFilter);
+    setFilter({
+      ...defaultFilter,
+      types: new Set(),
+      categoryLabels: new Set(),
+      subcategoryLabels: new Set(),
+      accountFromNames: new Set(),
+      accountToNames: new Set(),
+    });
     setFilterOpen(false);
+    setHeaderFilterOpen(null);
   }, []);
 
   const updatePopoverPosition = useCallback(() => {
@@ -325,6 +447,41 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     };
   }, [filterOpen, updatePopoverPosition]);
 
+  const updateHeaderPopoverPosition = useCallback(() => {
+    const side = headerFilterOpen;
+    if (!side) return;
+    const btn =
+      side === "from"
+        ? fromAccountHeaderBtnRef.current
+        : side === "to"
+          ? toAccountHeaderBtnRef.current
+          : side === "category"
+            ? categoryHeaderBtnRef.current
+            : subcategoryHeaderBtnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    let left = rect.left;
+    if (left + POPOVER_W > window.innerWidth - 8) left = window.innerWidth - POPOVER_W - 8;
+    if (left < 8) left = 8;
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const top = spaceBelow >= 280 ? rect.bottom + 4 : Math.max(8, rect.top - 280);
+    setHeaderPopoverStyle({ top, left });
+  }, [headerFilterOpen]);
+
+  useEffect(() => {
+    if (!headerFilterOpen) {
+      setHeaderPopoverStyle(null);
+      return;
+    }
+    updateHeaderPopoverPosition();
+    window.addEventListener("resize", updateHeaderPopoverPosition);
+    window.addEventListener("scroll", updateHeaderPopoverPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateHeaderPopoverPosition);
+      window.removeEventListener("scroll", updateHeaderPopoverPosition, true);
+    };
+  }, [headerFilterOpen, updateHeaderPopoverPosition]);
+
   const toggleType = useCallback((type: string) => {
     setFilter((prev) => {
       const next = new Set(prev.types);
@@ -338,12 +495,84 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
     if (!filterOpen) return;
     function handleClick(e: MouseEvent) {
       const target = e.target as Node;
-      if (filterRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
+      if (
+        filterRef.current?.contains(target) ||
+        popoverRef.current?.contains(target) ||
+        headerPopoverRef.current?.contains(target)
+      )
+        return;
       setFilterOpen(false);
     }
     document.addEventListener("click", handleClick, true);
     return () => document.removeEventListener("click", handleClick, true);
   }, [filterOpen]);
+
+  useEffect(() => {
+    if (!headerFilterOpen) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Node;
+      if (headerPopoverRef.current?.contains(target)) return;
+      if (fromAccountHeaderBtnRef.current?.contains(target)) return;
+      if (toAccountHeaderBtnRef.current?.contains(target)) return;
+      if (categoryHeaderBtnRef.current?.contains(target)) return;
+      if (subcategoryHeaderBtnRef.current?.contains(target)) return;
+      setHeaderFilterOpen(null);
+    }
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
+  }, [headerFilterOpen]);
+
+  const toggleFromAccountName = useCallback((name: string) => {
+    setFilter((prev) => {
+      const next = new Set(prev.accountFromNames);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return { ...prev, accountFromNames: next };
+    });
+  }, []);
+
+  const toggleToAccountName = useCallback((name: string) => {
+    setFilter((prev) => {
+      const next = new Set(prev.accountToNames);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return { ...prev, accountToNames: next };
+    });
+  }, []);
+
+  const clearFromAccountFilter = useCallback(() => {
+    setFilter((prev) => ({ ...prev, accountFromNames: new Set() }));
+  }, []);
+
+  const clearToAccountFilter = useCallback(() => {
+    setFilter((prev) => ({ ...prev, accountToNames: new Set() }));
+  }, []);
+
+  const toggleCategoryLabel = useCallback((label: string) => {
+    setFilter((prev) => {
+      const next = new Set(prev.categoryLabels);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return { ...prev, categoryLabels: next };
+    });
+  }, []);
+
+  const toggleSubcategoryLabel = useCallback((label: string) => {
+    setFilter((prev) => {
+      const next = new Set(prev.subcategoryLabels);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return { ...prev, subcategoryLabels: next };
+    });
+  }, []);
+
+  const clearCategoryFilter = useCallback(() => {
+    setFilter((prev) => ({ ...prev, categoryLabels: new Set() }));
+  }, []);
+
+  const clearSubcategoryFilter = useCallback(() => {
+    setFilter((prev) => ({ ...prev, subcategoryLabels: new Set() }));
+  }, []);
 
   const splitMethodLabel = (method: ConfirmedRow["splitMethod"]) => {
     if (method === "manual") return "Manual";
@@ -402,7 +631,7 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
       </button>
       {expanded && (
         <>
-          {confirmed.length > 0 && (
+          {mergedConfirmed.length > 0 && (
             <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/30">
               <div className="flex gap-2 items-center">
                 <label htmlFor="all-transactions-search" className="sr-only">
@@ -445,7 +674,10 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                   <button
                     ref={filterButtonRef}
                     type="button"
-                    onClick={() => setFilterOpen((o) => !o)}
+                    onClick={() => {
+                      setHeaderFilterOpen(null);
+                      setFilterOpen((o) => !o);
+                    }}
                     className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${hasActiveFilter
                       ? "border-slate-500 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-100"
                       : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -519,38 +751,48 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                           </div>
                         </div>
                         <div>
-                          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.category")}</label>
-                          <select
-                            id="filter-category"
-                            value={filter.category}
-                            onChange={(e) =>
-                              setFilter((f) => ({
-                                ...f,
-                                category: e.target.value,
-                                subcategory: "",
-                              }))
-                            }
-                            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
-                          >
-                            <option value="">{t("filterDialog.all")}</option>
-                            {categories.map((c) => (
-                              <option key={c} value={c}>{c}</option>
-                            ))}
-                          </select>
+                          <p className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">{t("filterDialog.category")}</p>
+                          {categoryFilterOptions.length === 0 ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                          ) : (
+                            <ul className="max-h-36 space-y-2 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 p-2">
+                              {categoryFilterOptions.map((c) => (
+                                <li key={c}>
+                                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={filter.categoryLabels.has(c)}
+                                      onChange={() => toggleCategoryLabel(c)}
+                                      className="rounded border-slate-300"
+                                    />
+                                    <span className="truncate">{c}</span>
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                         <div>
-                          <label htmlFor="filter-subcategory" className="block text-xs font-medium text-slate-600 mb-1">{t("filterDialog.subcategory")}</label>
-                          <select
-                            id="filter-subcategory"
-                            value={filter.subcategory}
-                            onChange={(e) => setFilter((f) => ({ ...f, subcategory: e.target.value }))}
-                            className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-sm text-slate-800 dark:text-slate-100"
-                          >
-                            <option value="">{t("filterDialog.all")}</option>
-                            {subcategories.map((s) => (
-                              <option key={s} value={s}>{s}</option>
-                            ))}
-                          </select>
+                          <p className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">{t("filterDialog.subcategory")}</p>
+                          {subcategoryFilterOptions.length === 0 ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                          ) : (
+                            <ul className="max-h-36 space-y-2 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 p-2">
+                              {subcategoryFilterOptions.map((s) => (
+                                <li key={s}>
+                                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                    <input
+                                      type="checkbox"
+                                      checked={filter.subcategoryLabels.has(s)}
+                                      onChange={() => toggleSubcategoryLabel(s)}
+                                      className="rounded border-slate-300"
+                                    />
+                                    <span className="truncate">{s}</span>
+                                  </label>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                         <div>
                           <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">{t("filterDialog.amountRange")}</p>
@@ -632,11 +874,162 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     </div>,
                     document.body
                   )}
+                {headerFilterOpen &&
+                  headerPopoverStyle &&
+                  typeof document !== "undefined" &&
+                  createPortal(
+                    <div
+                      ref={headerPopoverRef}
+                      role="dialog"
+                      aria-label={
+                        headerFilterOpen === "from"
+                          ? t("table.filterFromAccountsTitle")
+                          : headerFilterOpen === "to"
+                            ? t("table.filterToAccountsTitle")
+                            : headerFilterOpen === "category"
+                              ? t("table.filterCategoriesTitle")
+                              : t("table.filterSubcategoriesTitle")
+                      }
+                      className="fixed z-[201] w-80 max-h-[min(280px,calc(100vh-32px))] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-lg"
+                      style={{ top: headerPopoverStyle.top, left: headerPopoverStyle.left }}
+                    >
+                      <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">
+                        {headerFilterOpen === "from"
+                          ? t("table.filterFromAccountsTitle")
+                          : headerFilterOpen === "to"
+                            ? t("table.filterToAccountsTitle")
+                            : headerFilterOpen === "category"
+                              ? t("table.filterCategoriesTitle")
+                              : t("table.filterSubcategoriesTitle")}
+                      </h4>
+                      {headerFilterOpen === "from" ? (
+                        accountFromOptions.length === 0 ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                        ) : (
+                          <ul className="space-y-2 mb-3">
+                            {accountFromOptions.map((name) => (
+                              <li key={`from-${name}`}>
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={filter.accountFromNames.has(name)}
+                                    onChange={() => toggleFromAccountName(name)}
+                                    className="rounded border-slate-300"
+                                  />
+                                  <span className="truncate">{name}</span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      ) : headerFilterOpen === "to" ? (
+                        accountToOptions.length === 0 ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                        ) : (
+                          <ul className="space-y-2 mb-3">
+                            {accountToOptions.map((name) => (
+                              <li key={`to-${name}`}>
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={filter.accountToNames.has(name)}
+                                    onChange={() => toggleToAccountName(name)}
+                                    className="rounded border-slate-300"
+                                  />
+                                  <span className="truncate">{name}</span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      ) : headerFilterOpen === "category" ? (
+                        categoryFilterOptions.length === 0 ? (
+                          <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                        ) : (
+                          <ul className="space-y-2 mb-3">
+                            {categoryFilterOptions.map((c) => (
+                              <li key={`cat-${c}`}>
+                                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={filter.categoryLabels.has(c)}
+                                    onChange={() => toggleCategoryLabel(c)}
+                                    className="rounded border-slate-300"
+                                  />
+                                  <span className="truncate">{c}</span>
+                                </label>
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      ) : subcategoryFilterOptions.length === 0 ? (
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{t("table.accountFilterEmpty")}</p>
+                      ) : (
+                        <ul className="space-y-2 mb-3">
+                          {subcategoryFilterOptions.map((s) => (
+                            <li key={`sub-${s}`}>
+                              <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 dark:text-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={filter.subcategoryLabels.has(s)}
+                                  onChange={() => toggleSubcategoryLabel(s)}
+                                  className="rounded border-slate-300"
+                                />
+                                <span className="truncate">{s}</span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {headerFilterOpen === "from" ? (
+                        filter.accountFromNames.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearFromAccountFilter}
+                            className="text-xs font-medium text-slate-600 dark:text-slate-300 underline hover:no-underline"
+                          >
+                            {t("table.clearAccountFilter")}
+                          </button>
+                        )
+                      ) : headerFilterOpen === "to" ? (
+                        filter.accountToNames.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearToAccountFilter}
+                            className="text-xs font-medium text-slate-600 dark:text-slate-300 underline hover:no-underline"
+                          >
+                            {t("table.clearAccountFilter")}
+                          </button>
+                        )
+                      ) : headerFilterOpen === "category" ? (
+                        filter.categoryLabels.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearCategoryFilter}
+                            className="text-xs font-medium text-slate-600 dark:text-slate-300 underline hover:no-underline"
+                          >
+                            {t("table.clearAccountFilter")}
+                          </button>
+                        )
+                      ) : (
+                        filter.subcategoryLabels.size > 0 && (
+                          <button
+                            type="button"
+                            onClick={clearSubcategoryFilter}
+                            className="text-xs font-medium text-slate-600 dark:text-slate-300 underline hover:no-underline"
+                          >
+                            {t("table.clearAccountFilter")}
+                          </button>
+                        )
+                      )}
+                    </div>,
+                    document.body
+                  )}
               </div>
             </div>
           )}
           <div className="overflow-x-auto border-t border-slate-200 dark:border-slate-800">
-            {confirmed.length === 0 ? (
+            {mergedConfirmed.length === 0 ? (
               <div className="p-6 text-xs text-slate-500">
                 {t.rich("empty", {
                   link: (chunks) => (
@@ -709,11 +1102,94 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                         </button>
                       </th>
                       <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">{t("table.description")}</th>
-                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
-                        {t("table.categorySubcategory")}
+                      <th scope="col" className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
+                        <span className="inline-flex items-center gap-1 flex-wrap">
+                          <button
+                            ref={categoryHeaderBtnRef}
+                            type="button"
+                            onClick={() => {
+                              setFilterOpen(false);
+                              setHeaderFilterOpen((prev) => (prev === "category" ? null : "category"));
+                            }}
+                            className={`rounded px-0.5 -mx-0.5 font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${filter.categoryLabels.size > 0
+                              ? "text-slate-900 dark:text-slate-100 underline decoration-slate-400 dark:decoration-slate-500"
+                              : "text-slate-600 dark:text-slate-300"
+                              }`}
+                            aria-expanded={headerFilterOpen === "category"}
+                            aria-haspopup="dialog"
+                            title={t("table.filterCategoriesTitle")}
+                          >
+                            {t("table.categoryColumn")}
+                          </button>
+                          <span className="text-slate-400 dark:text-slate-500 select-none" aria-hidden>
+                            ::
+                          </span>
+                          <button
+                            ref={subcategoryHeaderBtnRef}
+                            type="button"
+                            onClick={() => {
+                              setFilterOpen(false);
+                              setHeaderFilterOpen((prev) => (prev === "subcategory" ? null : "subcategory"));
+                            }}
+                            className={`rounded px-0.5 -mx-0.5 font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${filter.subcategoryLabels.size > 0
+                              ? "text-slate-900 dark:text-slate-100 underline decoration-slate-400 dark:decoration-slate-500"
+                              : "text-slate-600 dark:text-slate-300"
+                              }`}
+                            aria-expanded={headerFilterOpen === "subcategory"}
+                            aria-haspopup="dialog"
+                            title={t("table.filterSubcategoriesTitle")}
+                          >
+                            {t("table.subcategoryColumn")}
+                          </button>
+                        </span>
                       </th>
-                      <th className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300">
-                        {isSplitOnly ? "Paid by -> Received by" : t("table.fromTo")}
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-left font-medium text-slate-600 dark:text-slate-300"
+                      >
+                        {isSplitOnly ? (
+                          "Paid by -> Received by"
+                        ) : (
+                          <span className="inline-flex items-center gap-1 flex-wrap">
+                            <button
+                              ref={fromAccountHeaderBtnRef}
+                              type="button"
+                              onClick={() => {
+                                setFilterOpen(false);
+                                setHeaderFilterOpen((prev) => (prev === "from" ? null : "from"));
+                              }}
+                              className={`rounded px-0.5 -mx-0.5 font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${filter.accountFromNames.size > 0
+                                ? "text-slate-900 dark:text-slate-100 underline decoration-slate-400 dark:decoration-slate-500"
+                                : "text-slate-600 dark:text-slate-300"
+                                }`}
+                              aria-expanded={headerFilterOpen === "from"}
+                              aria-haspopup="dialog"
+                              title={t("table.filterFromAccountsTitle")}
+                            >
+                              {t("table.fromColumn")}
+                            </button>
+                            <span className="text-slate-400 dark:text-slate-500 select-none" aria-hidden>
+                              →
+                            </span>
+                            <button
+                              ref={toAccountHeaderBtnRef}
+                              type="button"
+                              onClick={() => {
+                                setFilterOpen(false);
+                                setHeaderFilterOpen((prev) => (prev === "to" ? null : "to"));
+                              }}
+                              className={`rounded px-0.5 -mx-0.5 font-medium hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${filter.accountToNames.size > 0
+                                ? "text-slate-900 dark:text-slate-100 underline decoration-slate-400 dark:decoration-slate-500"
+                                : "text-slate-600 dark:text-slate-300"
+                                }`}
+                              aria-expanded={headerFilterOpen === "to"}
+                              aria-haspopup="dialog"
+                              title={t("table.filterToAccountsTitle")}
+                            >
+                              {t("table.toColumn")}
+                            </button>
+                          </span>
+                        )}
                       </th>
                       <th className="px-4 py-2 text-center font-medium text-slate-600 dark:text-slate-300 w-16">
                         <span className="sr-only">{t("table.symbolsColumn")}</span>
@@ -910,6 +1386,24 @@ export function AllTransactionsSection({ confirmed, isSplitOnly }: Props) {
                     </tfoot>
                   )}
                 </table>
+                {(hubHasMore || hubLoading || hubError) && (
+                  <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-2">
+                    {hubError && (
+                      <p className="text-sm text-red-600 dark:text-red-400 text-center">{t("hubLoadOlderError")}</p>
+                    )}
+                    {hubHasMore && (
+                      <button
+                        type="button"
+                        onClick={() => void loadOlderConfirmed()}
+                        disabled={hubLoading}
+                        className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60"
+                        aria-busy={hubLoading}
+                      >
+                        {hubLoading ? t("hubLoadingOlder") : t("hubLoadOlder", { count: TRANSACTIONS_HUB_CONFIRMED_PAGE_SIZE })}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {!search.trim() && hasMoreByPeriod && (
                   <div className="px-4 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center">
                     <button

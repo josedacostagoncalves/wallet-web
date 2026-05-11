@@ -32,11 +32,12 @@ export function useTransactionModalReferenceData(
 
   useEffect(() => {
     if (!open || !currentWalletId) return;
-    getAccounts(currentWalletId).then(setAccounts);
     Promise.all([
+      getAccounts(currentWalletId),
       getCategories(currentWalletId, transactionType),
       getCategoriesFlatForSearch(currentWalletId, transactionType),
-    ]).then(([cats, flat]) => {
+    ]).then(([accs, cats, flat]) => {
+      setAccounts(accs);
       setCategories(cats);
       setCategoriesFlat(flat);
     });

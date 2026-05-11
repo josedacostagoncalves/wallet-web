@@ -570,6 +570,16 @@
                 "description": "Description",
                 "categorySubcategory": "Catégorie :: Sous-catégorie",
                 "fromTo": "De → À",
+                "fromColumn": "De",
+                "toColumn": "À",
+                "filterFromAccountsTitle": "Filtrer par compte (source)",
+                "filterToAccountsTitle": "Filtrer par compte (destination)",
+                "clearAccountFilter": "Effacer la sélection",
+                "accountFilterEmpty": "Aucun compte dans cette liste",
+                "categoryColumn": "Catégorie",
+                "subcategoryColumn": "Sous-catégorie",
+                "filterCategoriesTitle": "Filtrer par catégorie",
+                "filterSubcategoriesTitle": "Filtrer par sous-catégorie",
                 "symbolsColumn": "Pièces jointes et indicateur essentiel",
                 "hasAttachment": "Fichier joint",
                 "essentialExpense": "Dépense essentielle",
@@ -591,7 +601,10 @@
             "searchOr": "ou",
             "clearSearchLink": "Effacer la recherche",
             "clearFiltersLink": "Effacer les filtres",
-            "showMore30Days": "Afficher plus (30 jours)"
+            "showMore30Days": "Afficher plus (30 jours)",
+            "hubLoadOlder": "Charger {count} plus anciennes",
+            "hubLoadingOlder": "Chargement…",
+            "hubLoadOlderError": "Impossible de charger des transactions plus anciennes. Réessayez."
         },
         "recurring": {
             "title": "Récurrentes",

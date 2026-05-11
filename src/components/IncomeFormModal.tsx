@@ -191,7 +191,10 @@ export function IncomeFormModal({
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setLoadingData(false);
       });
@@ -224,7 +227,10 @@ export function IncomeFormModal({
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setLoadingData(false);
       });

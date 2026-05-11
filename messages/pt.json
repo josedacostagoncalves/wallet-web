@@ -570,6 +570,16 @@
                 "description": "Descrição",
                 "categorySubcategory": "Categoria :: Subcategoria",
                 "fromTo": "De → Para",
+                "fromColumn": "De",
+                "toColumn": "Para",
+                "filterFromAccountsTitle": "Filtrar por conta (origem)",
+                "filterToAccountsTitle": "Filtrar por conta (destino)",
+                "clearAccountFilter": "Limpar seleção",
+                "accountFilterEmpty": "Sem contas nesta lista",
+                "categoryColumn": "Categoria",
+                "subcategoryColumn": "Subcategoria",
+                "filterCategoriesTitle": "Filtrar por categoria",
+                "filterSubcategoriesTitle": "Filtrar por subcategoria",
                 "symbolsColumn": "Anexos e indicador de essencial",
                 "hasAttachment": "Tem ficheiro anexado",
                 "essentialExpense": "Despesa essencial",
@@ -591,7 +601,10 @@
             "searchOr": "ou",
             "clearSearchLink": "Limpar pesquisa",
             "clearFiltersLink": "Limpar filtros",
-            "showMore30Days": "Mostrar mais (30 dias)"
+            "showMore30Days": "Mostrar mais (30 dias)",
+            "hubLoadOlder": "Carregar {count} mais antigas",
+            "hubLoadingOlder": "A carregar…",
+            "hubLoadOlderError": "Não foi possível carregar transações mais antigas. Tente novamente."
         },
         "recurring": {
             "title": "Recorrentes",

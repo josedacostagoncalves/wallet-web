@@ -246,7 +246,10 @@ export function ExpenseFormModal({
         setCategoryId(catId);
         setSubcategoryId(subId);
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setEssentialMode(dbToEssentialMode((m as { is_essential?: boolean | null }).is_essential));
         setLoadingData(false);
@@ -292,7 +295,10 @@ export function ExpenseFormModal({
         setSubcategoryId(subId);
         setSaveAsPending(m.status === "pending");
         skipNextSubcategoryReset.current = true;
-        const subs = await getSubcategories(catId);
+        const subs =
+          "subcategories" in m && Array.isArray(m.subcategories)
+            ? m.subcategories
+            : await getSubcategories(catId);
         setSubcategories(subs);
         setEssentialMode(dbToEssentialMode((m as { is_essential?: boolean | null }).is_essential));
         setLoadingData(false);

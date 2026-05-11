@@ -227,6 +227,17 @@ export async function getStatementsByCategory(
         data: { user },
     } = await supabase.auth.getUser();
 
+    const catsPromise = supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .eq("wallet_id", walletId);
+    const receiverIdsPromise =
+        user?.id != null
+            ? getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id)
+            : Promise.resolve(null as string[] | null);
+
+    const [{ data: walletCategories }, receiverIds] = await Promise.all([catsPromise, receiverIdsPromise]);
+
     // Fetch all transactions for the wallet in the date range with category info
     // Exclude transfers - only show income and expense
     const txQuery = supabase
@@ -237,12 +248,12 @@ export async function getStatementsByCategory(
         .gte("date", startDate)
         .lte("date", endDate)
         .order("date", { ascending: false });
-    if (user?.id) {
-        const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
+    if (user?.id && receiverIds) {
         txQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
     } else {
         txQuery.eq("wallet_id", walletId);
     }
+
     const { data: transactions, error } = await txQuery;
 
     if (error) {
@@ -254,10 +265,6 @@ export async function getStatementsByCategory(
     const expenseMap = new Map<string, StatementRow>();
 
     // Build category map from wallet categories + any category/parent used by cross-wallet incomes.
-    const { data: walletCategories } = await supabase
-        .from("categories")
-        .select("id, name, parent_id")
-        .eq("wallet_id", walletId);
     const categoryMap = buildCategoryMap(walletCategories || []);
     const categoryIdsNeeded = new Set<string>();
     (transactions as any as TransactionWithCategory[]).forEach((transaction) => {
@@ -310,6 +317,56 @@ export async function getStatementsByCategory(
     return {
         income: formatStatements(incomeMap),
         expenses: formatStatements(expenseMap),
+    };
+}
+
+/** One server round-trip: years + tables for the resolved year (avoids sequential client waterfalls). */
+export async function getStatementsPagePayload(
+    walletId: string,
+    viewMode: StatementsViewMode,
+    selectedYear: number
+): Promise<{
+    years: number[];
+    effectiveYear: number;
+    dateRange: { start: string; end: string } | null;
+    income: StatementRow[];
+    expenses: StatementRow[];
+    savingsInvestments: StatementRow[];
+}> {
+    const years = await getAvailableYears(walletId, viewMode);
+    const currentYear = new Date().getFullYear();
+    const effectiveYear = years.includes(selectedYear)
+        ? selectedYear
+        : years.includes(currentYear)
+          ? currentYear
+          : years[0] ?? currentYear;
+
+    const dateRange = { start: `${effectiveYear}-01-01`, end: `${effectiveYear}-12-31` };
+
+    if (viewMode === "incomeExpenses") {
+        const data = await getStatementsByCategory(walletId, dateRange.start, dateRange.end);
+        return {
+            years,
+            effectiveYear,
+            dateRange,
+            income: data.income,
+            expenses: data.expenses,
+            savingsInvestments: [],
+        };
+    }
+
+    const savingsInvestments = await getSavingsInvestmentStatements(
+        walletId,
+        dateRange.start,
+        dateRange.end
+    );
+    return {
+        years,
+        effectiveYear,
+        dateRange,
+        income: [],
+        expenses: [],
+        savingsInvestments,
     };
 }
 

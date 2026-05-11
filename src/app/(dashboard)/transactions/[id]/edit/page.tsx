@@ -29,7 +29,7 @@ import {
 } from "@/lib/recurrence";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
   intlLocaleFromAppLocale,
@@ -93,6 +93,7 @@ export default function EditTransactionPage() {
   const [incomeReceiverOptions, setIncomeReceiverOptions] = useState<{ user_id: string; display_name: string }[]>(
     []
   );
+  const skipNextSubcategoryFetch = useRef(false);
 
   useEffect(() => {
     getTransaction(id).then((m) => {
@@ -131,6 +132,10 @@ export default function EditTransactionPage() {
         setIncomeScopeWalletOnly(false);
         setIncomeReceiverMemberId(null);
       }
+      if ("subcategories" in m && Array.isArray(m.subcategories)) {
+        setSubcategories(m.subcategories);
+        skipNextSubcategoryFetch.current = true;
+      }
     });
   }, [id, localeTag]);
 
@@ -162,6 +167,10 @@ export default function EditTransactionPage() {
     if (!categoryId) {
       setSubcategories([]);
       setSubcategoryId("");
+      return;
+    }
+    if (skipNextSubcategoryFetch.current) {
+      skipNextSubcategoryFetch.current = false;
       return;
     }
     getSubcategories(categoryId).then(setSubcategories);

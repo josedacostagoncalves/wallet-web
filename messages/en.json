@@ -570,6 +570,16 @@
                 "description": "Description",
                 "categorySubcategory": "Category :: Subcategory",
                 "fromTo": "From → To",
+                "fromColumn": "From",
+                "toColumn": "To",
+                "filterFromAccountsTitle": "Filter by source account",
+                "filterToAccountsTitle": "Filter by destination account",
+                "clearAccountFilter": "Clear selection",
+                "accountFilterEmpty": "No accounts in this list",
+                "categoryColumn": "Category",
+                "subcategoryColumn": "Subcategory",
+                "filterCategoriesTitle": "Filter by category",
+                "filterSubcategoriesTitle": "Filter by subcategory",
                 "symbolsColumn": "Attachments and essential indicator",
                 "hasAttachment": "Has file attachment",
                 "essentialExpense": "Essential expense",
@@ -591,7 +601,10 @@
             "searchOr": "or",
             "clearSearchLink": "Clear search",
             "clearFiltersLink": "Clear filters",
-            "showMore30Days": "Show more (30 days)"
+            "showMore30Days": "Show more (30 days)",
+            "hubLoadOlder": "Load {count} older",
+            "hubLoadingOlder": "Loading…",
+            "hubLoadOlderError": "Could not load older transactions. Try again."
         },
         "recurring": {
             "title": "Recurring",

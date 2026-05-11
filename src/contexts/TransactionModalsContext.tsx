@@ -73,6 +73,7 @@ export function TransactionModalsProvider({ children }: Props) {
   }, []);
 
   const openNewIncome = useCallback(() => {
+    void import("@/components/IncomeFormModal");
     setState({
       ...initialState,
       which: "income",
@@ -81,6 +82,7 @@ export function TransactionModalsProvider({ children }: Props) {
   }, []);
 
   const openNewExpense = useCallback(() => {
+    void import("@/components/ExpenseFormModal");
     setState({
       ...initialState,
       which: "expense",
@@ -89,6 +91,7 @@ export function TransactionModalsProvider({ children }: Props) {
   }, []);
 
   const openNewTransfer = useCallback(() => {
+    void import("@/components/TransferFormModal");
     setState({
       ...initialState,
       which: "transfer",
@@ -98,35 +101,60 @@ export function TransactionModalsProvider({ children }: Props) {
 
   const openEditTransaction = useCallback(async (id: string) => {
     setState((s) => ({ ...s, opening: true }));
-    const m = await getTransaction(id);
-    setState((s) => ({ ...s, opening: false }));
-    if (!m) return;
-    const which = m.type as "income" | "expense" | "transfer";
-    setState({
-      ...initialState,
-      which,
-      mode: "edit",
-      transactionId: id,
-      prefetchedTransaction: m,
-    });
+    try {
+      const [m] = await Promise.all([
+        getTransaction(id),
+        import("@/components/IncomeFormModal"),
+        import("@/components/ExpenseFormModal"),
+        import("@/components/TransferFormModal"),
+      ]);
+      if (!m) {
+        setState({ ...initialState, opening: false });
+        return;
+      }
+      const which = m.type as "income" | "expense" | "transfer";
+      setState({
+        ...initialState,
+        which,
+        mode: "edit",
+        transactionId: id,
+        prefetchedTransaction: m,
+        opening: false,
+      });
+    } catch {
+      setState({ ...initialState, opening: false });
+    }
   }, []);
 
   const openCopyTransaction = useCallback(async (id: string) => {
     setState((s) => ({ ...s, opening: true }));
-    const m = await getTransaction(id);
-    setState((s) => ({ ...s, opening: false }));
-    if (!m) return;
-    const which = m.type as "income" | "expense" | "transfer";
-    setState({
-      ...initialState,
-      which,
-      mode: "copy",
-      copyFromTransactionId: id,
-      prefetchedTransaction: m,
-    });
+    try {
+      const [m] = await Promise.all([
+        getTransaction(id),
+        import("@/components/IncomeFormModal"),
+        import("@/components/ExpenseFormModal"),
+        import("@/components/TransferFormModal"),
+      ]);
+      if (!m) {
+        setState({ ...initialState, opening: false });
+        return;
+      }
+      const which = m.type as "income" | "expense" | "transfer";
+      setState({
+        ...initialState,
+        which,
+        mode: "copy",
+        copyFromTransactionId: id,
+        prefetchedTransaction: m,
+        opening: false,
+      });
+    } catch {
+      setState({ ...initialState, opening: false });
+    }
   }, []);
 
   const openEditRecurring = useCallback((id: string) => {
+    void import("@/components/RecurringEditModal");
     setState({
       ...initialState,
       which: "recurring-edit",
@@ -137,17 +165,29 @@ export function TransactionModalsProvider({ children }: Props) {
 
   const openCopyRecurring = useCallback(async (id: string) => {
     setState((s) => ({ ...s, opening: true }));
-    const r = await getRecurringRule(id);
-    setState((s) => ({ ...s, opening: false }));
-    if (!r) return;
-    const which = r.type as "income" | "expense" | "transfer";
-    setState({
-      ...initialState,
-      which,
-      mode: "copy",
-      copyFromRecurringId: id,
-      prefetchedRecurringRule: r,
-    });
+    try {
+      const [r] = await Promise.all([
+        getRecurringRule(id),
+        import("@/components/IncomeFormModal"),
+        import("@/components/ExpenseFormModal"),
+        import("@/components/TransferFormModal"),
+      ]);
+      if (!r) {
+        setState({ ...initialState, opening: false });
+        return;
+      }
+      const which = r.type as "income" | "expense" | "transfer";
+      setState({
+        ...initialState,
+        which,
+        mode: "copy",
+        copyFromRecurringId: id,
+        prefetchedRecurringRule: r,
+        opening: false,
+      });
+    } catch {
+      setState({ ...initialState, opening: false });
+    }
   }, []);
 
   const value = useMemo(
