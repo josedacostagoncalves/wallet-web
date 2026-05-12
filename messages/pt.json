@@ -519,11 +519,17 @@
             "onlySplitWallets": "Utilizadores disponíveis apenas para carteiras partilhadas com divisão.",
             "namePlaceholder": "ex.: João Silva",
             "adding": "A adicionar…",
-            "removing": "A remover…"
+            "removing": "A remover…",
+            "linkSelectPlaceholder": "Ligar a…",
+            "linkSelectAria": "Escolha o membro que recebe as transações deste marcador",
+            "linkButton": "Ligar",
+            "linkingLink": "A ligar…",
+            "linkMergeTitle": "Move transações e linhas de divisão deste membro (só nome) para o que escolher e remove esta linha. Funciona mesmo com nomes diferentes."
         },
         "toasts": {
             "added": "Utilizador adicionado.",
-            "removed": "Utilizador removido."
+            "removed": "Utilizador removido.",
+            "linked": "Membros ligados."
         }
     },
     "transactions": {

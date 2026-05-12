@@ -15,7 +15,7 @@ import { useWallet } from "@/contexts/WalletContext";
 import { useToast } from "@/contexts/ToastContext";
 import { shouldShowUsers } from "@/lib/wallet-modes";
 import { createClient } from "@/lib/supabase/client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { DashboardPageHeader } from "@/components/DashboardPageHeader";
 
@@ -181,8 +181,24 @@ export default function UsersPage() {
       return;
     }
     await loadUsers();
-    showToast("User linked");
+    showToast(t("toasts.linked"));
   }
+
+  /** Name-only (placeholder) members: may link into any other non-owner so names need not match. */
+  const mergeCandidatesForRow = useCallback(
+    (row: UserRow) => {
+      if (row.has_profile) return [];
+      const rowName = normalizeDisplayName(row.display_name);
+      const candidates = rows.filter((c) => c.role !== "owner" && c.user_id !== row.user_id);
+      return [...candidates].sort((a, b) => {
+        const aSame = normalizeDisplayName(a.display_name) === rowName ? 0 : 1;
+        const bSame = normalizeDisplayName(b.display_name) === rowName ? 0 : 1;
+        if (aSame !== bSame) return aSame - bSame;
+        return a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" });
+      });
+    },
+    [rows]
+  );
 
   if (loading) {
     return (
@@ -192,22 +208,6 @@ export default function UsersPage() {
       </div>
     );
   }
-  /**
-   * Merge/link targets for a wallet member row (same display name, not owner).
-   * Includes placeholder members without a profile so the owner can merge
-   * duplicate name-only rows; excludes two fully linked profiles (same name
-   * collision between two real accounts — not supported here).
-   */
-  const mergeCandidatesForRow = (row: UserRow) => {
-    const rowName = normalizeDisplayName(row.display_name);
-    return rows.filter((c) => {
-      if (c.role === "owner" || c.user_id === row.user_id) return false;
-      if (normalizeDisplayName(c.display_name) !== rowName) return false;
-      if (row.has_profile && c.has_profile) return false;
-      return true;
-    });
-  };
-
   return (
     <div className="space-y-6">
       <DashboardPageHeader title={t("title")} description={t("subtitle")} />
@@ -286,9 +286,11 @@ export default function UsersPage() {
                                 <select
                                   value={linkTargets[r.user_id] ?? ""}
                                   onChange={(e) => setLinkTargets((prev) => ({ ...prev, [r.user_id]: e.target.value }))}
-                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800"
+                                  className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 max-w-[11rem]"
+                                  title={t("page.linkMergeTitle")}
+                                  aria-label={t("page.linkSelectAria")}
                                 >
-                                  <option value="">Link to...</option>
+                                  <option value="">{t("page.linkSelectPlaceholder")}</option>
                                   {mergeCandidatesForRow(r).map((c) => (
                                       <option key={c.user_id} value={c.user_id}>
                                         {c.display_name}
@@ -301,7 +303,7 @@ export default function UsersPage() {
                                   disabled={!linkTargets[r.user_id] || linkingId === r.user_id}
                                   className="px-2 py-1 text-xs border border-blue-300 text-blue-700 dark:border-blue-500 dark:text-blue-300 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-50"
                                 >
-                                  {linkingId === r.user_id ? "Linking..." : "Link"}
+                                  {linkingId === r.user_id ? t("page.linkingLink") : t("page.linkButton")}
                                 </button>
                               </>
                             ) : null}

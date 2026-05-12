@@ -519,11 +519,17 @@
             "onlySplitWallets": "Usuarios disponibles solo para carteras compartidas con división.",
             "namePlaceholder": "ej.: Juan Pérez",
             "adding": "Añadiendo…",
-            "removing": "Quitando…"
+            "removing": "Quitando…",
+            "linkSelectPlaceholder": "Vincular con…",
+            "linkSelectAria": "Elige el miembro que recibirá las transacciones de este marcador",
+            "linkButton": "Vincular",
+            "linkingLink": "Vinculando…",
+            "linkMergeTitle": "Mueve transacciones y repartos de este miembro (solo nombre) al que elijas y elimina esta fila. Funciona aunque los nombres no coincidan."
         },
         "toasts": {
             "added": "Usuario añadido.",
-            "removed": "Usuario eliminado."
+            "removed": "Usuario eliminado.",
+            "linked": "Miembros vinculados."
         }
     },
     "transactions": {

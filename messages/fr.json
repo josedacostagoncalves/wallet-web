@@ -519,11 +519,17 @@
             "onlySplitWallets": "Utilisateurs disponibles uniquement pour les portefeuilles partagés avec répartition.",
             "namePlaceholder": "ex.: Jean Dupont",
             "adding": "Ajout…",
-            "removing": "Retrait…"
+            "removing": "Retrait…",
+            "linkSelectPlaceholder": "Associer à…",
+            "linkSelectAria": "Choisir le membre qui recevra les transactions de ce marqueur",
+            "linkButton": "Associer",
+            "linkingLink": "Association…",
+            "linkMergeTitle": "Déplace les transactions et parts de ce membre (nom seulement) vers celui choisi puis supprime cette ligne. Fonctionne même si les noms diffèrent."
         },
         "toasts": {
             "added": "Utilisateur ajouté.",
-            "removed": "Utilisateur supprimé."
+            "removed": "Utilisateur supprimé.",
+            "linked": "Membres associés."
         }
     },
     "transactions": {

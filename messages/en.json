@@ -519,11 +519,17 @@
             "onlySplitWallets": "Users are available only for shared split wallets.",
             "namePlaceholder": "e.g. John Doe",
             "adding": "Adding…",
-            "removing": "Removing…"
+            "removing": "Removing…",
+            "linkSelectPlaceholder": "Link to…",
+            "linkSelectAria": "Choose member to receive this placeholder's transactions",
+            "linkButton": "Link",
+            "linkingLink": "Linking…",
+            "linkMergeTitle": "Moves transactions and split lines from this name-only member to the one you pick, then removes this row. Works even if the display names differ."
         },
         "toasts": {
             "added": "User added.",
-            "removed": "User removed."
+            "removed": "User removed.",
+            "linked": "Members linked."
         }
     },
     "transactions": {
