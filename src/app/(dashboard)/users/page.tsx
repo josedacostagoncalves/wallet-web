@@ -192,13 +192,20 @@ export default function UsersPage() {
       </div>
     );
   }
-  const joinedCandidates = rows.filter((r) => r.role !== "owner" && r.has_profile);
-  const candidatesForRow = (row: UserRow) => {
+  /**
+   * Merge/link targets for a wallet member row (same display name, not owner).
+   * Includes placeholder members without a profile so the owner can merge
+   * duplicate name-only rows; excludes two fully linked profiles (same name
+   * collision between two real accounts — not supported here).
+   */
+  const mergeCandidatesForRow = (row: UserRow) => {
     const rowName = normalizeDisplayName(row.display_name);
-    return joinedCandidates.filter((c) =>
-      c.user_id !== row.user_id &&
-      normalizeDisplayName(c.display_name) === rowName
-    );
+    return rows.filter((c) => {
+      if (c.role === "owner" || c.user_id === row.user_id) return false;
+      if (normalizeDisplayName(c.display_name) !== rowName) return false;
+      if (row.has_profile && c.has_profile) return false;
+      return true;
+    });
   };
 
   return (
@@ -274,7 +281,7 @@ export default function UsersPage() {
                       <td className="p-3">
                         {canManageUsers && r.role !== "owner" ? (
                           <div className="flex items-center gap-2">
-                            {!r.has_profile && candidatesForRow(r).length > 0 ? (
+                            {!r.has_profile && mergeCandidatesForRow(r).length > 0 ? (
                               <>
                                 <select
                                   value={linkTargets[r.user_id] ?? ""}
@@ -282,7 +289,7 @@ export default function UsersPage() {
                                   className="text-xs px-2 py-1 border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800"
                                 >
                                   <option value="">Link to...</option>
-                                  {candidatesForRow(r).map((c) => (
+                                  {mergeCandidatesForRow(r).map((c) => (
                                       <option key={c.user_id} value={c.user_id}>
                                         {c.display_name}
                                       </option>
