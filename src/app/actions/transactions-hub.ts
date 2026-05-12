@@ -3,7 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { getActiveWalletContext } from "@/lib/active-wallet-server";
-import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
+import {
+  getIncomeReceiverMemberIdsForOrFilter,
+  transactionsForWalletOrReceiverUserIncomes,
+} from "@/lib/income-scope";
 import type { ConfirmedRow } from "@/components/AllTransactionsSection";
 import {
   hubTxDisplayToConfirmedRow,
@@ -38,6 +41,11 @@ export async function loadMoreHubConfirmedTransactions(offset: number): Promise<
     data: { user },
   } = await supabase.auth.getUser();
 
+  const incomeReceiverIds =
+    user?.id != null
+      ? await getIncomeReceiverMemberIdsForOrFilter(supabase, currentWalletId, user.id)
+      : [];
+
   const pageSize = TRANSACTIONS_HUB_CONFIRMED_PAGE_SIZE;
   const fetchEnd = offset + pageSize; // exclusive upper bound for slice logic: fetch pageSize+1 via range inclusive
 
@@ -48,8 +56,8 @@ export async function loadMoreHubConfirmedTransactions(offset: number): Promise<
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .range(offset, fetchEnd);
-  if (user?.id) {
-    confirmedQuery.or(transactionsForWalletOrUserIncomes(currentWalletId, user.id));
+  if (user?.id && incomeReceiverIds.length > 0) {
+    confirmedQuery.or(transactionsForWalletOrReceiverUserIncomes(currentWalletId, incomeReceiverIds));
   } else {
     confirmedQuery.eq("wallet_id", currentWalletId);
   }

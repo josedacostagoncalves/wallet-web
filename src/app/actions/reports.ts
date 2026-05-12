@@ -4,7 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getWalletCookie } from "@/app/actions/wallet-cookie";
 import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { getWalletSplitInfo } from "@/app/actions/wallets";
-import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
+import {
+    getIncomeReceiverMemberIdsForOrFilter,
+    transactionsForWalletOrReceiverUserIncomes,
+} from "@/lib/income-scope";
 import { expenseIsEffectivelyEssential } from "@/lib/expense-essential";
 import { getActiveWalletContext } from "@/lib/active-wallet-server";
 import { unstable_noStore as noStore } from "next/cache";
@@ -92,6 +95,11 @@ export async function getReportsData() {
             data: { user },
         } = await supabase.auth.getUser();
 
+        const incomeReceiverIds =
+            user?.id != null
+                ? await getIncomeReceiverMemberIdsForOrFilter(supabase, currentWalletId, user.id)
+                : [];
+
         type CategoryRow = { id: string; name: string; parent_id: string | null; is_essential?: boolean | null };
         type TxRow = {
             id: string;
@@ -120,8 +128,8 @@ export async function getReportsData() {
             .order("date", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(2000);
-        if (user?.id) {
-            txQuery.or(transactionsForWalletOrUserIncomes(currentWalletId, user.id));
+        if (user?.id && incomeReceiverIds.length > 0) {
+            txQuery.or(transactionsForWalletOrReceiverUserIncomes(currentWalletId, incomeReceiverIds));
         } else {
             txQuery.eq("wallet_id", currentWalletId);
         }

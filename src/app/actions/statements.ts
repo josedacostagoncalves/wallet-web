@@ -3,33 +3,10 @@
 /** Yearly statements by category and savings/investment aggregates. */
 
 import { createClient } from "@/lib/supabase/server";
-import { transactionsForWalletOrReceiverUserIncomes } from "@/lib/income-scope";
-
-type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
-
-/** Shared wallet: include user-scoped incomes for every member. Personal wallet: only the current user. */
-async function getIncomeReceiverUserIdsForStatements(
-    supabase: SupabaseServer,
-    walletId: string,
-    currentUserId: string
-): Promise<string[]> {
-    const [{ data: wallet }, { data: members }] = await Promise.all([
-        supabase.from("wallets").select("is_shared").eq("id", walletId).single(),
-        supabase.from("wallet_members").select("user_id").eq("wallet_id", walletId),
-    ]);
-    const memberIds = Array.from(
-        new Set(
-            (members ?? [])
-                .map((m: { user_id: string }) => m.user_id)
-                .filter((id: string | null | undefined): id is string => !!id && String(id).trim().length > 0)
-        )
-    );
-    const isShared = !!wallet?.is_shared || memberIds.length > 1;
-    if (isShared && memberIds.length > 0) {
-        return memberIds;
-    }
-    return [currentUserId];
-}
+import {
+    getIncomeReceiverMemberIdsForOrFilter,
+    transactionsForWalletOrReceiverUserIncomes,
+} from "@/lib/income-scope";
 
 type StatementRow = {
     category: string;
@@ -233,7 +210,7 @@ export async function getStatementsByCategory(
         .eq("wallet_id", walletId);
     const receiverIdsPromise =
         user?.id != null
-            ? getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id)
+            ? getIncomeReceiverMemberIdsForOrFilter(supabase, walletId, user.id)
             : Promise.resolve(null as string[] | null);
 
     const [{ data: walletCategories }, receiverIds] = await Promise.all([catsPromise, receiverIdsPromise]);
@@ -467,7 +444,7 @@ export async function getAvailableYears(
             .order("date", { ascending: false })
             .limit(1);
         if (user?.id) {
-            const receiverIds = await getIncomeReceiverUserIdsForStatements(supabase, walletId, user.id);
+            const receiverIds = await getIncomeReceiverMemberIdsForOrFilter(supabase, walletId, user.id);
             txMinQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
             txMaxQuery.or(transactionsForWalletOrReceiverUserIncomes(walletId, receiverIds));
         } else {

@@ -6,7 +6,10 @@ import { ensureRecurringGenerated } from "@/app/actions/transactions";
 import { PendingSection, type PendingRow } from "@/components/PendingSection";
 import { RecurringSection, type RecurringRow } from "@/components/RecurringSection";
 import { TransactionsTabs } from "@/components/TransactionsTabs";
-import { transactionsForWalletOrUserIncomes } from "@/lib/income-scope";
+import {
+  getIncomeReceiverMemberIdsForOrFilter,
+  transactionsForWalletOrReceiverUserIncomes,
+} from "@/lib/income-scope";
 import {
   mapHubTransactionRowsToDisplay,
   TRANSACTIONS_HUB_CONFIRMED_PAGE_SIZE,
@@ -37,6 +40,11 @@ export default async function TransactionsPage() {
             data: { user },
         } = await supabase.auth.getUser();
 
+        const incomeReceiverIds =
+            user?.id != null
+                ? await getIncomeReceiverMemberIdsForOrFilter(supabase, currentWalletId, user.id)
+                : [];
+
         const pendingTxQuery = supabase
             .from("transactions")
             .select(
@@ -47,8 +55,8 @@ export default async function TransactionsPage() {
             .eq("status", "pending")
             .order("date", { ascending: false })
             .order("created_at", { ascending: false });
-        if (user?.id) {
-            pendingTxQuery.or(transactionsForWalletOrUserIncomes(currentWalletId, user.id));
+        if (user?.id && incomeReceiverIds.length > 0) {
+            pendingTxQuery.or(transactionsForWalletOrReceiverUserIncomes(currentWalletId, incomeReceiverIds));
         } else {
             pendingTxQuery.eq("wallet_id", currentWalletId);
         }
@@ -64,8 +72,8 @@ export default async function TransactionsPage() {
             .order("date", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(TRANSACTIONS_HUB_CONFIRMED_PAGE_SIZE + 1);
-        if (user?.id) {
-            confirmedTxQuery.or(transactionsForWalletOrUserIncomes(currentWalletId, user.id));
+        if (user?.id && incomeReceiverIds.length > 0) {
+            confirmedTxQuery.or(transactionsForWalletOrReceiverUserIncomes(currentWalletId, incomeReceiverIds));
         } else {
             confirmedTxQuery.eq("wallet_id", currentWalletId);
         }
